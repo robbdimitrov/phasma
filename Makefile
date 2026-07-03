@@ -6,6 +6,18 @@ GIT_SHA ?= $(shell git rev-parse --short HEAD)
 .PHONY: all
 all: backend database frontend
 
+.PHONY: help
+help:
+	@printf 'Phasma support targets:\n'
+	@printf '  make              Build and push all images\n'
+	@printf '  make backend      Build and push the backend image\n'
+	@printf '  make database     Build and push the database image\n'
+	@printf '  make frontend     Build and push the frontend image\n'
+	@printf '  make format       Format backend Go code\n'
+	@printf '  make lint         Run backend and frontend lint checks\n'
+	@printf '  make test         Run backend and frontend unit tests\n'
+	@printf '  make test-integration  Run PostgreSQL integration tests\n'
+
 .PHONY: backend
 backend:
 	docker build -t $(IMAGE_PREFIX)/backend:$(GIT_SHA) apps/backend

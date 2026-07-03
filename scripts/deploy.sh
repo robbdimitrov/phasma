@@ -9,6 +9,7 @@ NS="${NS:-phasma}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S_DIR="$ROOT/deploy"
 REGISTRY="${REGISTRY:-localhost:5000/phasma}"
+GIT_SHA="${GIT_SHA:-$(git -C "${ROOT}" rev-parse --short HEAD)}"
 APP_HOST="${APP_HOST:-phasma.localhost}"
 LOCAL_PORT="${LOCAL_PORT:-8080}"
 REMOTE_PORT="${REMOTE_PORT:-8080}"
@@ -265,7 +266,6 @@ handle_existing_port_forward() {
 build_images() {
   log "building images"
   export DOCKER_BUILDKIT=1
-  GIT_SHA="$(git -C "${ROOT}" rev-parse --short HEAD)"
   export GIT_SHA
   make -C "${ROOT}" GIT_SHA="${GIT_SHA}"
   if docker container inspect --format '{{.State.Running}}' phasma-control-plane 2>/dev/null | grep -qx true; then
