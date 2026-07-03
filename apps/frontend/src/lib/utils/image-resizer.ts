@@ -5,7 +5,6 @@ const SCALE_STEP = 0.85;
 const OUTPUT_TYPE = 'image/jpeg';
 
 export const supportedUploadMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-export const maxUploadSizeBytes = 1024 * 1024;
 const RESIZED_TARGET_BYTES = 900 * 1024;
 
 function loadImage(file: File): Promise<HTMLImageElement> {
