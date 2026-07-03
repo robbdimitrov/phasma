@@ -12,11 +12,14 @@ import (
 	"phasma/backend/internal/store/database"
 )
 
+// $1 is the viewer id, empty for anonymous callers; NULLIF avoids casting the
+// empty string to bigint, which would error instead of yielding a false
+// "liked" match.
 const postColumns = `posts.id, posts.public_id, posts.user_id, u.username, u.name, u.avatar,
 	posts.filename, posts.description,
 	posts.like_count AS likes,
 	EXISTS (SELECT 1 FROM likes
-	WHERE post_id = posts.id AND likes.user_id = $1) AS liked,
+	WHERE post_id = posts.id AND likes.user_id = NULLIF($1, '')::bigint) AS liked,
 	posts.comment_count AS comments,
 	posts.created`
 

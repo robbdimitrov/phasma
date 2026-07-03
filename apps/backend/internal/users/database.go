@@ -15,12 +15,15 @@ import (
 	"phasma/backend/internal/store/database"
 )
 
+// $1 is the viewer id, empty for anonymous callers; NULLIF avoids casting the
+// empty string to bigint, which would error instead of yielding a false
+// "is_following" match.
 const userColumns = `u.id, u.name, u.username, u.email, u.avatar, u.bio,
 	u.post_count AS posts,
 	(SELECT count(*) FROM likes WHERE user_id = u.id) AS likes,
 	u.follower_count AS followers,
 	(SELECT count(*) FROM follows WHERE follower_id = u.id) AS following,
-	EXISTS (SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = u.id) AS is_following,
+	EXISTS (SELECT 1 FROM follows WHERE follower_id = NULLIF($1, '')::bigint AND followee_id = u.id) AS is_following,
 	u.created,
 	u.public_id::text`
 
@@ -484,11 +487,17 @@ func (r *UserRepository) ChangePassword(ctx context.Context, userID, passwordHas
 func (r *UserRepository) ListSuggestedUsers(ctx context.Context, viewerID string, limit int) ([]User, error) {
 	var result []User
 	err := r.db.Read(ctx, func() error {
+		// $1 must use the same NULLIF(...)::bigint form as userColumns: Postgres
+		// infers a single type per placeholder across the whole statement, so a
+		// bare bigint comparison here would conflict with userColumns' cast.
+		// IS DISTINCT FROM (not !=) because u.id != NULL is NULL, not true --
+		// that would filter out every row for an anonymous (empty) viewer id
+		// instead of simply not excluding a "self" row.
 		rows, err := r.db.Pool().Query(ctx, `SELECT `+userColumns+`
             FROM users u
-            WHERE u.id != $1
+            WHERE u.id IS DISTINCT FROM NULLIF($1, '')::bigint
               AND NOT EXISTS (
-                SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = u.id
+                SELECT 1 FROM follows WHERE follower_id = NULLIF($1, '')::bigint AND followee_id = u.id
               )
             ORDER BY u.follower_count DESC
             LIMIT $2`, viewerID, limit)
