@@ -39,13 +39,32 @@ Defaults are overridable via env vars `RATE_LIMIT_{POLICY}_{BURST,RATE}`.
 
 ### Public (no auth required)
 
-| Method | Path      | Purpose                                                             |
-| ------ | --------- | ------------------------------------------------------------------- |
-| GET    | /health   | Liveness check — 204 No Content                                     |
-| GET    | /ready    | Readiness check — pings PostgreSQL (2 s timeout)                    |
-| POST   | /users    | Create account — returns `{"username": "..."}` on 201               |
-| POST   | /sessions | Login — sets `session` cookie, returns `{"username": "..."}` on 201 |
-| GET    | /uploads/ | Serve uploaded file blob                                            |
+| Method | Path                         | Purpose                                                             |
+| ------ | ---------------------------- | --------------------------------------------------------------------- |
+| GET    | /health                      | Liveness check — 204 No Content                                     |
+| GET    | /ready                       | Readiness check — pings PostgreSQL (2 s timeout)                    |
+| POST   | /users                       | Create account — returns `{"username": "..."}` on 201               |
+| POST   | /sessions                    | Login — sets `session` cookie, returns `{"username": "..."}` on 201 |
+| GET    | /uploads/                    | Serve uploaded file blob                                            |
+| GET    | /users/{username}            | Get user by username                                                |
+| GET    | /users/{username}/followers  | List followers (cursor-paginated)                                   |
+| GET    | /users/{username}/following  | List following (cursor-paginated)                                   |
+| GET    | /posts/popular                | Get up to 20 popular posts from the last 7 days                    |
+| GET    | /posts/{publicId}            | Get single post                                                     |
+| GET    | /users/{username}/posts      | List user's posts (cursor-paginated)                                |
+| GET    | /users/{username}/likes      | List user's liked posts (cursor-paginated)                          |
+| GET    | /posts/{publicId}/comments   | List comments on a post (cursor-paginated)                          |
+
+`GET /posts/popular` returns posts from the last 7 days ordered by like count
+descending, up to 20 results. Response:
+
+```json
+{"items": [<post>]}
+```
+
+These routes read an optional viewer id from the session cookie when present
+(for `liked`/ownership flags) but do not require one — an anonymous request
+succeeds and degrades gracefully.
 
 ### Protected (session cookie required)
 
@@ -90,19 +109,18 @@ failure. Use `DELETE /sessions` to terminate the current session.
 | Method | Path                        | Purpose                           |
 | ------ | --------------------------- | --------------------------------- |
 | GET    | /users/me                   | Get current authenticated user    |
-| GET    | /users/{username}           | Get user by username              |
 | PUT    | /users/me                   | Update profile or change password |
-| GET    | /users/{username}/followers | List followers (cursor-paginated) |
-| GET    | /users/{username}/following | List following (cursor-paginated) |
 | POST   | /users/{username}/follow    | Follow a user                     |
 | DELETE | /users/{username}/follow    | Unfollow a user                   |
 
+`GET /users/{username}`, `GET /users/{username}/followers`, and
+`GET /users/{username}/following` are public — see the Public section above.
+
 #### Discovery
 
-| Method | Path             | Purpose                                         |
-| ------ | ---------------- | ----------------------------------------------- |
-| GET    | /users/suggested | Get up to 10 suggested users to follow          |
-| GET    | /posts/popular   | Get up to 20 popular posts from the last 7 days |
+| Method | Path             | Purpose                                |
+| ------ | ---------------- | ---------------------------------------- |
+| GET    | /users/suggested | Get up to 10 suggested users to follow |
 
 `GET /users/suggested` returns users ordered by `follower_count` descending,
 excluding users the authenticated user already follows and the authenticated
@@ -112,12 +130,7 @@ user themselves. Response:
 {"items": [<user>]}
 ```
 
-`GET /posts/popular` returns posts from the last 7 days ordered by like count
-descending, up to 20 results. Response:
-
-```json
-{"items": [<post>]}
-```
+`GET /posts/popular` is public — see the Public section above.
 
 #### Feed
 
@@ -131,23 +144,24 @@ Returns an empty items array (not an error) when the feed is empty.
 
 #### Posts
 
-| Method | Path                    | Purpose                                    |
-| ------ | ----------------------- | ------------------------------------------ |
-| POST   | /posts                  | Create post from an upload                 |
-| GET    | /posts/{publicId}       | Get single post                            |
-| DELETE | /posts/{publicId}       | Delete own post                            |
-| POST   | /posts/{publicId}/likes | Like a post                                |
-| DELETE | /posts/{publicId}/likes | Unlike a post                              |
-| GET    | /users/{username}/posts | List user's posts (cursor-paginated)       |
-| GET    | /users/{username}/likes | List user's liked posts (cursor-paginated) |
+| Method | Path                    | Purpose                     |
+| ------ | ----------------------- | ------------------------------ |
+| POST   | /posts                  | Create post from an upload  |
+| DELETE | /posts/{publicId}       | Delete own post              |
+| POST   | /posts/{publicId}/likes | Like a post                  |
+| DELETE | /posts/{publicId}/likes | Unlike a post                |
+
+`GET /posts/{publicId}`, `GET /users/{username}/posts`, and
+`GET /users/{username}/likes` are public — see the Public section above.
 
 #### Comments
 
-| Method | Path                                   | Purpose                                    |
-| ------ | -------------------------------------- | ------------------------------------------ |
-| GET    | /posts/{publicId}/comments             | List comments on a post (cursor-paginated) |
-| POST   | /posts/{publicId}/comments             | Create a comment                           |
-| DELETE | /posts/{publicId}/comments/{commentId} | Delete own comment                         |
+| Method | Path                                   | Purpose             |
+| ------ | -------------------------------------- | ---------------------- |
+| POST   | /posts/{publicId}/comments             | Create a comment     |
+| DELETE | /posts/{publicId}/comments/{commentId} | Delete own comment   |
+
+`GET /posts/{publicId}/comments` is public — see the Public section above.
 
 #### Uploads
 

@@ -58,10 +58,19 @@
 
 ## What Is Protected
 
-- All routes except `POST /sessions`, `POST /users`, `GET /health`,
-  `GET /ready`, and `OPTIONS` require a valid session cookie.
-- Adding a new public route requires explicit registration before the
-  `RequireSession` middleware wrapper.
+- Routes are registered on one of two `http.ServeMux` instances in
+  `internal/app/routes.go`: `public` or `protected`. `httpx.RequireSession`
+  wraps only `protected` and rejects requests without a valid session cookie.
+- Public read routes that personalize for a signed-in viewer (e.g.
+  `GET /posts/{publicId}`, `GET /users/{username}`) are wrapped with
+  `httpx.OptionalSession` instead: it populates the viewer id in context when
+  a valid session is present but never rejects the request, so anonymous and
+  authenticated visitors reach the same handler while `liked`, `isFollowing`,
+  and email visibility differ correctly by viewer identity. All
+  state-changing routes (create/update/delete, likes, comments, follows)
+  remain on `protected`.
+- Adding a new public route requires explicit registration on `public` and
+  justification for bypassing `RequireSession`.
 
 ## Rate Limiting
 

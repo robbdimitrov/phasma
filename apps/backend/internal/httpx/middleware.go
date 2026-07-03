@@ -184,6 +184,33 @@ func RequireSession(store SessionStore) func(http.Handler) http.Handler {
 	}
 }
 
+// OptionalSession populates the viewer id in context when a valid session
+// cookie is present, but never rejects the request when one is absent,
+// malformed, or fails to refresh -- it degrades to an anonymous request
+// instead. It wraps the public mux so routes shared between anonymous and
+// signed-in visitors (e.g. GET /posts/{publicId}) can personalize for a
+// signed-in viewer without requiring a session, unlike RequireSession.
+func OptionalSession(store SessionStore) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sessionID, ok := GetSessionCookie(r)
+			if !ok || !auth.ValidSessionID(sessionID) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			session, err := store.RefreshSession(r.Context(), sessionID)
+			if err != nil || session.UserID == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			SetSessionCookie(w, r, sessionID)
+			next.ServeHTTP(w, WithUserID(r, session.UserID))
+		})
+	}
+}
+
 func expectedOrigin(r *http.Request) string {
 	scheme := "http"
 	if r.TLS != nil {

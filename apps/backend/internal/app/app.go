@@ -69,6 +69,8 @@ func New(cfg Config, repositories Repositories) http.Handler {
 			posts: postHandler, comments: commentHandler, search: searchHandler,
 			feed: feedHandler, notifications: notificationHandler, readiness: cfg.Readiness,
 		},
+		httpx.RequireSession(repositories.SessionAuth),
+		httpx.OptionalSession(repositories.SessionAuth),
 	)
 	protected.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteMessage(w, http.StatusNotFound, "Not Found")

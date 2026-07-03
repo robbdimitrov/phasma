@@ -54,10 +54,13 @@ Missing or unreachable PostgreSQL fails startup.
 ## Authentication and Authorization
 
 - Authentication uses the `session` cookie, not JWT.
-- `httpx.RequireSession` wraps the mux. Only the explicit public allowlist
-  (`POST /sessions`, `POST /users`, `GET /health`, and `OPTIONS`) bypasses it.
-  New public routes require justification and must be registered before the auth
-  layer.
+- Routes are registered on one of two `http.ServeMux` instances in
+  `internal/app/routes.go`: `public` or `protected`. `httpx.RequireSession`
+  wraps only `protected`. New public routes require justification. Because Go's
+  `ServeMux` resolves precedence per-mux, a public wildcard segment (e.g.
+  `GET /users/{username}`) can shadow a protected literal path with the same
+  prefix; such literals must be registered directly on `public`, individually
+  wrapped with `httpx.RequireSession`, instead of relying on `protected`.
 - Never trust a client-supplied ID for authorization. Enforce ownership in the
   protected query or transaction where practical.
 - Session IDs are generated with `crypto/rand`, validated, server-issued,
@@ -78,6 +81,13 @@ Missing or unreachable PostgreSQL fails startup.
   demonstrably idempotent.
 - The database-backed token bucket is the shared rate limiter. Add a
   `rateLimitPolicy` entry for new abuse-prone endpoints.
+- An optional viewer id (present for a signed-in visitor, `""` for anonymous)
+  compared against a `bigint` id column must be wrapped as
+  `NULLIF($n, '')::bigint`, not compared bare — Postgres cannot cast `''` to
+  `bigint`, and `id != NULLIF($n, '')::bigint` degrades correctly to `NULL`
+  (excluding nothing) rather than `!=` against an empty string, which never
+  matches. Every use of the shared parameter within the same query must use
+  this same form, or Postgres infers conflicting types for the placeholder.
 
 ## Runtime and Operations
 

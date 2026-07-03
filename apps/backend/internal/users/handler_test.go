@@ -489,9 +489,9 @@ func TestRegisterRoutes(t *testing.T) {
 	}
 
 	res = httptest.NewRecorder()
-	req = httpx.WithUserID(httptest.NewRequest(http.MethodGet, "/users/me", nil), "1")
+	req = httpx.WithUserID(httptest.NewRequest(http.MethodPut, "/users/me", strings.NewReader(`{}`)), "1")
 	protected.ServeHTTP(res, req)
-	if res.Code != http.StatusNotFound {
-		t.Fatalf("protected route status = %d", res.Code)
+	if res.Code == http.StatusNotFound {
+		t.Fatalf("protected route status = %d, want route to be registered", res.Code)
 	}
 }

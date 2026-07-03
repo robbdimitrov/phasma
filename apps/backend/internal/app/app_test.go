@@ -17,14 +17,20 @@ func TestRouteContract(t *testing.T) {
 		{Method: "GET", Path: "/health"},
 		{Method: "GET", Path: "/ready"},
 		{Method: "POST", Path: "/users"},
+		{Method: "GET", Path: "/users/{username}/followers"},
+		{Method: "GET", Path: "/users/{username}/following"},
+		{Method: "GET", Path: "/users/{username}"},
+		{Method: "GET", Path: "/users/me", Authenticated: true},
+		{Method: "GET", Path: "/users/suggested", Authenticated: true},
+		{Method: "GET", Path: "/users/search", Authenticated: true},
 		{Method: "POST", Path: "/sessions"},
 		{Method: "DELETE", Path: "/sessions"},
 		{Method: "GET", Path: "/uploads/"},
-		{Method: "GET", Path: "/users/me", Authenticated: true},
-		{Method: "GET", Path: "/users/suggested", Authenticated: true},
-		{Method: "GET", Path: "/users/{username}/followers", Authenticated: true},
-		{Method: "GET", Path: "/users/{username}/following", Authenticated: true},
-		{Method: "GET", Path: "/users/{username}", Authenticated: true},
+		{Method: "GET", Path: "/posts/popular"},
+		{Method: "GET", Path: "/users/{username}/posts"},
+		{Method: "GET", Path: "/users/{username}/likes"},
+		{Method: "GET", Path: "/posts/{publicId}"},
+		{Method: "GET", Path: "/posts/{publicId}/comments"},
 		{Method: "PUT", Path: "/users/me", Authenticated: true},
 		{Method: "POST", Path: "/users/{username}/follow", Authenticated: true},
 		{Method: "DELETE", Path: "/users/{username}/follow", Authenticated: true},
@@ -32,17 +38,11 @@ func TestRouteContract(t *testing.T) {
 		{Method: "DELETE", Path: "/sessions/{sessionId}", Authenticated: true},
 		{Method: "POST", Path: "/uploads", Authenticated: true},
 		{Method: "POST", Path: "/posts", Authenticated: true},
-		{Method: "GET", Path: "/posts/popular", Authenticated: true},
-		{Method: "GET", Path: "/users/{username}/posts", Authenticated: true},
-		{Method: "GET", Path: "/users/{username}/likes", Authenticated: true},
-		{Method: "GET", Path: "/posts/{publicId}", Authenticated: true},
 		{Method: "DELETE", Path: "/posts/{publicId}", Authenticated: true},
 		{Method: "POST", Path: "/posts/{publicId}/likes", Authenticated: true},
 		{Method: "DELETE", Path: "/posts/{publicId}/likes", Authenticated: true},
-		{Method: "GET", Path: "/posts/{publicId}/comments", Authenticated: true},
 		{Method: "POST", Path: "/posts/{publicId}/comments", Authenticated: true},
 		{Method: "DELETE", Path: "/posts/{publicId}/comments/{commentId}", Authenticated: true},
-		{Method: "GET", Path: "/users/search", Authenticated: true},
 		{Method: "GET", Path: "/hashtags/search", Authenticated: true},
 		{Method: "GET", Path: "/search", Authenticated: true},
 		{Method: "GET", Path: "/feed", Authenticated: true},
@@ -71,6 +71,76 @@ type fakeSessionStore struct {
 func (store *fakeSessionStore) RefreshSession(_ context.Context, _ string) (httpx.Session, error) {
 	store.refreshCalls++
 	return store.refreshSession, store.refreshErr
+}
+
+func TestHealthEndpointNeverTouchesSessionStore(t *testing.T) {
+	store := &fakeSessionStore{refreshSession: httpx.Session{ID: "hashed-session-id", UserID: "1"}}
+	app := New(Config{}, Repositories{SessionAuth: store})
+
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: "AAAAAAAAAAAAAAAAAAAAAAAAAAAA"})
+	app.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+	if store.refreshCalls != 0 {
+		t.Fatalf("refresh calls = %d, want 0 -- health checks must stay exempt from authentication even with a cookie present", store.refreshCalls)
+	}
+}
+
+func TestPersonalizedPublicRouteResolvesOptionalSessionButHealthDoesNot(t *testing.T) {
+	var optionalCalls int
+	spyOptional := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			optionalCalls++
+			w.WriteHeader(http.StatusNoContent)
+		})
+	}
+
+	public := http.NewServeMux()
+	protected := http.NewServeMux()
+	registerRoutes(
+		routeMux{mux: public},
+		routeMux{mux: protected, authenticated: true},
+		handlers{},
+		nil,
+		spyOptional,
+	)
+
+	res := httptest.NewRecorder()
+	public.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if optionalCalls != 0 {
+		t.Fatalf("GET /health optionalCalls = %d, want 0 -- health checks must stay exempt from session lookups", optionalCalls)
+	}
+
+	res = httptest.NewRecorder()
+	public.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/posts/popular", nil))
+	if optionalCalls != 1 {
+		t.Fatalf("GET /posts/popular optionalCalls = %d, want 1 -- a personalized public route must resolve the viewer id", optionalCalls)
+	}
+}
+
+// TestLiteralRoutesAreNotShadowedByUsernameWildcard guards against the public
+// "GET /users/{username}" wildcard silently swallowing these literal,
+// session-required paths -- as it did for all three until this test was
+// added (GET /users/search was found shadowed live, after /users/me and
+// /users/suggested had already been fixed the same way).
+func TestLiteralRoutesAreNotShadowedByUsernameWildcard(t *testing.T) {
+	for _, path := range []string{"/users/me", "/users/suggested", "/users/search"} {
+		t.Run(path, func(t *testing.T) {
+			app := New(Config{}, Repositories{SessionAuth: &fakeSessionStore{}})
+
+			res := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			app.ServeHTTP(res, req)
+
+			if res.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d -- GET %s must reach its own protected handler, not the public GET /users/{username} wildcard", res.Code, http.StatusUnauthorized, path)
+			}
+		})
+	}
 }
 
 func TestHealthEndpoint(t *testing.T) {
