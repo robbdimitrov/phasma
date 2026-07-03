@@ -31,7 +31,7 @@
 
 	<div class="flex w-full flex-col gap-6">
 		{#each pagination.items as post (post.publicId)}
-			<PostCard {post} currentUsername={data.currentUser.username} singleView={false} />
+			<PostCard {post} currentUsername={data.currentUser?.username ?? null} singleView={false} />
 		{/each}
 	</div>
 

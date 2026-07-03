@@ -24,7 +24,7 @@
 		}
 	);
 
-	const isCurrentUser = $derived(data.currentUser.id === profileUser.id);
+	const isCurrentUser = $derived(data.currentUser?.id === profileUser.id);
 	const username = $derived(profileUser.username);
 </script>
 
@@ -33,7 +33,12 @@
 </svelte:head>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-6">
-	<ProfileHeader {profileUser} {isCurrentUser} bind:isFollowPending />
+	<ProfileHeader
+		{profileUser}
+		{isCurrentUser}
+		isAuthenticated={!!data.currentUser}
+		bind:isFollowPending
+	/>
 
 	<div class="h-px w-full bg-base-300" aria-hidden="true"></div>
 

@@ -12,7 +12,7 @@
 <div class="mx-auto max-w-xl">
 	<PostCard
 		post={data.post}
-		currentUsername={data.currentUser.username}
+		currentUsername={data.currentUser?.username ?? null}
 		singleView={true}
 		comments={data.comments}
 		nextCommentsCursor={data.nextCommentsCursor}

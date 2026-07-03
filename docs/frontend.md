@@ -12,21 +12,22 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
 ├── (auth)/                 no layout guard; public
 │   ├── login/              form action: POST /sessions
 │   └── register/           form action: POST /users then POST /sessions
-└── (app)/                  +layout.server.ts: GET /users/me → redirect /login if 401; GET /notifications (unread count badge)
-    ├── feed/               load: GET /feed
-    ├── notifications/      load: GET /notifications + PUT /notifications/{id}/read (mark all unread as read)
-    ├── search/             load: GET /search?q=&type= (empty query shows discovery content: suggested users via GET /users/suggested + popular posts grid via GET /posts/popular)
-    ├── upload/             form action: POST /uploads → POST /posts
-    ├── suggest/            GET +server.ts — typeahead proxy: GET /users/search or /hashtags/search
-    ├── logout/             form action: DELETE /sessions → delete session cookie → redirect /login (cookie deleted even if backend call fails)
-    ├── settings/           layout → redirect to sub-routes
-    │   ├── profile/        form action: PUT /users/{id}
-    │   ├── password/       form action: PUT /users/{id}
-    │   └── sessions/       load: GET /sessions; revoke action: DELETE /sessions/{sessionId}
-    ├── posts/[publicId]/   load: GET /posts/{id} + GET /posts/{id}/comments
-    └── [username=username]/ load: GET /users/{username} + GET /users/{username}/posts; actions: follow (POST /users/{id}/follow), unfollow (DELETE /users/{id}/follow)
-        ├── likes/          load: GET /users/{username}/likes
-        └── [mode=connections]/ load: followers or following list
+└── (app)/                  +layout.server.ts: GET /users/me → currentUser: User | null, no redirect; unread count only when authenticated
+    ├── feed/               load: GET /feed (authenticated) or GET /posts/popular (anonymous); public read
+    ├── posts/[publicId]/   load: GET /posts/{id} + GET /posts/{id}/comments; public read, like/comment gated to login
+    ├── [username=username]/ load: GET /users/{username} + GET /users/{username}/posts; public read, follow gated to login
+    │   ├── likes/          load: GET /users/{username}/likes; public read
+    │   └── [mode=connections]/ load: followers or following list; public read, follow gated to login
+    └── (private)/          +layout.server.ts: redirect /login if currentUser absent
+        ├── notifications/      load: GET /notifications + PUT /notifications/{id}/read (mark all unread as read)
+        ├── search/             load: GET /search?q=&type= (empty query shows discovery content: suggested users via GET /users/suggested + popular posts grid via GET /posts/popular)
+        ├── upload/             form action: POST /uploads → POST /posts
+        ├── suggest/            GET +server.ts — typeahead proxy: GET /users/search or /hashtags/search
+        ├── logout/             form action: DELETE /sessions → delete session cookie → redirect /login (cookie deleted even if backend call fails)
+        └── settings/           layout → redirect to sub-routes
+            ├── profile/        form action: PUT /users/{id}
+            ├── password/       form action: PUT /users/{id}
+            └── sessions/       load: GET /sessions; revoke action: DELETE /sessions/{sessionId}
 ```
 
 ## Layout Hierarchy
@@ -37,9 +38,13 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
   - renders: navigation progress bar + {children}
 
   (app)/+layout.svelte
-    - loads: currentUser (GET /users/me) → redirect /login if absent; unreadCount from GET /notifications
+    - loads: currentUser (GET /users/me) → User | null, no redirect; unreadCount from GET /notifications, only when authenticated
     - renders: <Navbar currentUser unreadCount> + <main>{children}</main>
     - width: max-w-5xl px-4 pb-8 pt-4
+
+  (app)/(private)/+layout.server.ts
+    - loads: nothing — reads currentUser from parent(); redirect /login if absent
+    - guards: upload/, suggest/, logout/, settings/, notifications/, search/
 
   (auth)/ — no shared layout component
 ```
