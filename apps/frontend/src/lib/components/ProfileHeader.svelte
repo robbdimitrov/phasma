@@ -10,10 +10,12 @@
 	let {
 		profileUser = $bindable(),
 		isCurrentUser,
+		isAuthenticated,
 		isFollowPending = $bindable(false)
 	}: {
 		profileUser: User;
 		isCurrentUser: boolean;
+		isAuthenticated: boolean;
 		isFollowPending?: boolean;
 	} = $props();
 </script>
@@ -54,7 +56,7 @@
 					<Settings class="h-4 w-4" />
 					Settings
 				</a>
-			{:else}
+			{:else if isAuthenticated}
 				<form
 					method="POST"
 					action={profileUser.isFollowing ? '?/unfollow' : '?/follow'}
@@ -88,6 +90,13 @@
 						{profileUser.isFollowing ? 'Unfollow' : 'Follow'}
 					</button>
 				</form>
+			{:else}
+				<a
+					href={resolve('/login')}
+					class="btn btn-neutral btn-sm h-10 min-h-10 shrink-0 gap-2 rounded-full px-5 font-extrabold shadow-md shadow-slate-900/15"
+				>
+					Follow
+				</a>
 			{/if}
 		</div>
 

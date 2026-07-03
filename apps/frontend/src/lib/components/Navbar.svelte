@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { Bell, Camera, Home, Search, SquarePlus, User } from '@lucide/svelte';
+	import { Bell, Camera, Home, LogIn, Search, SquarePlus, User, UserPlus } from '@lucide/svelte';
 	import type { User as UserType } from '$lib/types';
 
-	let { currentUser, unreadCount = 0 }: { currentUser: UserType; unreadCount?: number } = $props();
+	let { currentUser, unreadCount = 0 }: { currentUser: UserType | null; unreadCount?: number } =
+		$props();
 
 	function isActive(path: string) {
 		return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
@@ -57,46 +58,70 @@
 			<Search class="h-5 w-5" />
 		</a>
 
-		<a
-			href={resolve('/upload')}
-			class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
-			class:bg-white={isActive('/upload')}
-			class:text-slate-950={isActive('/upload')}
-			class:shadow-md={isActive('/upload')}
-			title="Upload"
-			aria-label="Upload"
-		>
-			<SquarePlus class="h-5 w-5" />
-		</a>
+		{#if currentUser}
+			<a
+				href={resolve('/upload')}
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
+				class:bg-white={isActive('/upload')}
+				class:text-slate-950={isActive('/upload')}
+				class:shadow-md={isActive('/upload')}
+				title="Upload"
+				aria-label="Upload"
+			>
+				<SquarePlus class="h-5 w-5" />
+			</a>
 
-		<a
-			href={resolve('/notifications')}
-			class="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
-			class:bg-white={isActive('/notifications')}
-			class:text-slate-950={isActive('/notifications')}
-			class:shadow-md={isActive('/notifications')}
-			title="Notifications"
-			aria-label="Notifications"
-		>
-			<Bell class="h-5 w-5" />
-			{#if unreadCount > 0}
-				<span
-					class="absolute right-1.5 top-1.5 flex h-2 w-2 items-center justify-center rounded-full bg-primary"
-					aria-label="{unreadCount} unread notification{unreadCount === 1 ? '' : 's'}"
-				></span>
-			{/if}
-		</a>
+			<a
+				href={resolve('/notifications')}
+				class="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
+				class:bg-white={isActive('/notifications')}
+				class:text-slate-950={isActive('/notifications')}
+				class:shadow-md={isActive('/notifications')}
+				title="Notifications"
+				aria-label="Notifications"
+			>
+				<Bell class="h-5 w-5" />
+				{#if unreadCount > 0}
+					<span
+						class="absolute right-1.5 top-1.5 flex h-2 w-2 items-center justify-center rounded-full bg-primary"
+						aria-label="{unreadCount} unread notification{unreadCount === 1 ? '' : 's'}"
+					></span>
+				{/if}
+			</a>
 
-		<a
-			href={resolve(`/@${currentUser.username}`)}
-			class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
-			class:bg-white={isActive('/@' + currentUser.username)}
-			class:text-slate-950={isActive('/@' + currentUser.username)}
-			class:shadow-md={isActive('/@' + currentUser.username)}
-			title="Profile"
-			aria-label="Profile"
-		>
-			<User class="h-5 w-5" />
-		</a>
+			<a
+				href={resolve(`/@${currentUser.username}`)}
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
+				class:bg-white={isActive('/@' + currentUser.username)}
+				class:text-slate-950={isActive('/@' + currentUser.username)}
+				class:shadow-md={isActive('/@' + currentUser.username)}
+				title="Profile"
+				aria-label="Profile"
+			>
+				<User class="h-5 w-5" />
+			</a>
+		{:else}
+			<a
+				href={resolve('/login')}
+				class="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
+				class:bg-white={isActive('/login')}
+				class:text-slate-950={isActive('/login')}
+				class:shadow-md={isActive('/login')}
+			>
+				<LogIn class="h-5 w-5" />
+				<span class="hidden sm:inline">Log In</span>
+			</a>
+
+			<a
+				href={resolve('/register')}
+				class="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
+				class:bg-white={isActive('/register')}
+				class:text-slate-950={isActive('/register')}
+				class:shadow-md={isActive('/register')}
+			>
+				<UserPlus class="h-5 w-5" />
+				<span class="hidden sm:inline">Register</span>
+			</a>
+		{/if}
 	</nav>
 </header>

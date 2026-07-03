@@ -18,7 +18,7 @@
 		nextCommentsCursor: initialNextCommentsCursor = null
 	}: {
 		post: Post;
-		currentUsername: string;
+		currentUsername: string | null;
 		singleView?: boolean;
 		comments?: Comment[];
 		nextCommentsCursor?: string | null;
@@ -125,42 +125,56 @@
 
 	<div class="flex flex-col gap-4 p-6">
 		<div class="flex items-center gap-5">
-			<form
-				method="POST"
-				action="/posts/{initialPost.publicId}?/{liked ? 'unlike' : 'like'}"
-				use:enhance={() => {
-					const prevLiked = liked;
-					const prevLikes = likes;
-					liked = !liked;
-					likes += liked ? 1 : -1;
-					if (liked) playLikeAnimation();
-					return async ({ result }) => {
-						if (result.type === 'error' || result.type === 'failure') {
-							liked = prevLiked;
-							likes = prevLikes;
-						}
-					};
-				}}
-			>
-				<button
-					type="submit"
-					class="group inline-flex items-center gap-1.5 text-sm font-semibold transition-colors active:scale-95 {liked
-						? 'text-rose-500 dark:text-rose-400'
-						: 'text-base-content/60'}"
-					aria-label={liked ? 'Unlike post' : 'Like post'}
-					aria-pressed={liked}
+			{#if currentUsername}
+				<form
+					method="POST"
+					action="/posts/{initialPost.publicId}?/{liked ? 'unlike' : 'like'}"
+					use:enhance={() => {
+						const prevLiked = liked;
+						const prevLikes = likes;
+						liked = !liked;
+						likes += liked ? 1 : -1;
+						if (liked) playLikeAnimation();
+						return async ({ result }) => {
+							if (result.type === 'error' || result.type === 'failure') {
+								liked = prevLiked;
+								likes = prevLikes;
+							}
+						};
+					}}
 				>
-					<Heart
-						class="h-5 w-5 transition-all duration-150 ease-out {likeAnimating
-							? 'animate-like-pop'
-							: ''} {liked ? 'fill-rose-500 dark:fill-rose-400' : 'fill-transparent'}"
-					/>
-					<span class={likeAnimating ? 'animate-like-pop' : ''}>
+					<button
+						type="submit"
+						class="group inline-flex items-center gap-1.5 text-sm font-semibold transition-colors active:scale-95 {liked
+							? 'text-rose-500 dark:text-rose-400'
+							: 'text-base-content/60'}"
+						aria-label={liked ? 'Unlike post' : 'Like post'}
+						aria-pressed={liked}
+					>
+						<Heart
+							class="h-5 w-5 transition-all duration-150 ease-out {likeAnimating
+								? 'animate-like-pop'
+								: ''} {liked ? 'fill-rose-500 dark:fill-rose-400' : 'fill-transparent'}"
+						/>
+						<span class={likeAnimating ? 'animate-like-pop' : ''}>
+							{likes}
+							{pluralize(likes, 'like')}
+						</span>
+					</button>
+				</form>
+			{:else}
+				<a
+					href={resolve('/login')}
+					class="group inline-flex items-center gap-1.5 text-sm font-semibold text-base-content/60 transition-colors active:scale-95"
+					aria-label="Log in to like post"
+				>
+					<Heart class="h-5 w-5 fill-transparent" />
+					<span>
 						{likes}
 						{pluralize(likes, 'like')}
 					</span>
-				</button>
-			</form>
+				</a>
+			{/if}
 
 			<a
 				href={resolve(`/posts/${initialPost.publicId}`)}
@@ -192,44 +206,53 @@
 		{#if singleView}
 			<div class="border-t border-base-300 pt-4">
 				<div class="flex flex-col gap-4">
-					<form
-						method="POST"
-						action="/posts/{initialPost.publicId}?/comment"
-						class="flex items-center gap-3 border-b border-base-300 pb-4"
-						use:enhance={() => {
-							isSubmittingComment = true;
-							return async ({ result }) => {
-								isSubmittingComment = false;
-								if (result.type === 'success' && result.data?.comment) {
-									comments = [...comments, result.data.comment as Comment];
-									commentCount += 1;
-									newCommentBody = '';
-								}
-							};
-						}}
-					>
-						<input
-							type="text"
-							name="body"
-							bind:value={newCommentBody}
-							class="min-w-0 flex-1 bg-transparent text-sm text-base-content placeholder:text-base-content/40 focus:outline-none"
-							placeholder="Add a comment…"
-							maxlength="400"
-							autocomplete="off"
-						/>
-						<button
-							type="submit"
-							class="shrink-0 text-primary transition-opacity disabled:opacity-40"
-							disabled={!newCommentBody.trim() || isSubmittingComment}
-							aria-label="Post comment"
+					{#if currentUsername}
+						<form
+							method="POST"
+							action="/posts/{initialPost.publicId}?/comment"
+							class="flex items-center gap-3 border-b border-base-300 pb-4"
+							use:enhance={() => {
+								isSubmittingComment = true;
+								return async ({ result }) => {
+									isSubmittingComment = false;
+									if (result.type === 'success' && result.data?.comment) {
+										comments = [...comments, result.data.comment as Comment];
+										commentCount += 1;
+										newCommentBody = '';
+									}
+								};
+							}}
 						>
-							{#if isSubmittingComment}
-								<span class="loading loading-spinner loading-xs"></span>
-							{:else}
-								<Send class="h-5 w-5" />
-							{/if}
-						</button>
-					</form>
+							<input
+								type="text"
+								name="body"
+								bind:value={newCommentBody}
+								class="min-w-0 flex-1 bg-transparent text-sm text-base-content placeholder:text-base-content/40 focus:outline-none"
+								placeholder="Add a comment…"
+								maxlength="400"
+								autocomplete="off"
+							/>
+							<button
+								type="submit"
+								class="shrink-0 text-primary transition-opacity disabled:opacity-40"
+								disabled={!newCommentBody.trim() || isSubmittingComment}
+								aria-label="Post comment"
+							>
+								{#if isSubmittingComment}
+									<span class="loading loading-spinner loading-xs"></span>
+								{:else}
+									<Send class="h-5 w-5" />
+								{/if}
+							</button>
+						</form>
+					{:else}
+						<a
+							href={resolve('/login')}
+							class="flex items-center gap-3 border-b border-base-300 pb-4 text-sm font-semibold text-base-content/60 transition-colors hover:text-base-content"
+						>
+							Log in to comment
+						</a>
+					{/if}
 
 					{#each comments as comment (comment.id)}
 						<div class="group flex items-start gap-3">

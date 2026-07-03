@@ -17,7 +17,7 @@
 	let pendingFollowIds = $state(new Set<string>());
 	let followingOverrides = $state(new Map<string, boolean>());
 
-	const isCurrentUser = $derived(data.currentUser.id === profileUser.id);
+	const isCurrentUser = $derived(data.currentUser?.id === profileUser.id);
 	const username = $derived(profileUser.username);
 
 	const pagination = createPagination(
@@ -39,7 +39,12 @@
 </script>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-6">
-	<ProfileHeader {profileUser} {isCurrentUser} bind:isFollowPending />
+	<ProfileHeader
+		{profileUser}
+		{isCurrentUser}
+		isAuthenticated={!!data.currentUser}
+		bind:isFollowPending
+	/>
 
 	<div class="h-px w-full bg-base-300" aria-hidden="true"></div>
 
@@ -76,35 +81,44 @@
 							</p>
 						{/if}
 					</a>
-					{#if data.currentUser.id !== user.id}
-						<form
-							method="POST"
-							action="/@{username}?/{isFollowing ? 'unfollow' : 'follow'}"
-							use:enhance={() => {
-								pendingFollowIds.add(user.id);
-								followingOverrides.set(user.id, !isFollowing);
-								return async ({ result }) => {
-									pendingFollowIds.delete(user.id);
-									if (result.type === 'error' || result.type === 'failure') {
-										followingOverrides.set(user.id, isFollowing);
-									}
-								};
-							}}
-						>
-							<button
-								type="submit"
-								disabled={pendingFollowIds.has(user.id)}
-								class="btn btn-sm h-9 min-h-9 shrink-0 rounded-full px-4 text-xs font-extrabold {isFollowing
-									? 'btn-outline'
-									: 'btn-neutral'}"
+					{#if !data.currentUser || data.currentUser.id !== user.id}
+						{#if data.currentUser}
+							<form
+								method="POST"
+								action="/@{username}?/{isFollowing ? 'unfollow' : 'follow'}"
+								use:enhance={() => {
+									pendingFollowIds.add(user.id);
+									followingOverrides.set(user.id, !isFollowing);
+									return async ({ result }) => {
+										pendingFollowIds.delete(user.id);
+										if (result.type === 'error' || result.type === 'failure') {
+											followingOverrides.set(user.id, isFollowing);
+										}
+									};
+								}}
 							>
-								{#if pendingFollowIds.has(user.id)}
-									<span class="loading loading-spinner loading-xs"></span>
-								{:else}
-									{isFollowing ? 'Unfollow' : 'Follow'}
-								{/if}
-							</button>
-						</form>
+								<button
+									type="submit"
+									disabled={pendingFollowIds.has(user.id)}
+									class="btn btn-sm h-9 min-h-9 shrink-0 rounded-full px-4 text-xs font-extrabold {isFollowing
+										? 'btn-outline'
+										: 'btn-neutral'}"
+								>
+									{#if pendingFollowIds.has(user.id)}
+										<span class="loading loading-spinner loading-xs"></span>
+									{:else}
+										{isFollowing ? 'Unfollow' : 'Follow'}
+									{/if}
+								</button>
+							</form>
+						{:else}
+							<a
+								href={resolve('/login')}
+								class="btn btn-neutral btn-sm h-9 min-h-9 shrink-0 rounded-full px-4 text-xs font-extrabold"
+							>
+								Follow
+							</a>
+						{/if}
 					{/if}
 				</div>
 			{/each}
