@@ -1426,10 +1426,6 @@ func (c *testClient) DeletePost(ctx context.Context, postID, userID string) (str
 	return posts.NewPostRepository(c.Client).DeletePost(ctx, postID, userID)
 }
 
-func (c *testClient) PostExists(ctx context.Context, postID string) (bool, error) {
-	return posts.NewPostRepository(c.Client).PostExists(ctx, postID)
-}
-
 func (c *testClient) LikePost(ctx context.Context, postID, userID string) error {
 	return posts.NewPostRepository(c.Client).LikePost(ctx, postID, userID)
 }

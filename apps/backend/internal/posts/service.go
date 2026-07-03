@@ -35,7 +35,6 @@ type Repository interface {
 	GetLikedPosts(ctx context.Context, username string, cursor *pagination.Cursor, limit int, currentUserID string) ([]Post, *pagination.Cursor, error)
 	GetPost(ctx context.Context, publicID, currentUserID string) (Post, bool, error)
 	DeletePost(ctx context.Context, publicID, userID string) (string, error)
-	PostExists(ctx context.Context, publicID string) (bool, error)
 	LikePost(ctx context.Context, publicID, userID string) error
 	UnlikePost(ctx context.Context, publicID, userID string) error
 	ListPopularPosts(ctx context.Context, viewerID string, limit int) ([]Post, error)

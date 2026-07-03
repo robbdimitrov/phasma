@@ -161,52 +161,6 @@ func (r *UserRepository) getUser(ctx context.Context, column, value, currentUser
 	return user, true, nil
 }
 
-func (r *UserRepository) queryUserPage(ctx context.Context, query string, limit int, args ...any) ([]User, *pagination.Cursor, error) {
-	type row struct {
-		user          User
-		cursorCreated time.Time
-	}
-	var result []row
-	err := r.db.Read(ctx, func() error {
-		rows, err := r.db.Pool().Query(ctx, query, args...)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		result = []row{}
-		for rows.Next() {
-			var item row
-			var avatar, bio sql.NullString
-			if err := rows.Scan(&item.user.ID, &item.user.Name, &item.user.Username,
-				&item.user.Email, &avatar, &bio, &item.user.Posts, &item.user.Likes,
-				&item.user.Followers, &item.user.Following, &item.user.IsFollowing,
-				&item.user.Created, &item.user.PublicID, &item.cursorCreated); err != nil {
-				return err
-			}
-			item.user.Avatar = database.NullableString(avatar)
-			item.user.Bio = database.NullableString(bio)
-			result = append(result, item)
-		}
-		return rows.Err()
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	hasMore := len(result) > limit
-	if hasMore {
-		result = result[:limit]
-	}
-	items := make([]User, len(result))
-	for i, item := range result {
-		items[i] = item.user
-	}
-	if !hasMore {
-		return items, nil, nil
-	}
-	last := result[len(result)-1]
-	return items, &pagination.Cursor{Created: last.cursorCreated, ID: int64(last.user.ID)}, nil
-}
-
 // queryUserPageOrNotFound wraps a query that uses the UNION ALL sentinel pattern.
 // The query must produce 15 columns: the 13 from userColumns, cursor_created, and
 // user_exists bool. The sentinel row fires (with all NULLs except user_exists) when

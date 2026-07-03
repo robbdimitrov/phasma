@@ -13,7 +13,6 @@ type serviceRepository struct {
 	deletedFile string
 	deleted     bool
 	found       bool
-	exists      bool
 }
 
 func (r *serviceRepository) DeletePost(context.Context, string, string) (string, error) {
@@ -27,9 +26,6 @@ func (r *serviceRepository) DeletePost(context.Context, string, string) (string,
 }
 func (r *serviceRepository) GetPost(context.Context, string, string) (Post, bool, error) {
 	return Post{}, r.found, nil
-}
-func (r *serviceRepository) PostExists(context.Context, string) (bool, error) {
-	return r.exists, nil
 }
 func (r *serviceRepository) ListPopularPosts(context.Context, string, int) ([]Post, error) {
 	return nil, nil

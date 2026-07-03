@@ -85,12 +85,6 @@ func entityChangesMsg(authorID int64, postID int64, followerCount int64, isCeleb
 	return data
 }
 
-func activityMsg(op, actorID, recipientID string) []byte {
-	payload := activityPayload{Op: op, ActorID: actorID, RecipientID: recipientID}
-	data, _ := json.Marshal(payload)
-	return data
-}
-
 // handleEntityChanges — celebrity path via FollowerCount (old-format outbox event)
 
 func TestHandleEntityChangesCelebSkipsFanout(t *testing.T) {

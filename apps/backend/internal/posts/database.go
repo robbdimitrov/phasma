@@ -298,15 +298,6 @@ func (r *PostRepository) DeletePost(ctx context.Context, postID, userID string) 
 	return filename, err
 }
 
-func (r *PostRepository) PostExists(ctx context.Context, postID string) (bool, error) {
-	var exists bool
-	err := r.db.Read(ctx, func() error {
-		return r.db.Pool().QueryRow(ctx,
-			`SELECT EXISTS (SELECT 1 FROM posts WHERE public_id = $1)`, postID).Scan(&exists)
-	})
-	return exists, err
-}
-
 func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) error {
 	err := r.db.Write(ctx, func() error {
 		tx, err := r.db.Pool().Begin(ctx)
@@ -455,52 +446,6 @@ func (r *PostRepository) queryPosts(ctx context.Context, query string, args ...a
 		return nil, err
 	}
 	return result, nil
-}
-
-func (r *PostRepository) queryPostPage(ctx context.Context, query string, limit int, args ...any) ([]Post, *pagination.Cursor, error) {
-	type row struct {
-		post          Post
-		cursorCreated time.Time
-	}
-	var result []row
-	err := r.db.Read(ctx, func() error {
-		rows, err := r.db.Pool().Query(ctx, query, args...)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		result = []row{}
-		for rows.Next() {
-			var item row
-			var description, avatar sql.NullString
-			if err := rows.Scan(&item.post.ID, &item.post.PublicID, &item.post.UserID,
-				&item.post.Username, &item.post.Name, &avatar, &item.post.Filename,
-				&description, &item.post.Likes, &item.post.Liked, &item.post.Comments,
-				&item.post.Created, &item.cursorCreated); err != nil {
-				return err
-			}
-			item.post.Avatar = database.NullableString(avatar)
-			item.post.Description = database.NullableString(description)
-			result = append(result, item)
-		}
-		return rows.Err()
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	hasMore := len(result) > limit
-	if hasMore {
-		result = result[:limit]
-	}
-	items := make([]Post, len(result))
-	for i, item := range result {
-		items[i] = item.post
-	}
-	if !hasMore {
-		return items, nil, nil
-	}
-	last := result[len(result)-1]
-	return items, &pagination.Cursor{Created: last.cursorCreated, ID: int64(last.post.ID)}, nil
 }
 
 // queryPostPageOrNotFound wraps a query that uses the UNION ALL sentinel pattern.

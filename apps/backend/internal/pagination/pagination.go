@@ -92,12 +92,6 @@ func DecodeCursor(value string) (*Cursor, bool) {
 	return &cursor, true
 }
 
-// ParseID validates that a path segment is a positive integer string.
-func ParseID(value string) bool {
-	n, err := strconv.Atoi(value)
-	return err == nil && n > 0
-}
-
 func parseIntDefault(value string, fallback int) (int, bool) {
 	if value == "" {
 		return fallback, true

@@ -66,10 +66,6 @@ func (s *fakeStore) DeletePost(_ context.Context, _ string, _ string) (string, e
 	return s.deletedFile, s.err
 }
 
-func (s *fakeStore) PostExists(_ context.Context, _ string) (bool, error) {
-	return s.exists, s.err
-}
-
 func (s *fakeStore) LikePost(_ context.Context, _ string, _ string) error {
 	if !s.exists {
 		return store.ErrNotFound
