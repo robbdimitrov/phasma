@@ -59,7 +59,7 @@ spec:
         - /bin/sh
         - -ec
         args:
-        - exec dragonfly "--requirepass=${CACHE_PASSWORD}" --dir=/data
+        - exec dragonfly "--requirepass=${CACHE_PASSWORD}" --dir=/data --proactor_threads=1
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -71,9 +71,9 @@ spec:
           containerPort: 6379
         resources:
           limits:
-            memory: 256Mi
+            memory: 384Mi
           requests:
-            memory: 128Mi
+            memory: 256Mi
             cpu: 100m
         env:
         - name: CACHE_PASSWORD

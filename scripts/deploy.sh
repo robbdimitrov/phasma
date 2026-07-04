@@ -52,6 +52,38 @@ require_docker() {
   docker info >/dev/null 2>&1 || die "Docker daemon is not running. Start Docker and try again."
 }
 
+require_colima_aio_capacity() {
+  local context aio_nr aio_max available
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  [[ "${context}" == "colima" ]] || return 0
+  command -v colima >/dev/null || return 0
+
+  aio_nr="$(colima ssh -- cat /proc/sys/fs/aio-nr 2>/dev/null || true)"
+  aio_max="$(colima ssh -- cat /proc/sys/fs/aio-max-nr 2>/dev/null || true)"
+  [[ "${aio_nr}" =~ ^[0-9]+$ && "${aio_max}" =~ ^[0-9]+$ ]] || return 0
+  available=$((aio_max - aio_nr))
+
+  if (( aio_max >= 1048576 && available >= 4096 )); then
+    return 0
+  fi
+
+  cat >&2 <<EOF
+error: Colima Linux AIO capacity is too low for Redpanda.
+
+Current Colima values:
+  fs.aio-nr      ${aio_nr}
+  fs.aio-max-nr  ${aio_max}
+  available      ${available}
+
+Raise the node limit, then rerun deploy:
+  colima ssh -- sudo sysctl -w fs.aio-max-nr=1048576
+
+To persist it in the Colima VM:
+  colima ssh -- sudo sh -c 'echo fs.aio-max-nr=1048576 >/etc/sysctl.d/99-redpanda-aio.conf && sysctl --system'
+EOF
+  exit 1
+}
+
 random_secret() {
   if command -v openssl >/dev/null; then
     openssl rand -hex 32
@@ -290,10 +322,12 @@ apply_manifests() {
   ensure_connect_secret
   ensure_tls_secret
   ensure_database_tls_secret
+  kubectl -n "${NS}" delete job broker-backfill --ignore-not-found --wait=true >/dev/null
   kubectl apply -f "${K8S_DIR}" -n "${NS}"
   kubectl -n "${NS}" set env deployment/frontend ORIGIN="${LOCAL_ORIGIN}" >/dev/null
-  kubectl -n "${NS}" set image deployment/backend backend="${REGISTRY}/backend:${GIT_SHA}" >/dev/null
-  kubectl -n "${NS}" set image statefulset/database database="${REGISTRY}/database:${GIT_SHA}" >/dev/null
+  kubectl -n "${NS}" set image deployment/backend \
+    migration="${REGISTRY}/database:${GIT_SHA}" \
+    backend="${REGISTRY}/backend:${GIT_SHA}" >/dev/null
   kubectl -n "${NS}" set image deployment/frontend frontend="${REGISTRY}/frontend:${GIT_SHA}" >/dev/null
 }
 
@@ -322,8 +356,34 @@ wait_for_rollouts() {
   kubectl -n "${NS}" get pods
   for resource in "${failed[@]}"; do
     echo "==> recent logs for ${resource}"
-    kubectl -n "${NS}" logs "${resource}" --tail=40 || true
+    case "${resource}" in
+      statefulset/broker)
+        kubectl -n "${NS}" logs statefulset/broker -c broker --tail=40 || true
+        ;;
+      deployment/connect)
+        kubectl -n "${NS}" logs deployment/connect -c connect --tail=40 || true
+        ;;
+      *)
+        kubectl -n "${NS}" logs "${resource}" --tail=40 || true
+        ;;
+    esac
   done
+  exit 1
+}
+
+run_broker_backfill() {
+  log "running broker backfill"
+  kubectl -n "${NS}" delete job broker-backfill --ignore-not-found --wait=true >/dev/null
+  kubectl apply -f "${K8S_DIR}/broker.yaml" -n "${NS}" >/dev/null
+  kubectl -n "${NS}" patch job broker-backfill --type merge -p '{"spec":{"suspend":false}}' >/dev/null
+  if kubectl -n "${NS}" wait --for=condition=complete job/broker-backfill --timeout=180s; then
+    return 0
+  fi
+
+  echo "error: broker backfill failed" >&2
+  kubectl -n "${NS}" get pods -l job-name=broker-backfill
+  kubectl -n "${NS}" logs job/broker-backfill --tail=80 || true
+  kubectl -n "${NS}" logs job/broker-backfill -c provision-connect-user --tail=80 || true
   exit 1
 }
 
@@ -344,6 +404,8 @@ restart_stack() {
   log "restarting connect (after broker is ready)"
   rollout_restart "${ROLL_OUT_CONNECT[@]}"
   wait_for_rollouts "${ROLL_OUT_CONNECT[@]}"
+
+  run_broker_backfill
 }
 
 start_port_forward_background() {
@@ -422,6 +484,7 @@ EOF
 
 require_tools
 require_docker
+require_colima_aio_capacity
 
 if [[ -n "$(port_pids)" ]]; then
   echo "note: local port ${LOCAL_PORT} is already in use; deploy will reuse a frontend port-forward or report the conflict." >&2

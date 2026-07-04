@@ -7,31 +7,6 @@ metadata:
     app: phasma
     tier: broker
 data:
-  relay.yaml: |
-    input:
-      pg_cdc:
-        dsn: "${DATABASE_URL}"
-        slot_name: outbox_relay
-        publication_name: outbox_relay
-        tables:
-          - public.outbox
-
-    pipeline:
-      processors:
-        - filter:
-            check: meta("operation") == "INSERT"
-        - mapping: |
-            root = this.data.payload.parse_json()
-            root._outbox_id = this.data.id
-            meta topic = this.data.topic
-
-    output:
-      kafka_franz:
-        seed_brokers: ["${REDPANDA_BROKERS}"]
-        topic: ${! meta("topic") }
-        key: ${! json("_outbox_id") }
-        idempotent: true
-        max_in_flight: 1
   sync-search.yaml: |
     input:
       kafka_franz:
@@ -50,6 +25,7 @@ data:
                   verb: POST
                   headers:
                     Authorization: "Bearer ${SEARCH_CONNECT_KEY}"
+                    Content-Type: application/json
         - branch:
             request_map: |
               root = if this.table == "users" && this.op == "delete" { this } else { deleted() }
@@ -64,16 +40,17 @@ data:
               root = if this.table == "posts" && this.op == "upsert" { this } else { deleted() }
             processors:
               - http:
-                  url: "${MEILI_URL}/indexes/posts/documents"
+                  url: "${MEILI_URL}/indexes/posts/documents?primaryKey=post_id"
                   verb: POST
                   headers:
                     Authorization: "Bearer ${SEARCH_CONNECT_KEY}"
+                    Content-Type: application/json
         - branch:
             request_map: |
               root = if this.table == "posts" && this.op == "delete" { this } else { deleted() }
             processors:
               - http:
-                  url: "${MEILI_URL}/indexes/posts/documents/${! json(\"id\") }"
+                  url: "${MEILI_URL}/indexes/posts/documents/${! json(\"post_id\") }"
                   verb: DELETE
                   headers:
                     Authorization: "Bearer ${SEARCH_CONNECT_KEY}"
@@ -82,10 +59,11 @@ data:
               root = if this.table == "hashtags" && this.op == "upsert" && this.post_count > 0 { this } else { deleted() }
             processors:
               - http:
-                  url: "${MEILI_URL}/indexes/hashtags/documents"
+                  url: "${MEILI_URL}/indexes/hashtags/documents?primaryKey=name"
                   verb: POST
                   headers:
                     Authorization: "Bearer ${SEARCH_CONNECT_KEY}"
+                    Content-Type: application/json
         - branch:
             request_map: |
               root = if this.table == "hashtags" && this.op == "upsert" && this.post_count == 0 { this } else { deleted() }
@@ -98,22 +76,6 @@ data:
 
     output:
       drop: {}
-  cleanup-s3.yaml: |
-    input:
-      kafka_franz:
-        seed_brokers: ["${REDPANDA_BROKERS}"]
-        topics: [entity-changes]
-        consumer_group: cleanup-s3
-
-    pipeline:
-      processors:
-        - filter:
-            check: this.table == "posts" && this.op == "delete"
-
-    output:
-      http_client:
-        url: "${S3_ENDPOINT}/${S3_BUCKET}/${! json(\"filename\") }"
-        verb: DELETE
   backfill.yaml: |
     input:
       sql_select:
@@ -137,6 +99,73 @@ data:
         seed_brokers: ["${REDPANDA_BROKERS}"]
         topic: entity-changes
         key: ${! json("id") }
+  backfill-posts.yaml: |
+    input:
+      sql_select:
+        driver: postgres
+        dsn: "${DATABASE_URL}"
+        table: |
+          (
+            SELECT p.id,
+                   p.public_id::text AS post_id,
+                   p.user_id::text AS author_id,
+                   COALESCE(p.description, '') AS description,
+                   u.username,
+                   COALESCE(json_agg(h.name ORDER BY h.name)
+                     FILTER (WHERE h.name IS NOT NULL), '[]'::json)::text AS hashtags,
+                   to_char(p.created AT TIME ZONE 'UTC',
+                     'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created,
+                   u.is_celebrity
+            FROM posts p
+            JOIN users u ON u.id = p.user_id
+            LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+            LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+            GROUP BY p.id, u.username, u.is_celebrity
+          ) AS search_posts
+        columns: [id, post_id, author_id, description, username, hashtags, created, is_celebrity]
+        suffix: ORDER BY id
+
+    pipeline:
+      processors:
+        - mapping: |
+            root.table = "posts"
+            root.op = "upsert"
+            root.id = this.id
+            root.post_id = this.post_id
+            root.author_id = this.author_id
+            root.description = this.description
+            root.username = this.username
+            root.hashtags = this.hashtags.parse_json()
+            root.created = this.created
+            root.is_celebrity = this.is_celebrity
+
+    output:
+      kafka_franz:
+        seed_brokers: ["${REDPANDA_BROKERS}"]
+        topic: entity-changes
+        key: ${! json("id") }
+  backfill-hashtags.yaml: |
+    input:
+      sql_select:
+        driver: postgres
+        dsn: "${DATABASE_URL}"
+        table: hashtags
+        columns: [name, post_count]
+        suffix: WHERE post_count > 0 ORDER BY name
+
+    pipeline:
+      processors:
+        - mapping: |
+            root.table = "hashtags"
+            root.op = "upsert"
+            root.name = this.name
+            root.post_count = this.post_count
+
+    output:
+      kafka_franz:
+        seed_brokers: ["${REDPANDA_BROKERS}"]
+        topic: entity-changes
+        key: ${! json("name") }
 ---
 apiVersion: v1
 kind: Service
@@ -202,17 +231,20 @@ spec:
                 - ALL
           command: ["/usr/bin/rpk", "redpanda", "start"]
           args:
+            - --config=/tmp/redpanda.yaml
+            - --mode=dev-container
             - --smp=1
             - --memory=256M
             - --reserve-memory=0M
+            - --reactor-backend=epoll
+            - --kernel-page-cache=1
+            - --aio-fsync=0
+            - --max-networking-io-control-blocks=128
             - --node-id=0
             - --kafka-addr=0.0.0.0:9092
             - --advertise-kafka-addr=broker-0.broker:9092
             - --rpc-addr=0.0.0.0:33145
             - --advertise-rpc-addr=broker-0.broker:33145
-            - --set=redpanda.developer_mode=false
-            - --set=redpanda.write_caching_default=false
-            - --set=redpanda.auto_create_topics_enabled=false
           ports:
             - name: broker
               containerPort: 9092
@@ -295,48 +327,6 @@ spec:
         fsGroup: 101
         seccompProfile:
           type: RuntimeDefault
-      initContainers:
-        - name: provision-connect-user
-          image: postgres:18.4-alpine
-          imagePullPolicy: IfNotPresent
-          command: [sh, -c]
-          args:
-            - |
-              psql "postgresql://postgres:${POSTGRES_PASSWORD}@database:5432/phasma?sslmode=require" \
-                -v app_pass="${CONNECT_DB_PASSWORD}" \
-                -c "DO \$\$
-                    DECLARE v text := :'app_pass';
-                    BEGIN
-                      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'phasma_connect_user') THEN
-                        EXECUTE format('CREATE USER phasma_connect_user WITH REPLICATION PASSWORD %%L', v);
-                      ELSE
-                        EXECUTE format('ALTER USER phasma_connect_user WITH REPLICATION PASSWORD %%L', v);
-                      END IF;
-                      GRANT phasma_connect TO phasma_connect_user;
-                    END \$\$;"
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-          resources:
-            limits:
-              memory: 64Mi
-            requests:
-              memory: 64Mi
-              cpu: 50m
-          env:
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: database-secret
-                  key: database-password
-            - name: CONNECT_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: connect-secret
-                  key: connect-db-password
       containers:
         - name: connect
           image: docker.redpanda.com/redpandadata/connect:4.38.0
@@ -346,35 +336,11 @@ spec:
             capabilities:
               drop:
                 - ALL
-          command: ["/redpanda-connect", "run", "/etc/connect/relay.yaml"]
+          command:
+            - /redpanda-connect
+            - streams
+            - /etc/connect/sync-search.yaml
           env:
-            - name: CONNECT_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: connect-secret
-                  key: connect-db-password
-            - name: POSTGRES_DB
-              value: phasma
-            - name: DATABASE_URL
-              value: postgresql://phasma_connect_user:$(CONNECT_DB_PASSWORD)@database:5432/$(POSTGRES_DB)?sslmode=require
-            - name: S3_ENDPOINT
-              value: http://storage:8333
-            - name: S3_BUCKET
-              value: phasma
-            - name: S3_REGION
-              value: us-east-1
-            - name: S3_FORCE_PATH_STYLE
-              value: "true"
-            - name: S3_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: storage-secret
-                  key: s3-access-key
-            - name: S3_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: storage-secret
-                  key: s3-secret-key
             - name: MEILI_URL
               value: http://search:7700
             - name: SEARCH_CONNECT_KEY
@@ -428,6 +394,7 @@ metadata:
     app: phasma
     tier: broker
 spec:
+  suspend: true
   backoffLimit: 3
   ttlSecondsAfterFinished: 3600
   template:
@@ -453,18 +420,23 @@ spec:
           command: [sh, -c]
           args:
             - |
-              psql "postgresql://postgres:${POSTGRES_PASSWORD}@database:5432/phasma?sslmode=require" \
-                -v app_pass="${CONNECT_DB_PASSWORD}" \
-                -c "DO \$\$
-                    DECLARE v text := :'app_pass';
-                    BEGIN
-                      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'phasma_connect_user') THEN
-                        EXECUTE format('CREATE USER phasma_connect_user WITH REPLICATION PASSWORD %%L', v);
-                      ELSE
-                        EXECUTE format('ALTER USER phasma_connect_user WITH REPLICATION PASSWORD %%L', v);
-                      END IF;
-                      GRANT phasma_connect TO phasma_connect_user;
-                    END \$\$;"
+              for i in $(seq 1 30); do
+                if psql "postgresql://postgres:${POSTGRES_PASSWORD}@database:5432/phasma?sslmode=require" \
+                  -c "DO \$\$
+                      DECLARE v text := current_setting('phasma.connect_password');
+                      BEGIN
+                        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'phasma_connect_user') THEN
+                          EXECUTE format('CREATE USER phasma_connect_user WITH REPLICATION PASSWORD %L', v);
+                        ELSE
+                          EXECUTE format('ALTER USER phasma_connect_user WITH REPLICATION PASSWORD %L', v);
+                        END IF;
+                        GRANT phasma_connect TO phasma_connect_user;
+                      END \$\$;"; then
+                  exit 0
+                fi
+                sleep 2
+              done
+              exit 1
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -488,10 +460,18 @@ spec:
                 secretKeyRef:
                   name: connect-secret
                   key: connect-db-password
+            - name: PGOPTIONS
+              value: -c phasma.connect_password=$(CONNECT_DB_PASSWORD)
       containers:
         - name: connect
           image: docker.redpanda.com/redpandadata/connect:4.38.0
-          command: ["/redpanda-connect", "run", "/etc/connect/backfill.yaml"]
+          command: [sh, -c]
+          args:
+            - |
+              set -e
+              /redpanda-connect run /etc/connect/backfill.yaml
+              /redpanda-connect run /etc/connect/backfill-posts.yaml
+              /redpanda-connect run /etc/connect/backfill-hashtags.yaml
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -508,24 +488,6 @@ spec:
               value: phasma
             - name: DATABASE_URL
               value: postgresql://phasma_connect_user:$(CONNECT_DB_PASSWORD)@database:5432/$(POSTGRES_DB)?sslmode=require
-            - name: S3_ENDPOINT
-              value: http://storage:8333
-            - name: S3_BUCKET
-              value: phasma
-            - name: S3_REGION
-              value: us-east-1
-            - name: S3_FORCE_PATH_STYLE
-              value: "true"
-            - name: S3_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: storage-secret
-                  key: s3-access-key
-            - name: S3_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: storage-secret
-                  key: s3-secret-key
             - name: MEILI_URL
               value: http://search:7700
             - name: SEARCH_CONNECT_KEY

@@ -86,14 +86,13 @@ spec:
         args:
         - |
           psql "postgresql://postgres:${POSTGRES_PASSWORD}@database:5432/phasma?sslmode=require" \
-            -v app_pass="${APP_DB_PASSWORD}" \
             -c "DO \$\$
-                DECLARE v text := :'app_pass';
+                DECLARE v text := current_setting('phasma.app_password');
                 BEGIN
                   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'phasma_user') THEN
-                    EXECUTE format('CREATE USER phasma_user WITH PASSWORD %%L', v);
+                    EXECUTE format('CREATE USER phasma_user WITH PASSWORD %L', v);
                   ELSE
-                    EXECUTE format('ALTER USER phasma_user WITH PASSWORD %%L', v);
+                    EXECUTE format('ALTER USER phasma_user WITH PASSWORD %L', v);
                   END IF;
                   GRANT phasma_app TO phasma_user;
                 END \$\$;"
@@ -120,6 +119,8 @@ spec:
             secretKeyRef:
               name: app-db-secret
               key: app-db-password
+        - name: PGOPTIONS
+          value: -c phasma.app_password=$(APP_DB_PASSWORD)
       containers:
       - name: backend
         image: localhost:5000/phasma/backend
