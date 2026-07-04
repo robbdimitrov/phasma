@@ -11,7 +11,7 @@
 | `cache`    | Dragonfly — rate limiting and login throttle         | `docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0` |
 | `search`   | Meilisearch — full-text search                       | `getmeili/meilisearch:v1.11.3`                        |
 | `broker`   | Redpanda — Kafka-compatible event broker             | `docker.redpanda.com/redpandadata/redpanda:v24.3.7`   |
-| `connect`  | Redpanda Connect — CDC relay and Meilisearch/S3 sync | `docker.redpanda.com/redpandadata/connect:4.38.0`     |
+| `connect`  | Redpanda Connect — Meilisearch sync consumer/backfill   | `docker.redpanda.com/redpandadata/connect:4.38.0`     |
 
 ## Request Flow
 
@@ -27,10 +27,9 @@ Browser → nginx Ingress → frontend:8080 (SvelteKit SSR)
                                         search
                                         (HTTP)
 
-database (WAL) → connect (pg_cdc on outbox)
+database (outbox polling) → backend relay → broker
                      │
                      ├── topic: entity-changes ──► connect sync-search → search
-                     │                         ──► connect cleanup-s3  → storage
                      │                         ──► backend notifications-consumer
                      │                         ──► backend feed-consumer
                      │
@@ -101,15 +100,16 @@ database (WAL) → connect (pg_cdc on outbox)
 
 - **Outbox pattern**: every domain mutation writes a row to `outbox` inside the
   same transaction. Payloads are marshaled from typed Go structs with
-  `encoding/json`, never assembled with string formatting. The outbox is
-  append-only; Redpanda Connect reads new rows via WAL CDC (`pg_cdc` input on
-  `public.outbox`) and publishes to the appropriate Redpanda topic
-  (`entity-changes` or `activity`). WAL position tracking gives at-least-once
-  delivery; downstream consumers are idempotent.
-- **CDC relay**: Redpanda Connect monitors the PostgreSQL WAL for INSERT events
-  on `outbox`. Two pipelines run in Connect: `sync-search` (entity-changes →
-  Meilisearch) and `cleanup-s3` (post deletes → S3 DELETE). A one-shot
-  Kubernetes Job (`broker-backfill`) seeds existing data on first deploy.
+  `encoding/json`, never assembled with string formatting. The backend relay
+  locks unpublished rows with `FOR UPDATE SKIP LOCKED`, publishes each row to
+  its topic (`entity-changes` or `activity`), and marks `published_at` only
+  after Kafka accepts the message. If the mark step fails, a later poll may
+  duplicate the message; downstream consumers are idempotent.
+- **Derived sync**: Redpanda Connect streams mode runs the `sync-search`
+  Kafka consumer pipeline (entity-changes → Meilisearch). A one-shot
+  Kubernetes Job (`broker-backfill`) seeds existing users, posts, and hashtags
+  on first deploy. Post blob deletion is handled by the backend's authenticated
+  S3 client during the delete request.
 - **Resilience primitives**: reusable retry and circuit-breaker primitives live
   in the backend's `internal/resilience` package. PostgreSQL operations go
   through `database.DB.Read`/`Write`, which configure those primitives with the

@@ -37,12 +37,13 @@ The backend pod runs two init containers before the backend container starts:
    re-passwords) `phasma_user`, then grants it the `phasma_app` role. The
    backend container connects as `phasma_user`.
 
-The connect Deployment and broker-backfill Job each run one init container:
+The broker-backfill Job runs one init container:
 
 1. `provision-connect-user` — connects as the `postgres` superuser and creates
    (or re-passwords) `phasma_connect_user`, then grants it the `phasma_connect`
-   role. The connect container connects as `phasma_connect_user` with SELECT on
-   `outbox` only.
+   role. The backfill container connects as `phasma_connect_user` with SELECT
+   on `users`, `posts`, `hashtags`, and `post_hashtags`; the connect Deployment
+   uses Kafka, Meilisearch, and S3 only.
 
 `deploy.sh` provisions a Meilisearch scoped key (`documents.add` and
 `documents.delete` on `users`, `posts`, `hashtags` indexes only) after
@@ -109,7 +110,7 @@ Secrets are split per service to limit blast radius:
 | `storage-secret`  | `s3-secret-key`       | Backend S3 client, SeaweedFS config                                                                             |
 | `cache-secret`    | `cache-password`      | Backend cache client                                                                                            |
 | `search-secret`   | `search-master-key`   | Backend search key provisioning, search service                                                                 |
-| `connect-secret`  | `connect-db-password` | provision-connect-user init container, connect DATABASE_URL                                                     |
+| `connect-secret`  | `connect-db-password` | broker-backfill provision-connect-user init container and DATABASE_URL                                          |
 | `connect-secret`  | `search-connect-key`  | connect Meilisearch scoped key (documents.add/delete only; provisioned by deploy.sh after Meilisearch is ready) |
 
 ## Security Context (all pods)
@@ -144,20 +145,37 @@ Secrets are split per service to limit blast radius:
 | backend migration init container          | 64 Mi        | 32 Mi          | 50 m        |
 | backend provision-app-user init container | 64 Mi        | 64 Mi          | 50 m        |
 | database                                  | 512 Mi       | 512 Mi         | 500 m       |
-| cache                                     | 256 Mi       | 128 Mi         | 100 m       |
+| cache                                     | 384 Mi       | 256 Mi         | 100 m       |
 | search                                    | 512 Mi       | 256 Mi         | 100 m       |
 | storage                                   | 256 Mi       | 128 Mi         | 100 m       |
 | broker                                    | 512 Mi       | 256 Mi         | 200 m       |
 | connect                                   | 256 Mi       | 128 Mi         | 100 m       |
 
+Dragonfly starts with `--proactor_threads=1` so its thread-derived memory floor
+fits the single-node local resource envelope.
+
 Redpanda starts through `rpk redpanda start` as a single broker with explicit
-local sizing and addresses: `--smp=1`, `--memory=256M`,
-`--reserve-memory=0M`, `--node-id=0`, Kafka bound on `0.0.0.0:9092` and
-advertised as `broker-0.broker:9092`, and RPC bound on `0.0.0.0:33145` and
-advertised as `broker-0.broker:33145`. The manifest sets
-`redpanda.developer_mode=false`, `redpanda.write_caching_default=false`, and
-`redpanda.auto_create_topics_enabled=false`; it does not pass a `dev-container`
-mode flag or an overprovisioning flag.
+local sizing and addresses: `--config=/tmp/redpanda.yaml`, `--smp=1`,
+`--mode=dev-container`, `--memory=256M`, `--reserve-memory=0M`,
+`--reactor-backend=epoll`, `--kernel-page-cache=1`, `--aio-fsync=0`,
+`--max-networking-io-control-blocks=128`, `--node-id=0`, Kafka bound on
+`0.0.0.0:9092` and advertised as
+`broker-0.broker:9092`, and RPC bound on `0.0.0.0:33145` and advertised as
+`broker-0.broker:33145`.
+
+On Colima, Redpanda also requires enough node-level Linux AIO capacity. The
+deploy script checks the `colima` context and fails before rollout if
+`fs.aio-max-nr` is too low. Raise it with:
+
+```sh
+colima ssh -- sudo sysctl -w fs.aio-max-nr=1048576
+```
+
+To persist it in the Colima VM:
+
+```sh
+colima ssh -- sudo sh -c 'echo fs.aio-max-nr=1048576 >/etc/sysctl.d/99-redpanda-aio.conf && sysctl --system'
+```
 
 ## Health Probes
 
@@ -190,12 +208,15 @@ anti-affinity spreads replicas across nodes to reduce correlated failure risk.
 - Migration history is append-only; deployed schema defects require corrective
   migrations.
 
-## PostgreSQL CDC Configuration
+## PostgreSQL Outbox Relay
 
-The `database` StatefulSet runs PostgreSQL with `-c wal_level=logical` to enable
-logical replication, which Redpanda Connect requires for the `pg_cdc` input.
-Only the `outbox` table is in the CDC publication (`outbox_relay`); no other
-tables require `REPLICA IDENTITY` changes.
+The backend relay polls `outbox` rows where `published_at IS NULL` using
+`FOR UPDATE SKIP LOCKED`, publishes each row to the row's `topic`, then marks
+`published_at` after Kafka accepts the message. Marking after publish gives
+at-least-once relay semantics: a failed mark can duplicate a later publish, but
+consumers are idempotent. PostgreSQL still runs with `wal_level=logical` and
+keeps the `outbox_relay` publication for compatibility with a future
+WAL-backed relay.
 
 ## Environment Variables (backend)
 

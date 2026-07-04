@@ -126,18 +126,19 @@ consumed (deleted) atomically when a post or avatar update references it.
 ### outbox
 
 Transactional outbox for Redpanda. Written in the same transaction as the entity
-mutation; Redpanda Connect reads new rows via WAL CDC and publishes to the
+mutation; the backend relay polls unpublished rows and publishes to the
 appropriate topic. Payloads are generated with `encoding/json` from typed
-backend structs so control characters and quotes are encoded as valid JSON.
-Append-only; rows are never updated or deleted by the relay. A periodic cleanup
-removes rows older than 7 days.
+backend structs so control characters and quotes are encoded as valid JSON. The
+relay sets `published_at` only after Kafka accepts a row; a periodic cleanup
+removes published rows older than 7 days.
 
-| Field   | Type         | Constraints                               |
-| ------- | ------------ | ----------------------------------------- |
-| id      | bigserial PK |                                           |
-| topic   | varchar(50)  | NOT NULL — `entity-changes` or `activity` |
-| payload | jsonb        | NOT NULL — event payload                  |
-| created | timestamptz  | NOT NULL DEFAULT now()                    |
+| Field        | Type         | Constraints                               |
+| ------------ | ------------ | ----------------------------------------- |
+| id           | bigserial PK |                                           |
+| topic        | varchar(50)  | NOT NULL — `entity-changes` or `activity` |
+| payload      | jsonb        | NOT NULL — event payload                  |
+| published_at | timestamptz  | NULL until the relay publishes the row    |
+| created      | timestamptz  | NOT NULL DEFAULT now()                    |
 
 ### feed
 
@@ -179,8 +180,8 @@ cleanup automatically when a post or user is deleted.
 | Index    | Searchable            | Filterable | Sortable   | Primary key                  |
 | -------- | --------------------- | ---------- | ---------- | ---------------------------- |
 | users    | username, name        | —          | —          | id (string, stringified int) |
-| posts    | description, username | hashtags   | created    | id (post public_id UUID)     |
-| hashtags | name                  | —          | post_count | id (hashtag name)            |
+| posts    | description, username | hashtags   | created    | post_id (post public_id UUID) |
+| hashtags | name                  | —          | post_count | name                         |
 
 ## Domain Invariants
 

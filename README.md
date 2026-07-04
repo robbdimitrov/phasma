@@ -23,16 +23,17 @@ images.
 - **Cache layer**: Dragonfly (Redis-protocol) backs rate-limit token buckets and
   login-failure counters, keeping the hot path off PostgreSQL.
 - **Event streaming**: Every domain mutation writes to a transactional outbox.
-  Redpanda Connect reads the PostgreSQL WAL via CDC and publishes to Redpanda
-  (Kafka-compatible) topics consumed by the notifications and feed workers and
-  the Meilisearch sync pipeline.
+  The backend relay polls unpublished rows, publishes to Redpanda
+  (Kafka-compatible) topics, then marks the rows published. The topics are
+  consumed by the notifications and feed workers and the Meilisearch sync
+  pipeline.
 - **Session management**: Argon2id password hashing, HMAC-keyed session tokens,
   per-user session listing and remote revocation.
 - **Production-ready**: Stateless Go API, bounded concurrency, absolute session
   lifetimes, dependency-aware readiness probe, structured JSON logging, circuit
   breaker and retry-with-backoff on every database call.
 - **HA-ready**: Ships at `replicas: 1` but correct at `replicas: N`. No shared
-  in-process state; the outbox is CDC-based (no polling) and all consumers use
+  in-process state; outbox delivery is at least once and all consumers use
   idempotent inserts with `ON CONFLICT DO NOTHING`.
 
 ## Architecture
@@ -80,14 +81,14 @@ Six in-cluster services run alongside the application:
 - **SeaweedFS** — S3-compatible object store holding image bytes. The API
   streams blobs directly; no image data touches PostgreSQL.
 - **Meilisearch** — Derived search index. PostgreSQL is the only source of
-  truth; Meilisearch is populated and kept current via the Redpanda CDC
+  truth; Meilisearch is populated and kept current via the Redpanda outbox
   pipeline.
 - **Redpanda** — Kafka-compatible event broker. Receives `entity-changes` and
-  `activity` events published by Redpanda Connect; consumed by the backend's
+  `activity` events published by the backend outbox relay; consumed by
+  Redpanda Connect and the backend's
   `notifications-consumer` and `feed-consumer` goroutines.
-- **Redpanda Connect** — Stateless CDC relay. Reads new `outbox` rows from the
-  PostgreSQL WAL and publishes to Redpanda. Also drives the Meilisearch sync and
-  S3 cleanup pipelines.
+- **Redpanda Connect** — Stateless Kafka consumer for Meilisearch sync plus a
+  one-shot backfill job for users, posts, and hashtags.
 
 ## Docs
 

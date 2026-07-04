@@ -42,7 +42,7 @@ Defaults are overridable via env vars `RATE_LIMIT_{POLICY}_{BURST,RATE}`.
 | Method | Path                         | Purpose                                                             |
 | ------ | ---------------------------- | --------------------------------------------------------------------- |
 | GET    | /health                      | Liveness check — 204 No Content                                     |
-| GET    | /ready                       | Readiness check — pings PostgreSQL (2 s timeout)                    |
+| GET    | /ready                       | Readiness check — pings PostgreSQL (2 s timeout), 204 No Content    |
 | POST   | /users                       | Create account — returns `{"username": "..."}` on 201               |
 | POST   | /sessions                    | Login — sets `session` cookie, returns `{"username": "..."}` on 201 |
 | GET    | /uploads/                    | Serve uploaded file blob                                            |

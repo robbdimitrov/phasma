@@ -45,6 +45,8 @@
 - Description: optional, max 1000 Unicode code points.
 - Hashtags are extracted with `#([A-Za-z0-9_]{1,50})`, lowercased, de-duplicated
   in first-occurrence order, and stored in `hashtags` and `post_hashtags`.
+- Hashtag search-sync events are emitted after the `post_hashtags` row is
+  written and carry the resulting visible `post_count`.
 
 ## Post Deletion
 
