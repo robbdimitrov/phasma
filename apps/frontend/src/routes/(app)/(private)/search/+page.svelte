@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { createPagination } from '$lib/createPagination.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
-	import { fetchJson } from '$lib/utils/clientFetch';
+	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import SearchDiscovery from './SearchDiscovery.svelte';
 	import SearchResultList from './SearchResultList.svelte';
 	import type { PageData } from './$types';
@@ -50,9 +50,8 @@
 	const pagination = createPagination(
 		() => ({ items: data.items, nextCursor: data.nextCursor }),
 		async (cursor) => {
-			const params = new URLSearchParams({ q: data.q, type: data.type, cursor });
-			const res = await fetch(`/search?${params.toString()}`);
-			return fetchJson<{ items: SearchItem[]; nextCursor: string | null }>(res);
+			const params = new URLSearchParams({ q: data.q, type: data.type });
+			return fetchCursorPage<SearchItem>(fetch, `/search?${params.toString()}`, cursor);
 		}
 	);
 </script>

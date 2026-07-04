@@ -5,7 +5,7 @@
 	import { createPagination } from '$lib/createPagination.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
-	import { fetchJson } from '$lib/utils/clientFetch';
+	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import { relativeDate } from '$lib/utils/relativeDate';
 	import type { PageData } from './$types';
 	import type { Notification, NotificationType } from '$lib/types';
@@ -19,8 +19,7 @@
 	const pagination = createPagination(
 		() => ({ items: data.notifications, nextCursor: data.nextCursor }),
 		async (cursor) => {
-			const res = await fetch(`/notifications?cursor=${encodeURIComponent(cursor)}`);
-			const page = await fetchJson<{ items: Notification[]; nextCursor: string | null }>(res);
+			const page = await fetchCursorPage<Notification>(fetch, '/notifications', cursor);
 			invalidate('app:unreadCount');
 			return page;
 		}

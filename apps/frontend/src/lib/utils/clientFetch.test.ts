@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchJson } from '$lib/utils/clientFetch';
+import { fetchCursorPage, fetchJson } from '$lib/utils/clientFetch';
 
 describe('fetchJson', () => {
 	it('parses and returns JSON on ok response', async () => {
@@ -32,5 +32,33 @@ describe('fetchJson', () => {
 	it('throws on empty body', async () => {
 		const res = new Response('', { status: 200 });
 		await expect(fetchJson(res)).rejects.toThrow('Empty response body');
+	});
+});
+
+describe('fetchCursorPage', () => {
+	it('appends an encoded cursor to paths without query params', async () => {
+		const fetcher = async (input: RequestInfo | URL) => {
+			expect(input).toBe('/feed?cursor=abc%3D%3D');
+			return new Response(JSON.stringify({ items: [1], nextCursor: null }), { status: 200 });
+		};
+
+		await expect(fetchCursorPage<number>(fetcher, '/feed', 'abc==')).resolves.toEqual({
+			items: [1],
+			nextCursor: null
+		});
+	});
+
+	it('appends an encoded cursor to paths with existing query params', async () => {
+		const fetcher = async (input: RequestInfo | URL) => {
+			expect(input).toBe('/search?q=cats&type=posts&cursor=next%2Fpage');
+			return new Response(JSON.stringify({ items: [], nextCursor: 'later' }), { status: 200 });
+		};
+
+		await expect(
+			fetchCursorPage<string>(fetcher, '/search?q=cats&type=posts', 'next/page')
+		).resolves.toEqual({
+			items: [],
+			nextCursor: 'later'
+		});
 	});
 });

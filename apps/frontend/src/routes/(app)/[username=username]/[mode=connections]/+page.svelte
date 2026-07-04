@@ -6,7 +6,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import { fetchJson } from '$lib/utils/clientFetch';
+	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import type { PageData } from './$types';
 	import type { User } from '$lib/types';
 
@@ -22,10 +22,7 @@
 
 	const pagination = createPagination(
 		() => ({ items: data.users, nextCursor: data.nextCursor }),
-		async (cursor) => {
-			const res = await fetch(`/@${username}/${data.mode}?cursor=${encodeURIComponent(cursor)}`);
-			return fetchJson<{ items: User[]; nextCursor: string | null }>(res);
-		}
+		(cursor) => fetchCursorPage<User>(fetch, `/@${username}/${data.mode}`, cursor)
 	);
 
 	const emptyTitle = $derived(

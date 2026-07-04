@@ -62,12 +62,13 @@ calls.
 
 ## Data Fetching Strategy
 
-| Pattern                     | When used                                            |
-| --------------------------- | ---------------------------------------------------- |
-| `+page.server.ts` `load`    | Initial page data — runs server-side                 |
-| `+page.server.ts` `actions` | All mutations — POST form actions with `use:enhance` |
-| `+server.ts` `GET`          | Client-driven pagination "load more" — returns JSON  |
-| `createPagination()`        | Client-side state for progressive list loading       |
+| Pattern                     | When used                                                            |
+| --------------------------- | -------------------------------------------------------------------- |
+| `+page.server.ts` `load`    | Initial page data — runs server-side                                 |
+| `+page.server.ts` `actions` | All mutations — POST form actions with `use:enhance`                 |
+| `+server.ts` `GET`          | Client-driven pagination "load more" — returns JSON                  |
+| `createPagination()`        | Client-side state for progressive list loading                       |
+| `fetchCursorPage()`         | Browser-side cursor URL construction and JSON parsing for pagination |
 
 No data is fetched on component mount. The browser never calls the backend
 directly.
@@ -130,12 +131,14 @@ for explicit validation.
 | `/uploads/[key]`             | GET    | +server.ts        | GET /uploads/{key} (proxied)                              |
 | `/health`                    | GET    | +server.ts        | returns `ok` text                                         |
 
-## `createPagination` (Svelte rune)
+## Pagination Helpers
 
-State: `items`, `cursor`, `loading`, `error`. Resets when `getInitial()` returns
-a new array reference (client-side navigation). `more()` appends and advances
-cursor. Used in feed, profile, liked posts, connections, search, and comment
-lists.
+`createPagination` state: `items`, `cursor`, `loading`, `error`. Resets when
+`getInitial()` returns a new array reference (client-side navigation). `more()`
+appends and advances cursor. Used in feed, profile, liked posts, connections,
+search, and comment lists. Browser pagination fetches use `fetchCursorPage()` so
+cursor encoding, query-string composition, and client error messages stay
+centralized.
 
 ## Session Cookie Relay
 

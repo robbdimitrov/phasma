@@ -3,7 +3,7 @@
 	import PostCard from '$lib/components/PostCard.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
-	import { fetchJson } from '$lib/utils/clientFetch';
+	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import type { PageData } from './$types';
 	import type { Post } from '$lib/types';
 
@@ -11,10 +11,7 @@
 
 	const pagination = createPagination(
 		() => ({ items: data.posts, nextCursor: data.nextCursor }),
-		async (cursor) => {
-			const res = await fetch(`/feed?cursor=${encodeURIComponent(cursor)}`);
-			return fetchJson<{ items: Post[]; nextCursor: string | null }>(res);
-		}
+		(cursor) => fetchCursorPage<Post>(fetch, '/feed', cursor)
 	);
 </script>
 

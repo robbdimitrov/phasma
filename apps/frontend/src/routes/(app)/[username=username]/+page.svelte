@@ -5,7 +5,7 @@
 	import Thumbnail from '$lib/components/Thumbnail.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
-	import { fetchJson } from '$lib/utils/clientFetch';
+	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import type { PageData } from './$types';
 	import type { Post } from '$lib/types';
 
@@ -16,12 +16,7 @@
 
 	const pagination = createPagination(
 		() => ({ items: data.posts, nextCursor: data.nextCursor }),
-		async (cursor) => {
-			const res = await fetch(
-				`/@${data.profileUser.username}?cursor=${encodeURIComponent(cursor)}`
-			);
-			return fetchJson<{ items: Post[]; nextCursor: string | null }>(res);
-		}
+		(cursor) => fetchCursorPage<Post>(fetch, `/@${data.profileUser.username}`, cursor)
 	);
 
 	const isCurrentUser = $derived(data.currentUser?.id === profileUser.id);
