@@ -221,8 +221,10 @@ func TestSearchClientSearchReturnsHits(t *testing.T) {
 
 func TestSearchClientApplySettingsSendsCorrectPaths(t *testing.T) {
 	var paths []string
+	var auth []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.Path)
+		auth = append(auth, r.Header.Get("Authorization"))
 		w.WriteHeader(http.StatusAccepted)
 	}))
 	defer srv.Close()
@@ -242,6 +244,47 @@ func TestSearchClientApplySettingsSendsCorrectPaths(t *testing.T) {
 	for i, p := range paths {
 		if p != want[i] {
 			t.Fatalf("path[%d] = %q, want %q", i, p, want[i])
+		}
+		if auth[i] != "Bearer test-key" {
+			t.Fatalf("auth[%d] = %q, want Bearer test-key", i, auth[i])
+		}
+	}
+}
+
+func TestSearchClientNewClientAppliesSettingsWithMasterThenStoresScopedKey(t *testing.T) {
+	var settingsAuth []string
+	var keyAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPatch && strings.HasSuffix(r.URL.Path, "/settings"):
+			settingsAuth = append(settingsAuth, r.Header.Get("Authorization"))
+			w.WriteHeader(http.StatusAccepted)
+		case r.Method == http.MethodPost && r.URL.Path == "/keys":
+			keyAuth = r.Header.Get("Authorization")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"key":"scoped-abc"}`))
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client, err := NewSearchClient(context.Background(), srv.URL, "master-key")
+	if err != nil {
+		t.Fatalf("NewSearchClient: %v", err)
+	}
+	if client.scopedKey != "scoped-abc" {
+		t.Fatalf("scopedKey = %q, want scoped-abc", client.scopedKey)
+	}
+	if keyAuth != "Bearer master-key" {
+		t.Fatalf("key auth = %q, want Bearer master-key", keyAuth)
+	}
+	if len(settingsAuth) != 3 {
+		t.Fatalf("settings requests = %d, want 3", len(settingsAuth))
+	}
+	for i, got := range settingsAuth {
+		if got != "Bearer master-key" {
+			t.Fatalf("settings auth[%d] = %q, want Bearer master-key", i, got)
 		}
 	}
 }

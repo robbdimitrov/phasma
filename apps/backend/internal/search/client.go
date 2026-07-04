@@ -35,15 +35,15 @@ func NewSearchClient(ctx context.Context, baseURL, masterKey string) (*SearchCli
 		httpClient: &http.Client{},
 	}
 
+	if err := c.applySettings(ctx, masterKey); err != nil {
+		return nil, fmt.Errorf("search: apply index settings: %w", err)
+	}
+
 	scopedKey, err := c.provisionScopedKey(ctx, masterKey)
 	if err != nil {
 		return nil, fmt.Errorf("search: provision scoped key: %w", err)
 	}
 	c.scopedKey = scopedKey
-
-	if err := c.ApplySettings(ctx); err != nil {
-		return nil, fmt.Errorf("search: apply index settings: %w", err)
-	}
 	return c, nil
 }
 
@@ -71,6 +71,10 @@ func (c *SearchClient) provisionScopedKey(ctx context.Context, masterKey string)
 // ApplySettings configures searchable, filterable, and sortable attributes for
 // each index.
 func (c *SearchClient) ApplySettings(ctx context.Context) error {
+	return c.applySettings(ctx, c.scopedKey)
+}
+
+func (c *SearchClient) applySettings(ctx context.Context, key string) error {
 	type indexSettings struct {
 		index    string
 		settings map[string]any
@@ -99,15 +103,15 @@ func (c *SearchClient) ApplySettings(ctx context.Context) error {
 		},
 	}
 	for _, cfg := range configs {
-		if err := c.applyIndexSettings(ctx, cfg.index, cfg.settings); err != nil {
+		if err := c.applyIndexSettings(ctx, key, cfg.index, cfg.settings); err != nil {
 			return fmt.Errorf("search: apply settings for index %q: %w", cfg.index, err)
 		}
 	}
 	return nil
 }
 
-func (c *SearchClient) applyIndexSettings(ctx context.Context, index string, settings map[string]any) error {
-	return c.doJSON(ctx, http.MethodPatch, "/indexes/"+index+"/settings", c.scopedKey, settings, nil)
+func (c *SearchClient) applyIndexSettings(ctx context.Context, key, index string, settings map[string]any) error {
+	return c.doJSON(ctx, http.MethodPatch, "/indexes/"+index+"/settings", key, settings, nil)
 }
 
 // UpsertDocuments adds or replaces documents in the given index.

@@ -253,12 +253,29 @@ func TestHandleEntityChangesMissingPostIDIsNoOp(t *testing.T) {
 	}
 }
 
-func TestHandleActivityIdempotencyViaExternalID(t *testing.T) {
+func TestHandleActivityUsesRecordKeyForExternalID(t *testing.T) {
 	repo := &fakeRepo{}
 	c := newTestConsumer(repo)
 
-	// The external ID encodes topic/partition/offset so the same record always
-	// produces the same external_id, enabling idempotent upsert in the repo.
+	data, _ := json.Marshal(activityPayload{Op: "like", PostID: "p", ActorID: "1", RecipientID: "2"})
+	rec := activityRecord(topicActivity, 3, 77, data)
+	rec.Key = []byte("outbox-123")
+	c.handleActivity(context.Background(), rec)
+
+	if len(repo.created) != 1 || repo.created[0].ExternalID != "outbox-123" {
+		t.Fatalf("external_id = %q, want %q", func() string {
+			if len(repo.created) == 0 {
+				return "<none>"
+			}
+			return repo.created[0].ExternalID
+		}(), "outbox-123")
+	}
+}
+
+func TestHandleActivityFallsBackToOffsetExternalID(t *testing.T) {
+	repo := &fakeRepo{}
+	c := newTestConsumer(repo)
+
 	data, _ := json.Marshal(activityPayload{Op: "like", PostID: "p", ActorID: "1", RecipientID: "2"})
 	rec := activityRecord(topicActivity, 3, 77, data)
 	c.handleActivity(context.Background(), rec)

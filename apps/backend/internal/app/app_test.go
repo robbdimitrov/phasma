@@ -173,8 +173,8 @@ func TestReadinessEndpointChecksDependencyWithTimeout(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
 	app.ServeHTTP(res, req)
 
-	if res.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
 	}
 	if store.refreshCalls != 0 {
 		t.Fatal("readiness endpoint required authentication")

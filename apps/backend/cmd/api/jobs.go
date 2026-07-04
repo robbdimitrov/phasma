@@ -124,9 +124,15 @@ func reconcileFollowerCounts(ctx context.Context, db *database.DB) {
 	defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock(2)`)
 	if _, err := conn.Exec(ctx,
 		`UPDATE users SET
-			follower_count = f.cnt,
-			is_celebrity   = is_celebrity OR f.cnt > $1
-		FROM LATERAL (SELECT count(*)::int AS cnt FROM follows WHERE followee_id = users.id) AS f`,
+			follower_count = counts.cnt,
+			is_celebrity   = users.is_celebrity OR counts.cnt > $1
+		FROM (
+			SELECT users.id AS user_id, count(follows.follower_id)::int AS cnt
+			FROM users
+			LEFT JOIN follows ON follows.followee_id = users.id
+			GROUP BY users.id
+		) AS counts
+		WHERE users.id = counts.user_id`,
 		feed.CelebThreshold); err != nil {
 		slog.Warn("follower count reconciliation failed", "error", err)
 	}

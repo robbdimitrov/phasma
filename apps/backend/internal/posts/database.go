@@ -90,16 +90,23 @@ func (r *PostRepository) CreatePost(ctx context.Context, userID, filename string
 		}
 
 		for _, tag := range tags {
-			var postCount int
-			if err := tx.QueryRow(ctx,
+			if _, err := tx.Exec(ctx,
 				`INSERT INTO hashtags (name) VALUES ($1)
-				ON CONFLICT (name) DO UPDATE SET post_count = hashtags.post_count + 1
-				RETURNING post_count`, tag).Scan(&postCount); err != nil {
+				ON CONFLICT (name) DO NOTHING`, tag); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx,
 				`INSERT INTO post_hashtags (post_id, hashtag_id)
 				SELECT $1, id FROM hashtags WHERE name = $2 ON CONFLICT DO NOTHING`, postID, tag); err != nil {
+				return err
+			}
+			var postCount int
+			if err := tx.QueryRow(ctx,
+				`UPDATE hashtags
+				SET post_count = (
+					SELECT count(*) FROM post_hashtags WHERE hashtag_id = hashtags.id
+				)
+				WHERE name = $1 RETURNING post_count`, tag).Scan(&postCount); err != nil {
 				return err
 			}
 			hashtagPayload, err := database.MarshalOutboxPayload(database.EntityHashtagUpsertPayload{

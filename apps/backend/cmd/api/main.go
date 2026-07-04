@@ -91,8 +91,18 @@ func main() {
 	}
 
 	var consumerWg sync.WaitGroup
+	var outboxRelayDone <-chan struct{}
 	if brokersEnv := os.Getenv("REDPANDA_BROKERS"); brokersEnv != "" {
 		brokers := strings.Split(brokersEnv, ",")
+
+		if databaseHandle != nil {
+			var err error
+			outboxRelayDone, err = startOutboxRelay(signalContext, databaseHandle, brokers)
+			if err != nil {
+				slog.Error("failed to initialize outbox relay", "error", err)
+				os.Exit(1)
+			}
+		}
 
 		notifConsumer, err := notifications.NewConsumer(brokers, repositories.Notifications)
 		if err != nil {
@@ -165,6 +175,9 @@ func main() {
 	}
 	if reconcileFollowersDone != nil {
 		<-reconcileFollowersDone
+	}
+	if outboxRelayDone != nil {
+		<-outboxRelayDone
 	}
 	consumerWg.Wait()
 }

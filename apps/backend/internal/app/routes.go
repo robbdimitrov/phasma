@@ -127,7 +127,7 @@ func readinessHandler(check func(context.Context) error) http.HandlerFunc {
 				return
 			}
 		}
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

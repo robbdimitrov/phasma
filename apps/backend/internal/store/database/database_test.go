@@ -2,6 +2,7 @@ package database_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -400,6 +401,40 @@ func TestDatabaseRepositoryConsumesUploadAndRollsBackFailedPost(t *testing.T) {
 
 	if publicID, created, err := client.CreatePost(ctx, stringID(userID), "missing-upload", nil); err != nil || created || publicID != "" {
 		t.Fatalf("CreatePost(missing upload) = %q, %v, %v", publicID, created, err)
+	}
+}
+
+func TestDatabaseRepositoryPostHashtagOutboxUsesVisiblePostCount(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	userID := createTestUser(t, client, "hashtag_outbox_owner")
+	description := "first #smoke"
+
+	if created, err := client.CreateUpload(ctx, stringID(userID), "hashtag-outbox-upload"); err != nil || !created {
+		t.Fatalf("CreateUpload() = %v, %v", created, err)
+	}
+	if publicID, created, err := client.CreatePost(ctx, stringID(userID), "hashtag-outbox-upload", &description, "smoke"); err != nil || !created || publicID == "" {
+		t.Fatalf("CreatePost() = %q, %v, %v", publicID, created, err)
+	}
+
+	var payload []byte
+	if err := client.DB().Pool().QueryRow(ctx,
+		`SELECT payload
+		FROM outbox
+		WHERE topic = 'entity-changes'
+		AND payload->>'table' = 'hashtags'
+		AND payload->>'name' = 'smoke'
+		ORDER BY id DESC LIMIT 1`,
+	).Scan(&payload); err != nil {
+		t.Fatalf("hashtag outbox payload query error = %v", err)
+	}
+
+	var decoded database.EntityHashtagUpsertPayload
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if decoded.PostCount != 1 {
+		t.Fatalf("hashtag post_count = %d, want 1; payload = %s", decoded.PostCount, payload)
 	}
 }
 

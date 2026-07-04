@@ -160,8 +160,10 @@ func (c *Consumer) handleActivity(ctx context.Context, record *kgo.Record) {
 		return
 	}
 
-	// externalID is stable across retries and guarantees CreateNotification idempotency.
-	externalID := fmt.Sprintf("%s-%d-%d", record.Topic, record.Partition, record.Offset)
+	externalID := string(record.Key)
+	if externalID == "" {
+		externalID = fmt.Sprintf("%s-%d-%d", record.Topic, record.Partition, record.Offset)
+	}
 
 	switch payload.Op {
 	case "like":
