@@ -85,6 +85,7 @@ func registerRoutes(public, protected routeMux, h handlers, requireSession, opti
 		w.WriteHeader(http.StatusNoContent)
 	})
 	public.HandleFunc("GET /health/background", backgroundHealthHandler(h.pipelines))
+	public.HandleFunc("GET /metrics", metricsHandler(h.pipelines))
 	public.HandleFunc("GET /ready", readinessHandler(h.readiness))
 
 	// personalized carries the same underlying mux and route list as public,
@@ -137,6 +138,17 @@ func readinessHandler(check func(context.Context) error) http.HandlerFunc {
 func backgroundHealthHandler(monitor *pipeline.Monitor) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"pipelines": monitor.Snapshot()})
+	}
+}
+
+func metricsHandler(monitor *pipeline.Monitor) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+		if monitor == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(monitor.Metrics("backend")))
 	}
 }
 

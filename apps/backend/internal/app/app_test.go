@@ -17,6 +17,7 @@ func TestRouteContract(t *testing.T) {
 	want := []Route{
 		{Method: "GET", Path: "/health"},
 		{Method: "GET", Path: "/health/background"},
+		{Method: "GET", Path: "/metrics"},
 		{Method: "GET", Path: "/ready"},
 		{Method: "POST", Path: "/users"},
 		{Method: "GET", Path: "/users/{username}/followers"},
@@ -173,6 +174,25 @@ func TestBackgroundHealthEndpointReportsPipelineSnapshot(t *testing.T) {
 	body := res.Body.String()
 	if !strings.Contains(body, `"name":"outbox-relay"`) || !strings.Contains(body, `"processed":2`) {
 		t.Fatalf("body = %s, want pipeline progress", body)
+	}
+}
+
+func TestMetricsEndpointReportsPipelineSnapshot(t *testing.T) {
+	monitor := pipeline.NewMonitor(time.Minute)
+	monitor.Start("outbox-relay")
+	monitor.Progress("outbox-relay", 2, "published")
+	app := New(Config{Pipelines: monitor}, Repositories{SessionAuth: &fakeSessionStore{}})
+
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	app.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	body := res.Body.String()
+	if !strings.Contains(body, `phasma_pipeline_processed_total{service="backend",pipeline="outbox-relay"} 2`) {
+		t.Fatalf("body = %s, want pipeline metrics", body)
 	}
 }
 

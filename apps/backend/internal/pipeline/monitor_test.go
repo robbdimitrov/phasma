@@ -48,12 +48,19 @@ func TestMonitorProgressClearsStalenessAndCountsWork(t *testing.T) {
 }
 
 func TestMonitorErrorFailsCheckUntilProgress(t *testing.T) {
+	now := time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC)
 	monitor := NewMonitor(time.Minute)
+	monitor.now = func() time.Time { return now }
 	monitor.Start("outbox-relay")
 
 	monitor.Error("outbox-relay", context.Canceled)
+	if err := monitor.Check(context.Background()); err != nil {
+		t.Fatalf("Check error before error window = %v, want nil", err)
+	}
+
+	now = now.Add(errorWindow)
 	if err := monitor.Check(context.Background()); err == nil {
-		t.Fatal("Check error = nil, want unhealthy after pipeline error")
+		t.Fatal("Check error = nil, want unhealthy after sustained pipeline error")
 	}
 
 	monitor.Progress("outbox-relay", 1, "published")

@@ -141,7 +141,7 @@ func RateLimit(store RateLimiterStore) func(http.Handler) http.Handler {
 }
 
 func rateLimitPolicy(r *http.Request) (RateLimitPolicy, bool) {
-	if r.Method == http.MethodGet && (r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, "/health/") || r.URL.Path == "/ready") {
+	if r.Method == http.MethodGet && (r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, "/health/") || r.URL.Path == "/ready" || r.URL.Path == "/metrics") {
 		return RateLimitPolicy{}, true
 	}
 	switch {
