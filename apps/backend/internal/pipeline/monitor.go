@@ -23,6 +23,7 @@ type Status struct {
 	LastError    string    `json:"lastError,omitempty"`
 	LastDetail   string    `json:"lastDetail,omitempty"`
 	ErrorCount   uint64    `json:"errorCount"`
+	ErrorStreak  uint64    `json:"errorStreak"`
 	Processed    uint64    `json:"processed"`
 }
 
@@ -76,6 +77,8 @@ func (m *Monitor) Progress(name string, processed uint64, detail string) {
 	status.LastProgress = now
 	status.LastDetail = detail
 	status.Processed += processed
+	status.LastError = ""
+	status.ErrorStreak = 0
 	status.Stale = false
 	m.pipelines[name] = status
 }
@@ -88,10 +91,10 @@ func (m *Monitor) Error(name string, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	status := m.ensureLocked(name, now)
-	status.LastProgress = now
 	status.LastError = err.Error()
 	status.LastDetail = "error"
 	status.ErrorCount++
+	status.ErrorStreak++
 	status.Stale = false
 	m.pipelines[name] = status
 }
@@ -133,7 +136,7 @@ func (m *Monitor) Check(context.Context) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for _, status := range m.pipelines {
-		if !status.Running || m.isStale(status, now) {
+		if !status.Running || status.ErrorStreak > 0 || m.isStale(status, now) {
 			return errors.New("background pipeline unhealthy")
 		}
 	}

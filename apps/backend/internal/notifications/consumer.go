@@ -44,10 +44,13 @@ func NewConsumer(brokers []string, repo Repository) (*Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Consumer{client: client, repo: repo, panicCounts: map[recordKey]int{}}, nil
+	return &Consumer{client: client, repo: repo, monitor: pipeline.NewMonitor(0), panicCounts: map[recordKey]int{}}, nil
 }
 
 func (c *Consumer) SetMonitor(monitor *pipeline.Monitor) {
+	if monitor == nil {
+		monitor = pipeline.NewMonitor(0)
+	}
 	c.monitor = monitor
 	c.monitor.Register(pipelineName)
 }
@@ -57,6 +60,9 @@ func (c *Consumer) Close() {
 }
 
 func (c *Consumer) Run(ctx context.Context) {
+	if c.monitor == nil {
+		c.monitor = pipeline.NewMonitor(0)
+	}
 	c.monitor.Start(pipelineName)
 	defer c.monitor.Stop(pipelineName)
 	for {
@@ -77,7 +83,9 @@ func (c *Consumer) Run(ctx context.Context) {
 					closed = true
 					return
 				}
+				hadError := false
 				fetches.EachError(func(topic string, partition int32, err error) {
+					hadError = true
 					slog.Warn("notifications consumer: fetch error", "topic", topic, "partition", partition, "error", err)
 					c.monitor.Error(pipelineName, err)
 				})
@@ -86,7 +94,9 @@ func (c *Consumer) Run(ctx context.Context) {
 					c.handleRecordSafely(ctx, record)
 					records++
 				})
-				c.monitor.Progress(pipelineName, records, "poll")
+				if !hadError {
+					c.monitor.Progress(pipelineName, records, "poll")
+				}
 				if err := c.client.CommitUncommittedOffsets(ctx); err != nil {
 					slog.Warn("notifications consumer: commit failed", "error", err)
 					c.monitor.Error(pipelineName, err)

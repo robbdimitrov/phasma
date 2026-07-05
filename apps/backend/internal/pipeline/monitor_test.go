@@ -47,6 +47,21 @@ func TestMonitorProgressClearsStalenessAndCountsWork(t *testing.T) {
 	}
 }
 
+func TestMonitorErrorFailsCheckUntilProgress(t *testing.T) {
+	monitor := NewMonitor(time.Minute)
+	monitor.Start("outbox-relay")
+
+	monitor.Error("outbox-relay", context.Canceled)
+	if err := monitor.Check(context.Background()); err == nil {
+		t.Fatal("Check error = nil, want unhealthy after pipeline error")
+	}
+
+	monitor.Progress("outbox-relay", 1, "published")
+	if err := monitor.Check(context.Background()); err != nil {
+		t.Fatalf("Check error after progress = %v, want nil", err)
+	}
+}
+
 func TestMonitorStoppedPipelineFailsCheck(t *testing.T) {
 	monitor := NewMonitor(time.Minute)
 	monitor.Start("notifications-consumer")
