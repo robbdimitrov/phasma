@@ -21,7 +21,8 @@ Error bodies are `{"message": "..."}`.
    session cookie > client IP.
 6. `RequireSession` — validates `session` cookie; refreshes sliding TTL; injects
    `userID` into context. Exempt: `POST /sessions`, `POST /users`,
-   `GET /health`, `GET /health/background`, `GET /ready`, `OPTIONS`.
+   `GET /health`, `GET /health/background`, `GET /metrics`, `GET /ready`,
+   `OPTIONS`.
 
 ## Rate Limit Policies
 
@@ -31,7 +32,7 @@ Error bodies are `{"message": "..."}`.
 | typeahead | GET /users/search, GET /hashtags/search, GET /search | 20    | 5            |
 | read      | GET/HEAD (all others)                                | 120   | 2            |
 | mutation  | POST/PUT/PATCH/DELETE (all others)                   | 30    | 1            |
-| exempt    | GET /health, GET /health/background, GET /ready      | —     | —            |
+| exempt    | GET /health, GET /health/background, GET /metrics, GET /ready | —     | —            |
 
 Defaults are overridable via env vars `RATE_LIMIT_{POLICY}_{BURST,RATE}`.
 
@@ -43,6 +44,7 @@ Defaults are overridable via env vars `RATE_LIMIT_{POLICY}_{BURST,RATE}`.
 | ------ | ---------------------------- | --------------------------------------------------------------------- |
 | GET    | /health                      | Liveness check — 204 No Content                                     |
 | GET    | /health/background           | Background pipeline health/progress snapshot                        |
+| GET    | /metrics                     | Prometheus text metrics for background pipeline health               |
 | GET    | /ready                       | Readiness check — pings PostgreSQL and configured background pipelines (2 s timeout), 204 No Content |
 | POST   | /users                       | Create account — returns `{"username": "..."}` on 201               |
 | POST   | /sessions                    | Login — sets `session` cookie, returns `{"username": "..."}` on 201 |

@@ -228,7 +228,9 @@ on the first failed poll; `/ready` fails only when the first unrecovered error
 has remained present for 30 seconds. Successful progress clears the error streak
 and failure window. `GET /metrics` exposes the same monitor as Prometheus text
 metrics, including running/stale state, error streaks, total errors, processed
-counts, and age since last progress or first unrecovered error.
+counts, and age since last progress or first unrecovered error. Metrics include
+the existing `phasma_pipeline_*` names plus canonical `app_pipeline_*` aliases
+with labels `app="phasma"`, `service="backend"`, and `pipeline`.
 
 Run `scripts/failure-drill.sh` after changing dependency clients, probes, or
 background pipeline code. The script restarts PostgreSQL, cache, broker, search,

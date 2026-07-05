@@ -163,11 +163,21 @@ func (m *Monitor) Metrics(service string) string {
 		fmt.Fprintf(&b, "phasma_pipeline_errors_total{%s} %d\n", labels, status.ErrorCount)
 		fmt.Fprintf(&b, "phasma_pipeline_processed_total{%s} %d\n", labels, status.Processed)
 		fmt.Fprintf(&b, "phasma_pipeline_unhealthy{%s} %d\n", labels, boolMetric(!status.Running || m.hasSustainedError(status, now) || status.Stale))
+		canonicalLabels := fmt.Sprintf(`app=%q,service=%q,pipeline=%q`, "phasma", service, status.Name)
+		fmt.Fprintf(&b, "app_pipeline_running{%s} %d\n", canonicalLabels, boolMetric(status.Running))
+		fmt.Fprintf(&b, "app_pipeline_stale{%s} %d\n", canonicalLabels, boolMetric(status.Stale))
+		fmt.Fprintf(&b, "app_pipeline_error_streak{%s} %d\n", canonicalLabels, status.ErrorStreak)
+		fmt.Fprintf(&b, "app_pipeline_errors_total{%s} %d\n", canonicalLabels, status.ErrorCount)
+		fmt.Fprintf(&b, "app_pipeline_processed_total{%s} %d\n", canonicalLabels, status.Processed)
+		fmt.Fprintf(&b, "app_pipeline_unhealthy{%s} %d\n", canonicalLabels, boolMetric(!status.Running || m.hasSustainedError(status, now) || status.Stale))
 		if !status.LastProgress.IsZero() {
 			fmt.Fprintf(&b, "phasma_pipeline_last_progress_age_seconds{%s} %.0f\n", labels, now.Sub(status.LastProgress).Seconds())
+			fmt.Fprintf(&b, "app_pipeline_last_progress_age_seconds{%s} %.0f\n", canonicalLabels, now.Sub(status.LastProgress).Seconds())
+			fmt.Fprintf(&b, "app_pipeline_last_success_age_seconds{%s} %.0f\n", canonicalLabels, now.Sub(status.LastProgress).Seconds())
 		}
 		if !status.FirstErrorAt.IsZero() {
 			fmt.Fprintf(&b, "phasma_pipeline_first_error_age_seconds{%s} %.0f\n", labels, now.Sub(status.FirstErrorAt).Seconds())
+			fmt.Fprintf(&b, "app_pipeline_first_error_age_seconds{%s} %.0f\n", canonicalLabels, now.Sub(status.FirstErrorAt).Seconds())
 		}
 	}
 	return b.String()
