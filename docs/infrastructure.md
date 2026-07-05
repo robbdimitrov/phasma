@@ -181,7 +181,7 @@ colima ssh -- sudo sh -c 'echo fs.aio-max-nr=1048576 >/etc/sysctl.d/99-redpanda-
 
 | Service  | Liveness                  | Readiness                     | Startup                           |
 | -------- | ------------------------- | ----------------------------- | --------------------------------- |
-| backend  | GET /health               | GET /ready (pings PostgreSQL) | GET /health, 30×2 s               |
+| backend  | GET /health               | GET /ready (pings PostgreSQL and configured background pipelines) | GET /health, 30×2 s               |
 | frontend | GET /health               | GET /health                   | GET /health, 30×2 s               |
 | database | pg_isready                | pg_isready                    | pg_isready, 30×2 s                |
 | cache    | tcpSocket :6379           | tcpSocket :6379               | tcpSocket :6379, 30×2 s           |
@@ -218,6 +218,13 @@ consumers are idempotent. PostgreSQL still runs with `wal_level=logical` and
 keeps the `outbox_relay` publication for compatibility with a future
 WAL-backed relay.
 
+When Redpanda is configured, the backend tracks the outbox relay,
+notifications consumer, and feed consumer in memory. `GET /health/background`
+returns each pipeline's running state, last progress timestamp, last error,
+error count, and processed count. `/ready` remains lightweight but includes the
+same monitor so a pod is removed from service if one of those configured
+pipelines exits or stops heartbeating.
+
 ## Environment Variables (backend)
 
 | Variable                          | Source                           | Purpose                                                                                                     |
@@ -230,10 +237,14 @@ WAL-backed relay.
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | secrets                          | S3 credentials                                                                                              |
 | `CACHE_URL`                       | literal                          | Cache connection                                                                                            |
 | `CACHE_PASSWORD`                  | secret                           | Cache auth                                                                                                  |
+| `CACHE_CONN_LIFETIME_MINUTES`     | optional                         | Dragonfly client connection lifetime; defaults to 30                                                        |
+| `CACHE_CONN_WRITE_TIMEOUT_MS`     | optional                         | Dragonfly connection write deadline; defaults to 3000                                                       |
 | `TRUST_PROXY`                     | literal `"true"`                 | Honor valid X-Forwarded-* headers from the ingress, which must overwrite client-supplied forwarding headers |
 | `MEILI_URL`                       | literal                          | Meilisearch endpoint                                                                                        |
 | `MEILI_MASTER_KEY`                | secret                           | Meilisearch key provisioning                                                                                |
 | `REDPANDA_BROKERS`                | literal                          | Kafka broker address for consumers                                                                          |
+| `BACKGROUND_PIPELINE_STALE_SECONDS` | optional                       | Readiness stale threshold for configured background pipelines; defaults to 120                               |
+| `POSTGRES_CONN_LIFETIME_MINUTES`  | optional                         | PostgreSQL pool connection lifetime; defaults to 30                                                         |
 | `PORT`                            | literal `"8080"`                 | Listen port                                                                                                 |
 
 ## Environment Variables (frontend)

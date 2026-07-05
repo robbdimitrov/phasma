@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"phasma/backend/internal/httpx"
+	"phasma/backend/internal/pipeline"
 )
 
 func TestRouteContract(t *testing.T) {
 	want := []Route{
 		{Method: "GET", Path: "/health"},
+		{Method: "GET", Path: "/health/background"},
 		{Method: "GET", Path: "/ready"},
 		{Method: "POST", Path: "/users"},
 		{Method: "GET", Path: "/users/{username}/followers"},
@@ -152,6 +154,25 @@ func TestHealthEndpoint(t *testing.T) {
 
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+}
+
+func TestBackgroundHealthEndpointReportsPipelineSnapshot(t *testing.T) {
+	monitor := pipeline.NewMonitor(time.Minute)
+	monitor.Start("outbox-relay")
+	monitor.Progress("outbox-relay", 2, "published")
+	app := New(Config{Pipelines: monitor}, Repositories{SessionAuth: &fakeSessionStore{}})
+
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health/background", nil)
+	app.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	body := res.Body.String()
+	if !strings.Contains(body, `"name":"outbox-relay"`) || !strings.Contains(body, `"processed":2`) {
+		t.Fatalf("body = %s, want pipeline progress", body)
 	}
 }
 

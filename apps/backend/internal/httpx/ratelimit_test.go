@@ -96,7 +96,7 @@ func TestRateLimitAllowsExemptPath(t *testing.T) {
 	handler := RateLimit(&denyAllStore{})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	for _, path := range []string{"/health", "/ready"} {
+	for _, path := range []string{"/health", "/health/background", "/ready"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)

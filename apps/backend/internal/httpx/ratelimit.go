@@ -12,6 +12,7 @@ import (
 
 	"github.com/valkey-io/valkey-go"
 
+	"phasma/backend/internal/cacheclient"
 	"phasma/backend/internal/env"
 )
 
@@ -59,12 +60,9 @@ type CacheRateLimiterStore struct {
 }
 
 func NewCacheRateLimiterStore(cacheURL, password string) (*CacheRateLimiterStore, error) {
-	opt, err := valkey.ParseURL(cacheURL)
+	opt, err := cacheclient.ParseOptions(cacheURL, password)
 	if err != nil {
-		return nil, fmt.Errorf("rate limiter: parse cache url: %w", err)
-	}
-	if password != "" {
-		opt.Password = password
+		return nil, fmt.Errorf("rate limiter: %w", err)
 	}
 	client, err := valkey.NewClient(opt)
 	if err != nil {
@@ -143,7 +141,7 @@ func RateLimit(store RateLimiterStore) func(http.Handler) http.Handler {
 }
 
 func rateLimitPolicy(r *http.Request) (RateLimitPolicy, bool) {
-	if r.Method == http.MethodGet && (r.URL.Path == "/health" || r.URL.Path == "/ready") {
+	if r.Method == http.MethodGet && (r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, "/health/") || r.URL.Path == "/ready") {
 		return RateLimitPolicy{}, true
 	}
 	switch {

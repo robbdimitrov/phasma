@@ -30,6 +30,7 @@ func Open(ctx context.Context, databaseURL, sessionSecret string) (*DB, error) {
 	}
 	config.MaxConns = int32(env.Int("POSTGRES_MAX_CONNS", 10))
 	config.MaxConnIdleTime = 5 * time.Minute
+	config.MaxConnLifetime = time.Duration(env.Int("POSTGRES_CONN_LIFETIME_MINUTES", 30)) * time.Minute
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {

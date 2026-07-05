@@ -10,6 +10,7 @@ import (
 	"phasma/backend/internal/feed"
 	"phasma/backend/internal/httpx"
 	"phasma/backend/internal/notifications"
+	"phasma/backend/internal/pipeline"
 	"phasma/backend/internal/posts"
 	"phasma/backend/internal/search"
 	"phasma/backend/internal/sessions"
@@ -33,6 +34,7 @@ type handlers struct {
 	feed          feed.Handler
 	notifications notifications.Handler
 	readiness     func(context.Context) error
+	pipelines     *pipeline.Monitor
 }
 
 type routeMux struct {
@@ -82,6 +84,7 @@ func registerRoutes(public, protected routeMux, h handlers, requireSession, opti
 	public.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
+	public.HandleFunc("GET /health/background", backgroundHealthHandler(h.pipelines))
 	public.HandleFunc("GET /ready", readinessHandler(h.readiness))
 
 	// personalized carries the same underlying mux and route list as public,
@@ -128,6 +131,12 @@ func readinessHandler(check func(context.Context) error) http.HandlerFunc {
 			}
 		}
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func backgroundHealthHandler(monitor *pipeline.Monitor) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"pipelines": monitor.Snapshot()})
 	}
 }
 

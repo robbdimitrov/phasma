@@ -19,6 +19,7 @@ import (
 	"phasma/backend/internal/feed"
 	"phasma/backend/internal/httpx"
 	"phasma/backend/internal/notifications"
+	"phasma/backend/internal/pipeline"
 	"phasma/backend/internal/posts"
 	"phasma/backend/internal/search"
 	"phasma/backend/internal/sessions"
@@ -69,6 +70,8 @@ func main() {
 	signalContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	sessionCleanupDone := startSessionCleanup(signalContext, repositories.Sessions)
+	pipelineMonitor := pipeline.NewMonitor(time.Duration(env.Int("BACKGROUND_PIPELINE_STALE_SECONDS", 120)) * time.Second)
+	backgroundReadiness := readiness
 
 	var sweepOutboxDone <-chan struct{}
 	if databaseHandle != nil {
@@ -97,7 +100,7 @@ func main() {
 
 		if databaseHandle != nil {
 			var err error
-			outboxRelayDone, err = startOutboxRelay(signalContext, databaseHandle, brokers)
+			outboxRelayDone, err = startOutboxRelay(signalContext, databaseHandle, brokers, pipelineMonitor)
 			if err != nil {
 				slog.Error("failed to initialize outbox relay", "error", err)
 				os.Exit(1)
@@ -109,6 +112,7 @@ func main() {
 			slog.Error("failed to initialize notifications consumer", "error", err)
 			os.Exit(1)
 		}
+		notifConsumer.SetMonitor(pipelineMonitor)
 		defer notifConsumer.Close()
 		consumerWg.Add(1)
 		go func() {
@@ -121,19 +125,28 @@ func main() {
 			slog.Error("failed to initialize feed consumer", "error", err)
 			os.Exit(1)
 		}
+		feedConsumer.SetMonitor(pipelineMonitor)
 		defer feedConsumer.Close()
 		consumerWg.Add(1)
 		go func() {
 			defer consumerWg.Done()
 			feedConsumer.Run(signalContext)
 		}()
+
+		backgroundReadiness = func(ctx context.Context) error {
+			if err := readiness(ctx); err != nil {
+				return err
+			}
+			return pipelineMonitor.Check(ctx)
+		}
 	}
 
 	handler := app.New(app.Config{
 		Blobs:         blobs,
 		RateLimiter:   rateLimiter,
 		LoginThrottle: loginThrottle,
-		Readiness:     readiness,
+		Readiness:     backgroundReadiness,
+		Pipelines:     pipelineMonitor,
 		SearchClient:  searchClient,
 	}, repositories)
 

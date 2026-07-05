@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/twmb/franz-go/pkg/kgo"
 
+	"phasma/backend/internal/pipeline"
 	"phasma/backend/internal/store/database"
 )
 
@@ -18,7 +19,9 @@ type outboxEvent struct {
 	Payload []byte
 }
 
-func startOutboxRelay(ctx context.Context, db *database.DB, brokers []string) (<-chan struct{}, error) {
+const outboxRelayPipeline = "outbox-relay"
+
+func startOutboxRelay(ctx context.Context, db *database.DB, brokers []string, monitor *pipeline.Monitor) (<-chan struct{}, error) {
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 		kgo.AllowAutoTopicCreation(),
@@ -28,15 +31,17 @@ func startOutboxRelay(ctx context.Context, db *database.DB, brokers []string) (<
 	}
 
 	done := make(chan struct{})
+	monitor.Start(outboxRelayPipeline)
 	go func() {
 		defer close(done)
 		defer client.Close()
-		relayOutboxPeriodically(ctx, db, client)
+		defer monitor.Stop(outboxRelayPipeline)
+		relayOutboxPeriodically(ctx, db, client, monitor)
 	}()
 	return done, nil
 }
 
-func relayOutboxPeriodically(ctx context.Context, db *database.DB, client *kgo.Client) {
+func relayOutboxPeriodically(ctx context.Context, db *database.DB, client *kgo.Client, monitor *pipeline.Monitor) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
@@ -44,21 +49,23 @@ func relayOutboxPeriodically(ctx context.Context, db *database.DB, client *kgo.C
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			relayOutboxBatch(ctx, db, client)
+			relayOutboxBatch(ctx, db, client, monitor)
 		}
 	}
 }
 
-func relayOutboxBatch(ctx context.Context, db *database.DB, client *kgo.Client) {
+func relayOutboxBatch(ctx context.Context, db *database.DB, client *kgo.Client, monitor *pipeline.Monitor) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			slog.Error("outbox relay panicked", "panic", recovered)
+			monitor.Error(outboxRelayPipeline, errPanic(recovered))
 		}
 	}()
 
 	tx, err := db.Pool().BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		slog.Warn("outbox relay: begin transaction failed", "error", err)
+		monitor.Error(outboxRelayPipeline, err)
 		return
 	}
 	defer database.Rollback(context.Background(), tx)
@@ -72,6 +79,7 @@ func relayOutboxBatch(ctx context.Context, db *database.DB, client *kgo.Client) 
 		FOR UPDATE SKIP LOCKED`)
 	if err != nil {
 		slog.Warn("outbox relay: query failed", "error", err)
+		monitor.Error(outboxRelayPipeline, err)
 		return
 	}
 	events, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (outboxEvent, error) {
@@ -83,9 +91,11 @@ func relayOutboxBatch(ctx context.Context, db *database.DB, client *kgo.Client) 
 	})
 	if err != nil {
 		slog.Warn("outbox relay: scan failed", "error", err)
+		monitor.Error(outboxRelayPipeline, err)
 		return
 	}
 	if len(events) == 0 {
+		monitor.Progress(outboxRelayPipeline, 0, "idle")
 		return
 	}
 
@@ -104,14 +114,19 @@ func relayOutboxBatch(ctx context.Context, db *database.DB, client *kgo.Client) 
 	defer cancel()
 	if err := client.ProduceSync(produceCtx, records...).FirstErr(); err != nil {
 		slog.Warn("outbox relay: publish failed", "error", err)
+		monitor.Error(outboxRelayPipeline, err)
 		return
 	}
 
 	if _, err := tx.Exec(ctx, `UPDATE outbox SET published_at = now() WHERE id = ANY($1)`, ids); err != nil {
 		slog.Warn("outbox relay: mark published failed", "error", err)
+		monitor.Error(outboxRelayPipeline, err)
 		return
 	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.Warn("outbox relay: commit failed", "error", err)
+		monitor.Error(outboxRelayPipeline, err)
+		return
 	}
+	monitor.Progress(outboxRelayPipeline, uint64(len(events)), "published")
 }

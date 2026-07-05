@@ -87,6 +87,11 @@ database (outbox polling) → backend relay → broker
   consumer group names so each receives the full stream independently. Record
   handling recovers panics per record and continues the batch so a single
   malformed or buggy event cannot restart the whole poll loop indefinitely.
+- The backend exposes `GET /health/background` with lightweight in-memory
+  progress for the outbox relay, notifications consumer, and feed consumer
+  when `REDPANDA_BROKERS` enables those pipelines. Readiness still pings
+  PostgreSQL and also fails when a configured background pipeline exits or has
+  not heartbeated within the configured stale window.
 - Session cleanup goroutine: sweeps expired sessions and deletes `outbox` rows
   older than 7 days every hour.
 
@@ -115,7 +120,9 @@ database (outbox polling) → backend relay → broker
   through `database.DB.Read`/`Write`, which configure those primitives with the
   database transient-error classifier (5 consecutive transient failures → open;
   30 s cooldown). Only read operations are retried; writes are not retried
-  unless a caller can prove idempotence.
+  unless a caller can prove idempotence. PostgreSQL and Dragonfly clients set
+  finite connection lifetimes so long-lived pods recycle dependency
+  connections instead of keeping stale sockets indefinitely.
 - **Token bucket rate limiting**: implemented in Lua on Dragonfly; keyed by
   `{policy}:user:{id}` > `{policy}:session:{id}` > `{policy}:ip:{ip}`.
 - **Login throttle**: per-IP (5 failures) and per-email (50 failures) counters

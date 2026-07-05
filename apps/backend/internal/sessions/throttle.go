@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/valkey-io/valkey-go"
+
+	"phasma/backend/internal/cacheclient"
 )
 
 // LoginThrottle tracks and limits repeated login failures by key (IP or email).
@@ -36,12 +38,9 @@ type CacheLoginThrottle struct {
 }
 
 func NewCacheLoginThrottle(cacheURL, password string) (*CacheLoginThrottle, error) {
-	opt, err := valkey.ParseURL(cacheURL)
+	opt, err := cacheclient.ParseOptions(cacheURL, password)
 	if err != nil {
-		return nil, fmt.Errorf("login throttle: parse cache url: %w", err)
-	}
-	if password != "" {
-		opt.Password = password
+		return nil, fmt.Errorf("login throttle: %w", err)
 	}
 	client, err := valkey.NewClient(opt)
 	if err != nil {

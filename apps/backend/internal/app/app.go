@@ -9,6 +9,7 @@ import (
 	"phasma/backend/internal/feed"
 	"phasma/backend/internal/httpx"
 	"phasma/backend/internal/notifications"
+	"phasma/backend/internal/pipeline"
 	"phasma/backend/internal/posts"
 	"phasma/backend/internal/search"
 	"phasma/backend/internal/sessions"
@@ -21,6 +22,7 @@ type Config struct {
 	RateLimiter   httpx.RateLimiterStore
 	LoginThrottle sessions.LoginThrottle
 	Readiness     func(context.Context) error
+	Pipelines     *pipeline.Monitor
 	SearchClient  *search.SearchClient
 }
 
@@ -68,6 +70,7 @@ func New(cfg Config, repositories Repositories) http.Handler {
 			users: userHandler, sessions: sessionHandler, uploads: uploadHandler,
 			posts: postHandler, comments: commentHandler, search: searchHandler,
 			feed: feedHandler, notifications: notificationHandler, readiness: cfg.Readiness,
+			pipelines: cfg.Pipelines,
 		},
 		httpx.RequireSession(repositories.SessionAuth),
 		httpx.OptionalSession(repositories.SessionAuth),

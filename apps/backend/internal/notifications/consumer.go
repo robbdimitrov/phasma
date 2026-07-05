@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+
+	"phasma/backend/internal/pipeline"
 )
 
 const (
@@ -15,11 +18,13 @@ const (
 	topicEntityChanges         = "entity-changes"
 	topicActivity              = "activity"
 	maxRecordPanics            = 3
+	pipelineName               = "notifications-consumer"
 )
 
 type Consumer struct {
 	client      *kgo.Client
 	repo        Repository
+	monitor     *pipeline.Monitor
 	panicCounts map[recordKey]int
 }
 
@@ -34,6 +39,7 @@ func NewConsumer(brokers []string, repo Repository) (*Consumer, error) {
 		kgo.SeedBrokers(brokers...),
 		kgo.ConsumerGroup(notificationsConsumerGroup),
 		kgo.ConsumeTopics(topicEntityChanges, topicActivity),
+		kgo.FetchMaxWait(30*time.Second),
 	)
 	if err != nil {
 		return nil, err
@@ -41,17 +47,25 @@ func NewConsumer(brokers []string, repo Repository) (*Consumer, error) {
 	return &Consumer{client: client, repo: repo, panicCounts: map[recordKey]int{}}, nil
 }
 
+func (c *Consumer) SetMonitor(monitor *pipeline.Monitor) {
+	c.monitor = monitor
+	c.monitor.Register(pipelineName)
+}
+
 func (c *Consumer) Close() {
 	c.client.Close()
 }
 
 func (c *Consumer) Run(ctx context.Context) {
+	c.monitor.Start(pipelineName)
+	defer c.monitor.Stop(pipelineName)
 	for {
 		closed := false
 		func() {
 			defer func() {
 				if recovered := recover(); recovered != nil {
 					slog.Error("notifications consumer panicked", "panic", recovered)
+					c.monitor.Error(pipelineName, errPanic(recovered))
 				}
 			}()
 			for {
@@ -65,12 +79,17 @@ func (c *Consumer) Run(ctx context.Context) {
 				}
 				fetches.EachError(func(topic string, partition int32, err error) {
 					slog.Warn("notifications consumer: fetch error", "topic", topic, "partition", partition, "error", err)
+					c.monitor.Error(pipelineName, err)
 				})
+				var records uint64
 				fetches.EachRecord(func(record *kgo.Record) {
 					c.handleRecordSafely(ctx, record)
+					records++
 				})
+				c.monitor.Progress(pipelineName, records, "poll")
 				if err := c.client.CommitUncommittedOffsets(ctx); err != nil {
 					slog.Warn("notifications consumer: commit failed", "error", err)
+					c.monitor.Error(pipelineName, err)
 				}
 			}
 		}()
@@ -100,9 +119,11 @@ func (c *Consumer) handleRecordSafely(ctx context.Context, record *kgo.Record) {
 		}
 		if c.panicCounts[key] >= maxRecordPanics {
 			slog.Error("notifications consumer: skipping repeatedly panicking record", attrs...)
+			c.monitor.Error(pipelineName, errPanic(recovered))
 			return
 		}
 		slog.Warn("notifications consumer: skipping panicking record", attrs...)
+		c.monitor.Error(pipelineName, errPanic(recovered))
 	}()
 	c.handle(ctx, record)
 }
