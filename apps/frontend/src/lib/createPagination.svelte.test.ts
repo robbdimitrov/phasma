@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createPagination } from './createPagination.svelte';
 
-// Note: the source-change reset relies on `$effect`, which is a no-op under the
-// SSR-mode compilation used by these unit tests. That path is covered by
-// integration/manual testing rather than reconfiguring the test environment.
+// Source-change reset relies on `$effect`, which is a no-op in these SSR-mode
+// unit tests; integration/manual testing covers that path.
 
 type Page<T> = { items: T[]; nextCursor: string | null };
 

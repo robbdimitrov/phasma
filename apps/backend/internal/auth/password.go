@@ -39,9 +39,8 @@ func NeedsRehash(encodedHash string, target PasswordParams) bool {
 		params.Parallelism < target.Parallelism
 }
 
-// hashSemaphore limits concurrent Argon2 operations to the configured
-// concurrency cap so that a burst of logins cannot exhaust pod memory
-// (each Argon2id hash at default params consumes ~19 MiB).
+// hashSemaphore caps concurrent Argon2 work so login bursts cannot exhaust pod
+// memory; each default hash uses about 19 MiB.
 var hashSemaphore = semaphore.NewWeighted(int64(env.Int("ARGON_MAX_CONCURRENCY", 4)))
 
 type PasswordParams struct {
@@ -56,10 +55,8 @@ var DefaultPasswordParams = PasswordParams{
 	Parallelism: 1,
 }
 
-// decoyHash is a valid Argon2id hash computed once at startup with the default
-// parameters. Login verifies against it when no account matches the supplied
-// email so the password-checking step costs the same whether or not the
-// account exists, closing a user-enumeration timing oracle.
+// decoyHash gives missing-account logins the same password-check cost, closing
+// a user-enumeration timing oracle.
 var decoyHash string
 
 func init() {

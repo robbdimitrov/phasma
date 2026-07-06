@@ -12,9 +12,8 @@ import (
 	"time"
 )
 
-// newTestSearchClient builds a SearchClient that points at srv and bypasses
-// key provisioning and settings so unit tests can call lower-level methods
-// directly.
+// newTestSearchClient bypasses provisioning/settings so unit tests can call
+// lower-level client methods directly.
 func newTestSearchClient(baseURL string) *SearchClient {
 	return &SearchClient{
 		baseURL:    baseURL,

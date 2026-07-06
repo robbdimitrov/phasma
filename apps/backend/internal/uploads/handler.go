@@ -174,9 +174,8 @@ func (f Files) Delete(filename string) {
 	}
 }
 
-// processImage decodes the image to check dimensions, then re-encodes to JPEG.
-// Re-encoding strips embedded metadata (EXIF, GPS, ICC profiles) and ensures
-// the file is a clean image rather than a polyglot or crafted payload.
+// processImage bounds dimensions and re-encodes to JPEG, stripping metadata
+// and rejecting polyglot or crafted payloads.
 func processImage(data []byte) ([]byte, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {

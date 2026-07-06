@@ -158,8 +158,8 @@ func (r *FeedRepository) GetUserIsCelebrity(ctx context.Context, userID int64) (
 		return r.db.Pool().QueryRow(ctx,
 			`SELECT is_celebrity FROM users WHERE id = $1`, userID).Scan(&isCelebrity)
 	})
-	// pgx.ErrNoRows is propagated intentionally: if the user was deleted between the follow
-	// event being published and consumed, the caller logs a warning and skips the backfill.
+	// pgx.ErrNoRows lets the caller skip backfill when the user was deleted
+	// after the follow event was published.
 	return isCelebrity, err
 }
 

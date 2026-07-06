@@ -41,14 +41,8 @@ type routeMux struct {
 	mux           *http.ServeMux
 	authenticated bool
 	routes        *[]Route
-	// optionalSession, when set, wraps every handler registered through
-	// HandleFunc so a valid session cookie populates the viewer id in
-	// context without requiring one. Only set it on a routeMux used for
-	// routes that actually read the viewer id (e.g. to personalize
-	// "liked"/"isFollowing"): health checks, login, and static file serving
-	// don't need it, and protected already requires and injects a session
-	// for every request via RequireSession, so wrapping it there too would
-	// refresh the session twice per request.
+	// optionalSession resolves a viewer id without requiring login. Use it
+	// only for public routes that personalize responses.
 	optionalSession func(http.Handler) http.Handler
 }
 
@@ -71,11 +65,8 @@ func (m routeMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *
 	m.register(pattern, handler, m.optionalSession, m.authenticated)
 }
 
-// handleAuthenticated registers a handler on m's underlying mux that requires
-// a session, regardless of m's own authenticated field. It exists for routes
-// that must live on the public mux to win Go's ServeMux precedence rules
-// (see its call sites) while still being recorded as Authenticated in the
-// route contract.
+// handleAuthenticated registers a session-required route on m's mux. It is
+// used for public-mux literals that must outrank public wildcard routes.
 func (m routeMux) handleAuthenticated(pattern string, handler http.HandlerFunc, requireSession func(http.Handler) http.Handler) {
 	m.register(pattern, handler, requireSession, true)
 }
@@ -88,21 +79,14 @@ func registerRoutes(public, protected routeMux, h handlers, requireSession, opti
 	public.HandleFunc("GET /metrics", metricsHandler(h.pipelines))
 	public.HandleFunc("GET /ready", readinessHandler(h.readiness))
 
-	// personalized carries the same underlying mux and route list as public,
-	// but additionally resolves a signed-in viewer's id for handlers that
-	// read one (liked/isFollowing/email visibility). Routes that don't need
-	// it (above, and sessions/uploads below) stay on plain public so they
-	// don't pay for a session lookup they never use.
+	// personalized shares public's mux and route list, adding optional session
+	// lookup only for routes that render viewer-specific fields.
 	personalized := public
 	personalized.optionalSession = optionalSession
 
 	users.RegisterPublicRoutes(personalized, h.users)
-	// GET /users/me, GET /users/suggested, and GET /users/search must be
-	// registered directly on the public mux (not only on protected's nested
-	// "/" catch-all): Go's ServeMux prefers the most specific pattern IT
-	// knows about, and public's own "GET /users/{username}" wildcard would
-	// otherwise shadow these literal paths for every request, authenticated
-	// or not.
+	// These literals must live on public to outrank the public
+	// "GET /users/{username}" wildcard before the protected mux is reached.
 	public.handleAuthenticated("GET /users/me", h.users.GetCurrentUser, requireSession)
 	public.handleAuthenticated("GET /users/suggested", h.users.ListSuggestedUsers, requireSession)
 	public.handleAuthenticated("GET /users/search", h.search.SearchUsers, requireSession)

@@ -455,10 +455,8 @@ func (r *PostRepository) queryPosts(ctx context.Context, query string, args ...a
 	return result, nil
 }
 
-// queryPostPageOrNotFound wraps a query that uses the UNION ALL sentinel pattern.
-// The query must produce 14 columns: the 12 from postColumns, cursor_created, and
-// user_exists bool. The sentinel row fires (with all NULLs except user_exists) when
-// the page is empty, allowing a single round-trip to distinguish not-found from empty.
+// queryPostPageOrNotFound expects postColumns plus cursor_created and
+// user_exists from the UNION ALL sentinel query.
 func (r *PostRepository) queryPostPageOrNotFound(ctx context.Context, query string, limit int, args ...any) ([]Post, *pagination.Cursor, error) {
 	type row struct {
 		post          Post

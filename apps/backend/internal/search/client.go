@@ -18,9 +18,8 @@ const (
 
 var searchScopedIndexes = []string{"users", "posts", "hashtags"}
 
-// SearchClient wraps net/http to communicate with the search backend.
-// It provisions a scoped key on construction and uses it for all subsequent
-// document and search operations. The master key is never used after startup.
+// SearchClient uses a startup-provisioned scoped key for all document and
+// search operations; the master key is not retained.
 type SearchClient struct {
 	baseURL    string
 	scopedKey  string
@@ -138,10 +137,8 @@ func (c *SearchClient) Search(ctx context.Context, index string, params map[stri
 	return &result, nil
 }
 
-// doJSON performs an HTTP request with a JSON body (if non-nil), reads the
-// response up to searchMaxResponse bytes, and optionally decodes it into out.
-// The key is passed as the Authorization bearer token and is never included
-// in returned errors.
+// doJSON sends bounded JSON requests and optionally decodes the response. The
+// bearer key is never included in returned errors.
 func (c *SearchClient) doJSON(ctx context.Context, method, path, key string, body any, out any) error {
 	tctx, cancel := context.WithTimeout(ctx, searchTimeout)
 	defer cancel()

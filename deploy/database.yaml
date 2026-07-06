@@ -63,8 +63,7 @@ spec:
         - ssl_key_file=/certs/tls.key
         securityContext:
           allowPrivilegeEscalation: false
-          # readOnlyRootFilesystem intentionally omitted: PostgreSQL requires
-          # write access to PGDATA and /var/run/postgresql for socket and PID files.
+          # readOnlyRootFilesystem omitted: PostgreSQL writes PGDATA and socket/PID files.
           capabilities:
             drop:
             - ALL

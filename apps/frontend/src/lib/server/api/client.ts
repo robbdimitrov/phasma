@@ -7,9 +7,8 @@ export type ApiClient = (path: string, init?: RequestInit) => Promise<Response>;
 const backendBase = (): string => env.BACKEND_URL ?? 'http://localhost:8080';
 
 /**
- * Per-request BFF client: resolves backend-relative paths against `BACKEND_URL`
- * and forwards the session cookie. Runs only server-side, so these calls never
- * involve CORS; `connect-src 'self'` keeps the browser off the backend.
+ * Per-request BFF client that forwards the session cookie server-side; the
+ * browser remains limited to this origin by CSP.
  */
 export function apiClient(event: Pick<RequestEvent, 'fetch' | 'cookies'>): ApiClient {
 	return (path, init) => {

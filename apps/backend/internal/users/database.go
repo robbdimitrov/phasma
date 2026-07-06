@@ -161,10 +161,8 @@ func (r *UserRepository) getUser(ctx context.Context, column, value, currentUser
 	return user, true, nil
 }
 
-// queryUserPageOrNotFound wraps a query that uses the UNION ALL sentinel pattern.
-// The query must produce 15 columns: the 13 from userColumns, cursor_created, and
-// user_exists bool. The sentinel row fires (with all NULLs except user_exists) when
-// the page is empty, allowing a single round-trip to distinguish not-found from empty.
+// queryUserPageOrNotFound expects userColumns plus cursor_created and
+// user_exists from the UNION ALL sentinel query.
 func (r *UserRepository) queryUserPageOrNotFound(ctx context.Context, query string, limit int, args ...any) ([]User, *pagination.Cursor, error) {
 	type row struct {
 		user          User
@@ -441,12 +439,8 @@ func (r *UserRepository) ChangePassword(ctx context.Context, userID, passwordHas
 func (r *UserRepository) ListSuggestedUsers(ctx context.Context, viewerID string, limit int) ([]User, error) {
 	var result []User
 	err := r.db.Read(ctx, func() error {
-		// $1 must use the same NULLIF(...)::bigint form as userColumns: Postgres
-		// infers a single type per placeholder across the whole statement, so a
-		// bare bigint comparison here would conflict with userColumns' cast.
-		// IS DISTINCT FROM (not !=) because u.id != NULL is NULL, not true --
-		// that would filter out every row for an anonymous (empty) viewer id
-		// instead of simply not excluding a "self" row.
+		// Match userColumns' NULLIF($1, '')::bigint cast; Postgres infers one
+		// type per placeholder, and IS DISTINCT FROM keeps anonymous viewers.
 		rows, err := r.db.Pool().Query(ctx, `SELECT `+userColumns+`
             FROM users u
             WHERE u.id IS DISTINCT FROM NULLIF($1, '')::bigint

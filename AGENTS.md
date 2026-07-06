@@ -77,6 +77,10 @@ kubectl delete namespace phasma
 - Comments explain constraints, invariants, security decisions, or non-obvious
   intent. Do not narrate straightforward code or preserve implementation
   history.
+- Keep comments concise but valuable. Reduce verbose 3-5 line explanations to
+  1-2 lines when the same constraint or intent remains clear, while preserving
+  documentation comments and language requirements such as Go exported
+  identifier docs.
 - Do not suppress compiler, linter, type-checker, or test warnings to make
   checks pass. Fix the underlying issue. Use a narrowly scoped suppression only
   when required by an external API, generated code, or a documented false

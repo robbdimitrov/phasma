@@ -125,11 +125,8 @@ func TestPersonalizedPublicRouteResolvesOptionalSessionButHealthDoesNot(t *testi
 	}
 }
 
-// TestLiteralRoutesAreNotShadowedByUsernameWildcard guards against the public
-// "GET /users/{username}" wildcard silently swallowing these literal,
-// session-required paths -- as it did for all three until this test was
-// added (GET /users/search was found shadowed live, after /users/me and
-// /users/suggested had already been fixed the same way).
+// TestLiteralRoutesAreNotShadowedByUsernameWildcard guards session-required
+// user literals from the public "GET /users/{username}" wildcard.
 func TestLiteralRoutesAreNotShadowedByUsernameWildcard(t *testing.T) {
 	for _, path := range []string{"/users/me", "/users/suggested", "/users/search"} {
 		t.Run(path, func(t *testing.T) {

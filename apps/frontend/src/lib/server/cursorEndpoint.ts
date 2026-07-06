@@ -5,11 +5,8 @@ type CursorEndpointEvent = Pick<RequestEvent, 'fetch' | 'cookies' | 'url'>;
 
 interface CursorEndpointOptions {
 	/**
-	 * Defaults to requiring a session (deny by default). Set to 'public' only
-	 * for endpoints whose backend route is intentionally public (e.g. post
-	 * comments, a profile's posts/likes/followers/following) — the initial
-	 * page for these is already served to anonymous visitors via `load`, so
-	 * pagination must not require a session either.
+	 * Defaults to requiring a session. Use 'public' only when the initial page
+	 * is already anonymous-readable and pagination must match it.
 	 */
 	auth?: 'session' | 'public';
 }

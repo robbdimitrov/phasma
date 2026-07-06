@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bring up the full Phasma stack on a local Kubernetes cluster (e.g. colima/k3s).
-# Idempotent: safe to re-run; reuses the cluster, namespace, and port-forward.
+# Bring up the local Phasma stack idempotently on a Kubernetes cluster.
 
 CLUSTER="${CLUSTER:-phasma}"
 NS="${NS:-phasma}"
@@ -389,8 +388,7 @@ run_broker_backfill() {
 
 restart_stack() {
   log "restarting all services"
-  # Restarting them together ensures the backends drop their DB connections,
-  # allowing the database's graceful shutdown to complete instantly.
+  # Restart together so backends drop DB connections before database shutdown.
   rollout_restart "${ROLL_OUT_DATABASE[@]}" "${ROLL_OUT_REST[@]}"
 
   log "waiting for database"
@@ -411,7 +409,7 @@ restart_stack() {
 start_port_forward_background() {
   local supervisor_pid
 
-  # Terminate any existing frontend port-forward to this port to avoid stale connections
+  # Stop an existing frontend port-forward on this port before replacing it.
   local pids pid
   pids="$(port_pids)"
   if [[ -n "${pids}" ]]; then
