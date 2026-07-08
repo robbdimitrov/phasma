@@ -19,6 +19,9 @@ const (
 	followBackfillLimit = 50
 	maxRecordPanics     = 3
 	pipelineName        = "feed-consumer"
+	// Bound offset commits; PollFetches stays unbounded since it drives group
+	// rebalance and a short timeout there causes a rebalance livelock.
+	commitTimeout = 10 * time.Second
 )
 
 type Consumer struct {
@@ -39,7 +42,7 @@ func NewConsumer(brokers []string, repo Repository) (*Consumer, error) {
 		kgo.SeedBrokers(brokers...),
 		kgo.ConsumerGroup(consumerGroup),
 		kgo.ConsumeTopics(topicEntityChanges, topicActivity),
-		kgo.FetchMaxWait(30*time.Second),
+		kgo.FetchMaxWait(5*time.Second),
 	)
 	if err != nil {
 		return nil, err
@@ -97,7 +100,10 @@ func (c *Consumer) Run(ctx context.Context) {
 				if !hadError {
 					c.monitor.Progress(pipelineName, records, "poll")
 				}
-				if err := c.client.CommitUncommittedOffsets(ctx); err != nil {
+				commitCtx, commitCancel := context.WithTimeout(ctx, commitTimeout)
+				err := c.client.CommitUncommittedOffsets(commitCtx)
+				commitCancel()
+				if err != nil {
 					slog.Warn("feed consumer: commit failed", "error", err)
 					c.monitor.Error(pipelineName, err)
 				}
