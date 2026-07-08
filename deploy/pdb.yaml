@@ -39,6 +39,7 @@ spec:
     matchLabels:
       app: phasma
       tier: broker
+      component: broker
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

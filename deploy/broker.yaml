@@ -181,6 +181,7 @@ spec:
   selector:
     app: phasma
     tier: broker
+    component: broker
   ports:
     - name: broker
       port: 9092
@@ -194,6 +195,7 @@ metadata:
   labels:
     app: phasma
     tier: broker
+    component: broker
 spec:
   serviceName: broker
   replicas: 1
@@ -202,6 +204,7 @@ spec:
     matchLabels:
       app: phasma
       tier: broker
+      component: broker
   updateStrategy:
     type: RollingUpdate
   template:
@@ -209,6 +212,7 @@ spec:
       labels:
         app: phasma
         tier: broker
+        component: broker
     spec:
       serviceAccountName: broker
       automountServiceAccountToken: false

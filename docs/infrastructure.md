@@ -80,6 +80,11 @@ broker→database/search/storage/broker. Ingress is re-opened symmetrically.
 `database`, `storage`, `cache`, `search`, and `broker` use headless services
 (`clusterIP: None`). The `broker` service sets `publishNotReadyAddresses: true`.
 
+`tier: broker` is shared by the `broker` StatefulSet, `connect` Deployment, and
+`broker-backfill` Job so NetworkPolicies can group them; the `broker` Service
+and `broker-pdb` additionally require `component: broker` so they only ever
+select the StatefulSet's own pod.
+
 ## Ingress
 
 nginx Ingress at `phasma.localhost`. Routes HTTPS traffic to `frontend:8080` and
