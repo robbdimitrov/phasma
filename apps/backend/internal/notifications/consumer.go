@@ -19,8 +19,9 @@ const (
 	topicActivity              = "activity"
 	maxRecordPanics            = 3
 	pipelineName               = "notifications-consumer"
-	// Bound offset commits; PollFetches stays unbounded since it drives group
-	// rebalance and a short timeout there causes a rebalance livelock.
+	// Bound polls/commits against a wedged broker; an idle poll's fake
+	// error (topic=="", partition=-1) is handled as progress, not failure.
+	fetchTimeout  = 30 * time.Second
 	commitTimeout = 10 * time.Second
 )
 
@@ -78,7 +79,9 @@ func (c *Consumer) Run(ctx context.Context) {
 				}
 			}()
 			for {
-				fetches := c.client.PollFetches(ctx)
+				fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
+				fetches := c.client.PollFetches(fetchCtx)
+				cancel()
 				if ctx.Err() != nil {
 					return
 				}
@@ -88,6 +91,9 @@ func (c *Consumer) Run(ctx context.Context) {
 				}
 				hadError := false
 				fetches.EachError(func(topic string, partition int32, err error) {
+					if topic == "" && partition == -1 {
+						return // idle poll timeout, not a fetch failure
+					}
 					hadError = true
 					slog.Warn("notifications consumer: fetch error", "topic", topic, "partition", partition, "error", err)
 					c.monitor.Error(pipelineName, err)
