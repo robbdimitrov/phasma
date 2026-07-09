@@ -20,12 +20,17 @@ CACHE_IMAGE="docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0"
 SEARCH_IMAGE="getmeili/meilisearch:v1.11.3"
 
 SERVICES=(backend database frontend)
-ROLL_OUT_DATABASE=(statefulset/database)
-ROLL_OUT_REST=(
+# storage is a hard dependency backend checks synchronously at startup (blob
+# bucket init); restart and wait for it ahead of backend to avoid a race
+# where backend starts before storage is ready to accept requests.
+ROLL_OUT_INFRA=(
   statefulset/storage
   statefulset/cache
   statefulset/search
   statefulset/broker
+)
+ROLL_OUT_DATABASE=(statefulset/database)
+ROLL_OUT_REST=(
   deployment/backend
   deployment/frontend
 )
@@ -387,7 +392,11 @@ run_broker_backfill() {
 }
 
 restart_stack() {
-  log "restarting all services"
+  log "restarting infra dependencies"
+  rollout_restart "${ROLL_OUT_INFRA[@]}"
+  wait_for_rollouts "${ROLL_OUT_INFRA[@]}"
+
+  log "restarting database and application services"
   # Restart together so backends drop DB connections before database shutdown.
   rollout_restart "${ROLL_OUT_DATABASE[@]}" "${ROLL_OUT_REST[@]}"
 
