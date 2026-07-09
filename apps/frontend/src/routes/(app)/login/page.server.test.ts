@@ -71,7 +71,18 @@ describe('login action', () => {
 
 		expect(result).toMatchObject({
 			status: 429,
-			data: { error: 'Too many attempts. Please wait a moment and try again.' }
+			data: { error: 'Too many requests. Please try again later.' }
+		});
+	});
+
+	it('reports a backend outage without implying the credentials were wrong', async () => {
+		login.mockResolvedValue(new Response(null, { status: 503 }));
+
+		const result = await loginAction()(actionEvent(formData('user@example.com', 'secret')));
+
+		expect(result).toMatchObject({
+			status: 503,
+			data: { error: 'The service is temporarily unavailable. Please try again later.' }
 		});
 	});
 

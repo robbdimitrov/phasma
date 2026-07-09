@@ -64,7 +64,8 @@ describe('apiClient', () => {
 		expect(new Headers(init.headers).has('x-forwarded-for')).toBe(false);
 	});
 
-	it('does not fail the request when getClientAddress throws', async () => {
+	it('logs and does not fail the request when getClientAddress throws', async () => {
+		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const event = {
 			cookies: { get: vi.fn().mockReturnValue(undefined) },
 			getClientAddress: vi.fn().mockImplementation(() => {
@@ -77,6 +78,8 @@ describe('apiClient', () => {
 		expect(res.status).toBe(204);
 		const [, init] = fetchMock.mock.calls[0]!;
 		expect(new Headers(init.headers).has('x-forwarded-for')).toBe(false);
+		expect(consoleError).toHaveBeenCalledTimes(1);
+		consoleError.mockRestore();
 	});
 
 	it('preserves method, body, and caller headers', async () => {

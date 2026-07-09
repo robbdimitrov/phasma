@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { applySessionCookie, login } from '$lib/server/api/auth';
 import { apiClient } from '$lib/server/api/client';
+import { statusMessage } from '$lib/server/api/http';
 
 export const actions: Actions = {
 	default: async ({ request, fetch, cookies, getClientAddress }) => {
@@ -16,12 +17,7 @@ export const actions: Actions = {
 		const res = await login(apiClient({ fetch, cookies, getClientAddress }), email, password);
 
 		if (!res.ok) {
-			// Distinguish rate limiting from a real credential failure; conflating
-			// them as "invalid password" misleads a correctly-typed retry.
-			const error =
-				res.status === 429
-					? 'Too many attempts. Please wait a moment and try again.'
-					: 'Invalid email or password.';
+			const error = res.status === 401 ? 'Invalid email or password.' : statusMessage(res.status);
 			return fail(res.status, { error });
 		}
 

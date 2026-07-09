@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { CursorPage } from '$lib/types';
 import type { ApiClient } from './client';
 
-function statusMessage(status: number): string {
+export function statusMessage(status: number): string {
 	switch (status) {
 		case 400:
 			return 'The request could not be completed.';
