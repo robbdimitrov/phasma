@@ -9,10 +9,9 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
 
 ```
 /                           → redirect 303 → /feed
-├── (auth)/                 no layout guard; public
-│   ├── login/              form action: POST /sessions
-│   └── register/           form action: POST /users then POST /sessions
 └── (app)/                  +layout.server.ts: GET /users/me → currentUser: User | null, no redirect; unread count only when authenticated
+    ├── login/              form action: POST /sessions; public
+    ├── register/           form action: POST /users then POST /sessions; public
     ├── feed/               load: GET /feed (authenticated) or GET /posts/popular (anonymous); public read
     ├── posts/[publicId]/   load: GET /posts/{id} + GET /posts/{id}/comments; public read, like/comment gated to login
     ├── [username=username]/ load: GET /users/{username} + GET /users/{username}/posts; public read, follow gated to login
@@ -45,8 +44,6 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
   (app)/(private)/+layout.server.ts
     - loads: nothing — reads currentUser from parent(); redirect /login if absent
     - guards: upload/, suggest/, logout/, settings/, notifications/, search/
-
-  (auth)/ — no shared layout component
 ```
 
 ## Route Parameters and Matchers
