@@ -4,7 +4,7 @@ import { applySessionCookie, login } from '$lib/server/api/auth';
 import { apiClient } from '$lib/server/api/client';
 
 export const actions: Actions = {
-	default: async ({ request, fetch, cookies }) => {
+	default: async ({ request, fetch, cookies, getClientAddress }) => {
 		const data = await request.formData();
 		const email = ((data.get('email') as string) ?? '').trim();
 		const password = (data.get('password') as string) ?? '';
@@ -13,10 +13,16 @@ export const actions: Actions = {
 			return fail(400, { error: 'Email and password are required.' });
 		}
 
-		const res = await login(apiClient({ fetch, cookies }), email, password);
+		const res = await login(apiClient({ fetch, cookies, getClientAddress }), email, password);
 
 		if (!res.ok) {
-			return fail(res.status, { error: 'Invalid email or password.' });
+			// Distinguish rate limiting from a real credential failure; conflating
+			// them as "invalid password" misleads a correctly-typed retry.
+			const error =
+				res.status === 429
+					? 'Too many attempts. Please wait a moment and try again.'
+					: 'Invalid email or password.';
+			return fail(res.status, { error });
 		}
 
 		// The backend sets the session cookie on its own origin, so SvelteKit must re-emit it here.

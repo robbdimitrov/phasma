@@ -4,8 +4,8 @@ import { applySessionCookie, createUser, login } from '$lib/server/api/auth';
 import { apiClient } from '$lib/server/api/client';
 
 export const actions: Actions = {
-	default: async ({ request, fetch, cookies }) => {
-		const api = apiClient({ fetch, cookies });
+	default: async ({ request, fetch, cookies, getClientAddress }) => {
+		const api = apiClient({ fetch, cookies, getClientAddress });
 		const data = await request.formData();
 		const name = ((data.get('name') as string) ?? '').trim();
 		const username = ((data.get('username') as string) ?? '').trim().toLowerCase();

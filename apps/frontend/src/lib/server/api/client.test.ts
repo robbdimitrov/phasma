@@ -4,9 +4,10 @@ vi.mock('$env/dynamic/private', () => ({ env: { BACKEND_URL: 'http://backend:808
 
 import { apiClient } from './client';
 
-function makeEvent(session?: string) {
+function makeEvent(session?: string, clientAddress?: string) {
 	const cookies = { get: vi.fn().mockReturnValue(session) };
-	return { cookies } as unknown as Parameters<typeof apiClient>[0];
+	const getClientAddress = clientAddress ? vi.fn().mockReturnValue(clientAddress) : undefined;
+	return { cookies, getClientAddress } as unknown as Parameters<typeof apiClient>[0];
 }
 
 describe('apiClient', () => {
@@ -47,6 +48,20 @@ describe('apiClient', () => {
 		await apiClient(event)('/posts');
 		const [, init] = fetchMock.mock.calls[0]!;
 		expect(new Headers(init.headers).has('cookie')).toBe(false);
+	});
+
+	it('forwards the real client address when the caller supplies getClientAddress', async () => {
+		const event = makeEvent(undefined, '203.0.113.7');
+		await apiClient(event)('/sessions', { method: 'POST' });
+		const [, init] = fetchMock.mock.calls[0]!;
+		expect(new Headers(init.headers).get('x-forwarded-for')).toBe('203.0.113.7');
+	});
+
+	it('omits x-forwarded-for when the caller has no getClientAddress', async () => {
+		const event = makeEvent();
+		await apiClient(event)('/posts');
+		const [, init] = fetchMock.mock.calls[0]!;
+		expect(new Headers(init.headers).has('x-forwarded-for')).toBe(false);
 	});
 
 	it('preserves method, body, and caller headers', async () => {
