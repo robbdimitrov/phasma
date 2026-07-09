@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: { BACKEND_URL: 'http://backend:8080' } }));
 vi.mock('@sveltejs/kit', () => ({
@@ -11,29 +11,38 @@ vi.mock('@sveltejs/kit', () => ({
 
 import { GET } from './+server';
 
-function makeEvent(key: string, fetchImpl: ReturnType<typeof vi.fn>) {
+function makeEvent(key: string) {
 	return {
 		params: { key },
-		cookies: { get: vi.fn().mockReturnValue(undefined) },
-		fetch: fetchImpl
+		cookies: { get: vi.fn().mockReturnValue(undefined) }
 	} as unknown as Parameters<typeof GET>[0];
 }
 
 describe('GET /uploads/[key]', () => {
 	const validKey = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+	let fetchMock: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
 
 	it('streams image bytes and forwards safe headers', async () => {
-		const fetch = vi.fn().mockResolvedValue(
+		fetchMock.mockResolvedValue(
 			new Response('IMAGE-BYTES', {
 				status: 200,
 				headers: { 'content-type': 'image/jpeg', 'content-length': '11', etag: '"abc"' }
 			})
 		);
 
-		const res = await GET(makeEvent(validKey, fetch));
+		const res = await GET(makeEvent(validKey));
 
-		expect(fetch).toHaveBeenCalledTimes(1);
-		expect(String(fetch.mock.calls[0]![0])).toBe(`http://backend:8080/uploads/${validKey}`);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(String(fetchMock.mock.calls[0]![0])).toBe(`http://backend:8080/uploads/${validKey}`);
 		expect(res.status).toBe(200);
 		expect(res.headers.get('content-type')).toBe('image/jpeg');
 		expect(res.headers.get('etag')).toBe('"abc"');
@@ -41,17 +50,16 @@ describe('GET /uploads/[key]', () => {
 	});
 
 	it('maps a missing image to 404 without reaching the body', async () => {
-		const fetch = vi.fn().mockResolvedValue(new Response('not found', { status: 404 }));
-		await expect(GET(makeEvent(validKey, fetch))).rejects.toMatchObject({ status: 404 });
+		fetchMock.mockResolvedValue(new Response('not found', { status: 404 }));
+		await expect(GET(makeEvent(validKey))).rejects.toMatchObject({ status: 404 });
 	});
 
 	it('maps other backend failures to 502', async () => {
-		const fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
-		await expect(GET(makeEvent(validKey, fetch))).rejects.toMatchObject({ status: 502 });
+		fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
+		await expect(GET(makeEvent(validKey))).rejects.toMatchObject({ status: 502 });
 	});
 
 	it('rejects traversal and malformed keys before calling the backend', async () => {
-		const fetch = vi.fn();
 		const badKeys = [
 			'..',
 			'photo.jpg',
@@ -61,8 +69,8 @@ describe('GET /uploads/[key]', () => {
 			'ABCDEF1234567890abcdef1234567890'
 		];
 		for (const key of badKeys) {
-			await expect(GET(makeEvent(key, fetch))).rejects.toMatchObject({ status: 404 });
+			await expect(GET(makeEvent(key))).rejects.toMatchObject({ status: 404 });
 		}
-		expect(fetch).not.toHaveBeenCalled();
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

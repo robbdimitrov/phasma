@@ -16,6 +16,9 @@ export function apiClient(event: Pick<RequestEvent, 'fetch' | 'cookies'>): ApiCl
 		// Read per call to honour a session set earlier in the same request.
 		const session = event.cookies.get('session');
 		if (session) headers.set('cookie', `session=${session}`);
-		return event.fetch(new URL(path, backendBase()), { ...init, headers });
+		// Deliberately the global fetch, not event.fetch: event.fetch always adds
+		// an Origin header, which trips the backend's cross-site POST guard on
+		// this trusted, server-to-server call.
+		return fetch(new URL(path, backendBase()), { ...init, headers });
 	};
 }
