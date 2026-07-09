@@ -23,7 +23,17 @@ export function apiClient(
 		// Read per call to honour a session set earlier in the same request.
 		const session = event.cookies.get('session');
 		if (session) headers.set('cookie', `session=${session}`);
-		if (event.getClientAddress) headers.set('x-forwarded-for', event.getClientAddress());
+		// getClientAddress() throws when ADDRESS_HEADER is configured but the
+		// configured header is absent from this request (e.g. a direct
+		// kubectl port-forward with no reverse proxy in front locally) —
+		// fall back to not forwarding rather than failing the request.
+		if (event.getClientAddress) {
+			try {
+				headers.set('x-forwarded-for', event.getClientAddress());
+			} catch {
+				// no-op: backend falls back to seeing this BFF's own address
+			}
+		}
 		// Deliberately the global fetch, not event.fetch: event.fetch always adds
 		// an Origin header, which trips the backend's cross-site POST guard on
 		// this trusted, server-to-server call.

@@ -64,6 +64,21 @@ describe('apiClient', () => {
 		expect(new Headers(init.headers).has('x-forwarded-for')).toBe(false);
 	});
 
+	it('does not fail the request when getClientAddress throws', async () => {
+		const event = {
+			cookies: { get: vi.fn().mockReturnValue(undefined) },
+			getClientAddress: vi.fn().mockImplementation(() => {
+				throw new Error('ADDRESS_HEADER was specified but is absent from request');
+			})
+		} as unknown as Parameters<typeof apiClient>[0];
+
+		const res = await apiClient(event)('/sessions', { method: 'POST' });
+
+		expect(res.status).toBe(204);
+		const [, init] = fetchMock.mock.calls[0]!;
+		expect(new Headers(init.headers).has('x-forwarded-for')).toBe(false);
+	});
+
 	it('preserves method, body, and caller headers', async () => {
 		const event = makeEvent('SECRET');
 		await apiClient(event)('/posts', {
