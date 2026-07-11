@@ -45,6 +45,8 @@
 	let isLoadingMoreComments = $state(false);
 	let showDeleteModal = $state(false);
 	let likeAnimating = $state(false);
+	let likeForm = $state<HTMLFormElement | null>(null);
+	let imageLikeBurst = $state(false);
 
 	function playLikeAnimation() {
 		likeAnimating = false;
@@ -54,6 +56,20 @@
 				likeAnimating = false;
 			}, 220);
 		});
+	}
+
+	function handleImageDoubleClick() {
+		if (!currentUsername) return;
+		imageLikeBurst = false;
+		requestAnimationFrame(() => {
+			imageLikeBurst = true;
+			setTimeout(() => {
+				imageLikeBurst = false;
+			}, 700);
+		});
+		if (!liked) {
+			likeForm?.requestSubmit();
+		}
 	}
 
 	let commentLoadError = $state('');
@@ -111,7 +127,11 @@
 		{/if}
 	</div>
 
-	<div class="relative aspect-square w-full overflow-hidden bg-base-200">
+	<div
+		class="relative aspect-square w-full overflow-hidden bg-base-200"
+		role="presentation"
+		ondblclick={handleImageDoubleClick}
+	>
 		<img
 			class="h-full w-full cursor-pointer object-cover transition-transform duration-700 hover:scale-[1.03]"
 			src={imageUrl(initialPost.filename)}
@@ -121,12 +141,19 @@
 			width="600"
 			height="600"
 		/>
+		{#if imageLikeBurst}
+			<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+				<Heart class="h-24 w-24 fill-white text-white drop-shadow-lg animate-like-burst" />
+			</div>
+		{/if}
 	</div>
 
 	<div class="flex flex-col gap-4 p-6">
 		<div class="flex items-center gap-5">
 			{#if currentUsername}
 				<form
+					bind:this={likeForm}
+					class="contents"
 					method="POST"
 					action="/posts/{initialPost.publicId}?/{liked ? 'unlike' : 'like'}"
 					use:enhance={() => {

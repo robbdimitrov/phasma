@@ -40,12 +40,13 @@ prevent FOUC.
 
 ### Custom Tokens (`@theme`)
 
-| Token                 | Value                               | Use                               |
-| --------------------- | ----------------------------------- | --------------------------------- |
-| `--shadow-glass`      | `0 8px 32px 0 rgba(31,38,135,0.07)` | Glassmorphism card shadow (light) |
-| `--shadow-glass-dark` | `0 8px 32px 0 rgba(0,0,0,0.37)`     | Glassmorphism card shadow (dark)  |
-| `--shadow-glass-glow` | `0 0 15px rgba(255,51,102,0.2)`     | Primary glow effect               |
-| `--animate-like-pop`  | `like-pop 220ms ease-out`           | Heart like animation              |
+| Token                   | Value                                | Use                                 |
+| ----------------------- | ------------------------------------ | ------------------------------------ |
+| `--shadow-glass`        | `0 8px 32px 0 rgba(31,38,135,0.07)`  | Glassmorphism card shadow (light)    |
+| `--shadow-glass-dark`   | `0 8px 32px 0 rgba(0,0,0,0.37)`      | Glassmorphism card shadow (dark)     |
+| `--shadow-glass-glow`   | `0 0 15px rgba(255,51,102,0.2)`      | Primary glow effect                  |
+| `--animate-like-pop`    | `like-pop 220ms ease-out`            | Heart like animation                 |
+| `--animate-like-burst`  | `like-burst 700ms ease-out`          | Double-click-to-like image overlay   |
 
 ## Component Inventory
 
@@ -71,6 +72,8 @@ Full-width card (`rounded-2xl`, `border-base-300`, `bg-base-100`). Two modes:
 - Owner sees a delete button; triggers a confirmation modal (`role="dialog"`,
   `aria-modal`).
 - Optimistic like/unlike with rollback on failure.
+- Double-clicking the image likes the post (no-op if already liked or logged
+  out) and plays a large heart `animate-like-burst` overlay on the image.
 
 ### `Thumbnail`
 
