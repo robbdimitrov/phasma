@@ -16,6 +16,21 @@ Local deployment targets a `kind` cluster.
 | `broker`   | StatefulSet | 1        | PVC 2 Gi (ReadWriteOnce)                 |
 | `connect`  | Deployment  | 1        | none (stateless)                         |
 
+## Deploy Rollout Ordering
+
+`scripts/deploy.sh` applies manifests in three stages — infra
+(storage/cache/search/broker), then database, then backend/frontend —
+waiting for each to be healthy before the next, so a real rollout never
+races a dependency backend checks synchronously at startup. `kubectl
+apply`/`set image` are no-ops when nothing changed, so an unchanged stage
+never restarts. Each workload that reads a Secret also gets a
+`checksum/<secret>` pod-template annotation computed from that Secret's
+data, so a value change with no manifest diff still triggers a real
+rollout instead of going unnoticed until the next unrelated restart.
+`connect` and the `broker-backfill` Job are exceptions: both are always
+re-applied/restarted every run since they depend on state written after
+apply (the Meilisearch key, a fresh backfill run).
+
 ## Image Registry
 
 All custom images are pushed to `localhost:5000/phasma/<service>:<git-sha>`,

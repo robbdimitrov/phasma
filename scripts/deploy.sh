@@ -20,9 +20,8 @@ CACHE_IMAGE="docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0"
 SEARCH_IMAGE="getmeili/meilisearch:v1.11.3"
 
 SERVICES=(backend database frontend)
-# storage is a hard dependency backend checks synchronously at startup (blob
-# bucket init); restart and wait for it ahead of backend to avoid a race
-# where backend starts before storage is ready to accept requests.
+# storage/database are hard startup deps for backend; stage+wait avoids
+# racing an unhealthy one, and unchanged stages stay no-ops.
 ROLL_OUT_INFRA=(
   statefulset/storage
   statefulset/cache
@@ -35,6 +34,21 @@ ROLL_OUT_REST=(
   deployment/frontend
 )
 ROLL_OUT_CONNECT=(deployment/connect)
+
+INFRA_MANIFESTS=(
+  "storage.yaml"
+  "cache.yaml"
+  "search.yaml"
+  "broker.yaml"
+)
+DATABASE_MANIFESTS=("database.yaml")
+REST_MANIFESTS=("backend.yaml" "frontend.yaml")
+STATIC_MANIFESTS=(
+  "serviceaccounts.yaml"
+  "network-policy.yaml"
+  "pdb.yaml"
+  "ingress.yaml"
+)
 
 log() {
   echo "==> $*"
@@ -318,8 +332,36 @@ build_images() {
   fi
 }
 
+apply_manifest_files() {
+  local file files=()
+  for file in "$@"; do
+    files+=(-f "${K8S_DIR}/${file}")
+  done
+  kubectl apply "${files[@]}" -n "${NS}" >/dev/null
+}
+
+secret_checksum() {
+  kubectl -n "${NS}" get secret "$1" -o go-template='{{ range $k, $v := .data }}{{ $k }}{{ $v }}{{ end }}' \
+    | openssl dgst -sha256 -r | awk '{print $1}'
+}
+
+# Stamps a checksum/<secret> pod-template annotation per secret a workload
+# reads, so a secret value change (with no manifest diff) still rolls it out.
+annotate_secret_checksums() {
+  local resource="$1"
+  shift
+  local secret pairs=()
+  for secret in "$@"; do
+    pairs+=("\"checksum/${secret}\":\"$(secret_checksum "${secret}")\"")
+  done
+  local joined
+  joined="$(IFS=,; echo "${pairs[*]}")"
+  kubectl -n "${NS}" patch "${resource}" --type merge \
+    -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{${joined}}}}}}" >/dev/null
+}
+
 apply_manifests() {
-  log "creating namespace and applying manifests"
+  log "creating namespace and provisioning secrets"
   ensure_namespace
   ensure_secret
   ensure_app_db_secret
@@ -327,12 +369,7 @@ apply_manifests() {
   ensure_tls_secret
   ensure_database_tls_secret
   kubectl -n "${NS}" delete job broker-backfill --ignore-not-found --wait=true >/dev/null
-  kubectl apply -f "${K8S_DIR}" -n "${NS}"
-  kubectl -n "${NS}" set env deployment/frontend ORIGIN="${LOCAL_ORIGIN}" >/dev/null
-  kubectl -n "${NS}" set image deployment/backend \
-    migration="${REGISTRY}/database:${GIT_SHA}" \
-    backend="${REGISTRY}/backend:${GIT_SHA}" >/dev/null
-  kubectl -n "${NS}" set image deployment/frontend frontend="${REGISTRY}/frontend:${GIT_SHA}" >/dev/null
+  apply_manifest_files "${STATIC_MANIFESTS[@]}"
 }
 
 rollout_restart() {
@@ -391,23 +428,33 @@ run_broker_backfill() {
   exit 1
 }
 
-restart_stack() {
-  log "restarting infra dependencies"
-  rollout_restart "${ROLL_OUT_INFRA[@]}"
+roll_out_stack() {
+  log "applying infra dependencies"
+  apply_manifest_files "${INFRA_MANIFESTS[@]}"
+  annotate_secret_checksums statefulset/storage storage-secret
+  annotate_secret_checksums statefulset/cache cache-secret
+  annotate_secret_checksums statefulset/search search-secret
   wait_for_rollouts "${ROLL_OUT_INFRA[@]}"
 
-  log "restarting database and application services"
-  # Restart together so backends drop DB connections before database shutdown.
-  rollout_restart "${ROLL_OUT_DATABASE[@]}" "${ROLL_OUT_REST[@]}"
-
-  log "waiting for database"
+  log "applying database"
+  apply_manifest_files "${DATABASE_MANIFESTS[@]}"
+  annotate_secret_checksums statefulset/database database-secret
   wait_for_rollouts "${ROLL_OUT_DATABASE[@]}"
 
-  log "waiting for application services"
+  log "applying application services"
+  apply_manifest_files "${REST_MANIFESTS[@]}"
+  kubectl -n "${NS}" set env deployment/frontend ORIGIN="${LOCAL_ORIGIN}" >/dev/null
+  kubectl -n "${NS}" set image deployment/backend \
+    migration="${REGISTRY}/database:${GIT_SHA}" \
+    backend="${REGISTRY}/backend:${GIT_SHA}" >/dev/null
+  kubectl -n "${NS}" set image deployment/frontend frontend="${REGISTRY}/frontend:${GIT_SHA}" >/dev/null
+  annotate_secret_checksums deployment/backend \
+    database-secret app-db-secret storage-secret cache-secret backend-secret search-secret
   wait_for_rollouts "${ROLL_OUT_REST[@]}"
 
   provision_meili_connect_key
 
+  # must restart even if unchanged: picks up the key just written above
   log "restarting connect (after broker is ready)"
   rollout_restart "${ROLL_OUT_CONNECT[@]}"
   wait_for_rollouts "${ROLL_OUT_CONNECT[@]}"
@@ -499,6 +546,6 @@ fi
 
 build_images
 apply_manifests
-restart_stack
+roll_out_stack
 start_port_forward_background
 print_summary
