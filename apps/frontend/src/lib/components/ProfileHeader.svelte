@@ -114,7 +114,7 @@
 			<a
 				href={resolve(`/@${profileUser.username}`)}
 				aria-current={active === 'posts' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'posts' ? 'text-primary' : ''}"
+				class="transition-colors hover:text-primary {active === 'posts' ? 'text-primary/70' : ''}"
 			>
 				<strong class="font-black {active === 'posts' ? 'text-primary' : 'text-base-content'}"
 					>{profileUser.posts}</strong
@@ -124,7 +124,7 @@
 			<a
 				href={resolve(`/@${profileUser.username}/likes`)}
 				aria-current={active === 'likes' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'likes' ? 'text-primary' : ''}"
+				class="transition-colors hover:text-primary {active === 'likes' ? 'text-primary/70' : ''}"
 			>
 				<strong class="font-black {active === 'likes' ? 'text-primary' : 'text-base-content'}"
 					>{profileUser.likes}</strong
@@ -134,7 +134,7 @@
 			<a
 				href={resolve(`/@${profileUser.username}/followers`)}
 				aria-current={active === 'followers' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'followers' ? 'text-primary' : ''}"
+				class="transition-colors hover:text-primary {active === 'followers' ? 'text-primary/70' : ''}"
 			>
 				<strong class="font-black {active === 'followers' ? 'text-primary' : 'text-base-content'}"
 					>{profileUser.followers}</strong
@@ -144,7 +144,7 @@
 			<a
 				href={resolve(`/@${profileUser.username}/following`)}
 				aria-current={active === 'following' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'following' ? 'text-primary' : ''}"
+				class="transition-colors hover:text-primary {active === 'following' ? 'text-primary/70' : ''}"
 			>
 				<strong class="font-black {active === 'following' ? 'text-primary' : 'text-base-content'}"
 					>{profileUser.following}</strong
