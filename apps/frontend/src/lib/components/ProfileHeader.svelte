@@ -11,12 +11,14 @@
 		profileUser = $bindable(),
 		isCurrentUser,
 		isAuthenticated,
-		isFollowPending = $bindable(false)
+		isFollowPending = $bindable(false),
+		active
 	}: {
 		profileUser: User;
 		isCurrentUser: boolean;
 		isAuthenticated: boolean;
 		isFollowPending?: boolean;
+		active: 'posts' | 'likes' | 'followers' | 'following';
 	} = $props();
 </script>
 
@@ -111,30 +113,42 @@
 		>
 			<a
 				href={resolve(`/@${profileUser.username}`)}
-				class="transition-colors hover:text-base-content"
+				aria-current={active === 'posts' ? 'page' : undefined}
+				class="transition-colors hover:text-primary {active === 'posts' ? 'text-primary' : ''}"
 			>
-				<strong class="font-black text-base-content">{profileUser.posts}</strong>
+				<strong class="font-black {active === 'posts' ? 'text-primary' : 'text-base-content'}"
+					>{profileUser.posts}</strong
+				>
 				{pluralize(profileUser.posts, 'post')}
 			</a>
 			<a
 				href={resolve(`/@${profileUser.username}/likes`)}
-				class="transition-colors hover:text-base-content"
+				aria-current={active === 'likes' ? 'page' : undefined}
+				class="transition-colors hover:text-primary {active === 'likes' ? 'text-primary' : ''}"
 			>
-				<strong class="font-black text-base-content">{profileUser.likes}</strong>
+				<strong class="font-black {active === 'likes' ? 'text-primary' : 'text-base-content'}"
+					>{profileUser.likes}</strong
+				>
 				{pluralize(profileUser.likes, 'like')}
 			</a>
 			<a
 				href={resolve(`/@${profileUser.username}/followers`)}
-				class="transition-colors hover:text-base-content"
+				aria-current={active === 'followers' ? 'page' : undefined}
+				class="transition-colors hover:text-primary {active === 'followers' ? 'text-primary' : ''}"
 			>
-				<strong class="font-black text-base-content">{profileUser.followers}</strong>
+				<strong class="font-black {active === 'followers' ? 'text-primary' : 'text-base-content'}"
+					>{profileUser.followers}</strong
+				>
 				{pluralize(profileUser.followers, 'follower')}
 			</a>
 			<a
 				href={resolve(`/@${profileUser.username}/following`)}
-				class="transition-colors hover:text-base-content"
+				aria-current={active === 'following' ? 'page' : undefined}
+				class="transition-colors hover:text-primary {active === 'following' ? 'text-primary' : ''}"
 			>
-				<strong class="font-black text-base-content">{profileUser.following}</strong> following
+				<strong class="font-black {active === 'following' ? 'text-primary' : 'text-base-content'}"
+					>{profileUser.following}</strong
+				> following
 			</a>
 		</div>
 	</div>

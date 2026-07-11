@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { createPagination } from '$lib/createPagination.svelte';
 	import ProfileHeader from '$lib/components/ProfileHeader.svelte';
 	import Thumbnail from '$lib/components/Thumbnail.svelte';
@@ -20,7 +19,6 @@
 	);
 
 	const isCurrentUser = $derived(data.currentUser?.id === profileUser.id);
-	const username = $derived(profileUser.username);
 </script>
 
 <svelte:head>
@@ -33,15 +31,10 @@
 		{isCurrentUser}
 		isAuthenticated={!!data.currentUser}
 		bind:isFollowPending
+		active="posts"
 	/>
 
 	<div class="h-px w-full bg-base-300" aria-hidden="true"></div>
-
-	<div class="tabs tabs-bordered justify-center font-bold">
-		<a class="tab tab-active" href={resolve(`/@${username}`)}>Posts</a>
-		<a class="tab" href={resolve(`/@${username}/followers`)}>Followers</a>
-		<a class="tab" href={resolve(`/@${username}/following`)}>Following</a>
-	</div>
 
 	{#if pagination.items.length > 0}
 		<div class="grid grid-cols-3 gap-2 sm:gap-4">

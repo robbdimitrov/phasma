@@ -41,23 +41,10 @@
 		{isCurrentUser}
 		isAuthenticated={!!data.currentUser}
 		bind:isFollowPending
+		active={data.mode}
 	/>
 
 	<div class="h-px w-full bg-base-300" aria-hidden="true"></div>
-
-	<div class="tabs tabs-bordered justify-center font-bold">
-		<a class="tab" href={resolve(`/@${username}`)}>Posts</a>
-		<a
-			class="tab"
-			class:tab-active={data.mode === 'followers'}
-			href={resolve(`/@${username}/followers`)}>Followers</a
-		>
-		<a
-			class="tab"
-			class:tab-active={data.mode === 'following'}
-			href={resolve(`/@${username}/following`)}>Following</a
-		>
-	</div>
 
 	{#if pagination.items.length > 0}
 		<div class="mx-auto flex w-full max-w-xl flex-col gap-3">

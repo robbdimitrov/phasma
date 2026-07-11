@@ -85,7 +85,12 @@ on hover. Used in profile grid layouts.
 Horizontal card with avatar, display name, `@username`, bio (linkified),
 post/like/follower/following counts (all linking to relevant pages). Current
 user sees Settings link; others see Follow/Unfollow button with optimistic state
-and rollback.
+and rollback. Takes a required `active: 'posts' | 'likes' | 'followers' |
+'following'` prop; the matching stats-row link (number and label) gets a
+persistent (non-hover) primary text color so it reads as the current section.
+This stats row is the sole
+cross-section navigation for the profile shell — there is no separate tabs
+strip on the Posts, Likes, or Followers/Following subpages.
 
 ### `Linkified`
 
