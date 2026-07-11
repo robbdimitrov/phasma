@@ -20,6 +20,33 @@
 		isFollowPending?: boolean;
 		active: 'posts' | 'likes' | 'followers' | 'following';
 	} = $props();
+
+	const stats = $derived([
+		{
+			key: 'posts' as const,
+			suffix: '',
+			count: profileUser.posts,
+			label: pluralize(profileUser.posts, 'post')
+		},
+		{
+			key: 'likes' as const,
+			suffix: '/likes',
+			count: profileUser.likes,
+			label: pluralize(profileUser.likes, 'like')
+		},
+		{
+			key: 'followers' as const,
+			suffix: '/followers',
+			count: profileUser.followers,
+			label: pluralize(profileUser.followers, 'follower')
+		},
+		{
+			key: 'following' as const,
+			suffix: '/following',
+			count: profileUser.following,
+			label: 'following'
+		}
+	]);
 </script>
 
 <div
@@ -111,45 +138,18 @@
 		<div
 			class="flex items-center justify-center gap-6 text-sm font-bold text-base-content/70 md:justify-start"
 		>
-			<a
-				href={resolve(`/@${profileUser.username}`)}
-				aria-current={active === 'posts' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'posts' ? 'text-primary/70' : ''}"
-			>
-				<strong class="font-black {active === 'posts' ? 'text-primary' : 'text-base-content'}"
-					>{profileUser.posts}</strong
+			{#each stats as s (s.key)}
+				<a
+					href={resolve(`/@${profileUser.username}${s.suffix}`)}
+					aria-current={active === s.key ? 'page' : undefined}
+					class="transition-colors hover:text-primary {active === s.key ? 'text-primary/70' : ''}"
 				>
-				{pluralize(profileUser.posts, 'post')}
-			</a>
-			<a
-				href={resolve(`/@${profileUser.username}/likes`)}
-				aria-current={active === 'likes' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'likes' ? 'text-primary/70' : ''}"
-			>
-				<strong class="font-black {active === 'likes' ? 'text-primary' : 'text-base-content'}"
-					>{profileUser.likes}</strong
-				>
-				{pluralize(profileUser.likes, 'like')}
-			</a>
-			<a
-				href={resolve(`/@${profileUser.username}/followers`)}
-				aria-current={active === 'followers' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'followers' ? 'text-primary/70' : ''}"
-			>
-				<strong class="font-black {active === 'followers' ? 'text-primary' : 'text-base-content'}"
-					>{profileUser.followers}</strong
-				>
-				{pluralize(profileUser.followers, 'follower')}
-			</a>
-			<a
-				href={resolve(`/@${profileUser.username}/following`)}
-				aria-current={active === 'following' ? 'page' : undefined}
-				class="transition-colors hover:text-primary {active === 'following' ? 'text-primary/70' : ''}"
-			>
-				<strong class="font-black {active === 'following' ? 'text-primary' : 'text-base-content'}"
-					>{profileUser.following}</strong
-				> following
-			</a>
+					<strong class="font-black {active === s.key ? 'text-primary' : 'text-base-content'}"
+						>{s.count}</strong
+					>
+					{s.label}
+				</a>
+			{/each}
 		</div>
 	</div>
 </div>
