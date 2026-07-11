@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { FileText, Hash } from '@lucide/svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
+	import UserLink from '$lib/components/UserLink.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type {
 		SearchHashtagItem,
@@ -25,16 +25,14 @@
 		{#each items as item (item.id)}
 			{@const user = item as SearchUserItem}
 			<li>
-				<a
-					href={resolve(`/@${user.username}`)}
-					class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 p-3 transition-colors hover:bg-base-200"
-				>
-					<Avatar username={user.username} avatar={null} size="h-10 w-10" />
-					<div class="min-w-0">
-						<p class="truncate font-bold">{user.name}</p>
-						<p class="truncate text-sm text-base-content/60">@{user.username}</p>
-					</div>
-				</a>
+				<UserLink
+					username={user.username}
+					avatar={null}
+					primary={user.name}
+					secondary={`@${user.username}`}
+					size="h-10 w-10"
+					class="rounded-2xl border border-base-300 bg-base-100 p-3 transition-colors hover:bg-base-200"
+				/>
 			</li>
 		{/each}
 	</ul>

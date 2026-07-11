@@ -5,7 +5,7 @@
 	import ProfileHeader from '$lib/components/ProfileHeader.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
+	import UserLink from '$lib/components/UserLink.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import type { PageData } from './$types';
 	import type { User } from '$lib/types';
@@ -53,18 +53,21 @@
 				<div
 					class="flex items-start gap-3 rounded-lg border border-base-300 bg-base-100 p-4 shadow-sm shadow-slate-900/5"
 				>
-					<Avatar username={user.username} avatar={user.avatar} size="h-8 w-8" class="mt-0.5" />
-					<a href={resolve(`/@${user.username}`)} class="min-w-0 flex-1">
-						<div class="truncate text-sm font-black text-base-content">
-							{user.name || user.username}
-						</div>
-						<div class="truncate text-xs font-bold text-base-content/60">@{user.username}</div>
+					<UserLink
+						username={user.username}
+						avatar={user.avatar}
+						primary={user.name || user.username}
+						secondary={`@${user.username}`}
+						size="h-8 w-8"
+						align="start"
+						class="flex-1"
+					>
 						{#if user.bio}
 							<p class="mt-2 max-h-10 overflow-hidden text-sm leading-5 text-base-content/70">
 								{user.bio}
 							</p>
 						{/if}
-					</a>
+					</UserLink>
 					{#if !data.currentUser || data.currentUser.id !== user.id}
 						{#if data.currentUser}
 							<form

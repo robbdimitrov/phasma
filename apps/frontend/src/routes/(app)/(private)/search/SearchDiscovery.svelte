@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { Users } from '@lucide/svelte';
-	import Avatar from '$lib/components/Avatar.svelte';
+	import UserLink from '$lib/components/UserLink.svelte';
 	import Thumbnail from '$lib/components/Thumbnail.svelte';
 	import type { Post, User } from '$lib/types';
 
@@ -15,11 +14,14 @@
 		<div class="flex flex-col gap-2">
 			{#each suggested as user (user.id)}
 				<div class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 p-3">
-					<Avatar username={user.username} avatar={user.avatar} size="h-10 w-10" />
-					<a href={resolve(`/@${user.username}`)} class="min-w-0 flex-1">
-						<p class="truncate font-bold">{user.name || user.username}</p>
-						<p class="truncate text-sm text-base-content/60">@{user.username}</p>
-					</a>
+					<UserLink
+						username={user.username}
+						avatar={user.avatar}
+						primary={user.name || user.username}
+						secondary={`@${user.username}`}
+						size="h-10 w-10"
+						class="flex-1"
+					/>
 					<form method="POST" action="?/{user.isFollowing ? 'unfollow' : 'follow'}" use:enhance>
 						<input type="hidden" name="username" value={user.username} />
 						<button

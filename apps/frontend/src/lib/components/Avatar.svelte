@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { imageUrl } from '$lib/utils/imageUrl';
 
 	let {
@@ -15,9 +14,8 @@
 	} = $props();
 </script>
 
-<a
-	href={resolve(`/@${username}`)}
-	class="relative block shrink-0 overflow-hidden rounded-full border border-base-300 transition-colors hover:border-base-content {size} {extra}"
+<span
+	class="relative block shrink-0 overflow-hidden rounded-full border border-base-300 {size} {extra}"
 >
 	<img
 		class="h-full w-full object-cover"
@@ -26,4 +24,4 @@
 		loading="lazy"
 		decoding="async"
 	/>
-</a>
+</span>

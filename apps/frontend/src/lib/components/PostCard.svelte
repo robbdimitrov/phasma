@@ -3,12 +3,15 @@
 	import { enhance } from '$app/forms';
 	import { Heart, MessageCircle, Trash2, Send } from '@lucide/svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import UserLink from '$lib/components/UserLink.svelte';
 	import { imageUrl } from '$lib/utils/imageUrl';
 	import { relativeDate } from '$lib/utils/relativeDate';
 	import { pluralize } from '$lib/utils/pluralize';
 	import { fetchJson } from '$lib/utils/clientFetch';
 	import type { Post, Comment } from '$lib/types';
 	import Linkified from '$lib/components/Linkified.svelte';
+
+	const mentionLinkClass = 'mr-1.5 font-bold text-base-content transition-colors hover:text-primary';
 
 	let {
 		post: initialPost,
@@ -99,20 +102,12 @@
 	<div
 		class="relative flex items-center border-b border-base-300 bg-base-200/80 px-6 py-4 pr-16 sm:pr-20"
 	>
-		<div class="flex items-center gap-3">
-			<Avatar username={initialPost.username} avatar={initialPost.avatar} />
-			<div class="flex flex-col">
-				<a
-					href={resolve(`/@${initialPost.username}`)}
-					class="text-base font-bold leading-6 text-base-content transition-colors hover:text-primary"
-				>
-					{initialPost.username}
-				</a>
-				{#if initialPost.name}
-					<span class="text-sm leading-5 text-base-content/60">{initialPost.name}</span>
-				{/if}
-			</div>
-		</div>
+		<UserLink
+			username={initialPost.username}
+			avatar={initialPost.avatar}
+			primary={initialPost.username}
+			secondary={initialPost.name}
+		/>
 
 		{#if initialPost.username === currentUsername}
 			<button
@@ -216,10 +211,7 @@
 
 		{#if initialPost.description && initialPost.description.length > 0}
 			<div class="text-base leading-7">
-				<a
-					href={resolve(`/@${initialPost.username}`)}
-					class="mr-1.5 font-bold text-base-content hover:underline"
-				>
+				<a href={resolve(`/@${initialPost.username}`)} class={mentionLinkClass}>
 					{initialPost.username}
 				</a>
 				<Linkified text={initialPost.description} />
@@ -283,16 +275,12 @@
 
 					{#each comments as comment (comment.id)}
 						<div class="group flex items-start gap-3">
-							<Avatar
-								username={comment.username}
-								avatar={comment.avatar}
-								size="h-8 w-8"
-								class="mt-0.5"
-							/>
+							<a href={resolve(`/@${comment.username}`)} class="mt-0.5 block shrink-0">
+								<Avatar username={comment.username} avatar={comment.avatar} size="h-8 w-8" />
+							</a>
 							<div class="min-w-0 flex-1 text-sm leading-6">
-								<a
-									href={resolve(`/@${comment.username}`)}
-									class="mr-1.5 font-bold text-base-content hover:underline">{comment.username}</a
+								<a href={resolve(`/@${comment.username}`)} class={mentionLinkClass}
+									>{comment.username}</a
 								>
 								<Linkified text={comment.body} />
 								<div class="mt-0.5 text-xs text-base-content/50">
