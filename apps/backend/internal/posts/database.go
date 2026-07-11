@@ -313,9 +313,8 @@ func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) er
 		}
 		defer database.Rollback(ctx, tx)
 
-		// user_id != $1 prevents the post owner from liking their own post.
 		likeTag, err := tx.Exec(ctx, `INSERT INTO likes (user_id, post_id)
-			SELECT $1, id FROM posts WHERE public_id = $2 AND user_id != $1
+			SELECT $1, id FROM posts WHERE public_id = $2
 			ON CONFLICT DO NOTHING`, userID, postID)
 		if err != nil {
 			return err

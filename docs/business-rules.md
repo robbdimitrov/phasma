@@ -66,8 +66,7 @@
 ## Likes
 
 - `LikePost` checks post existence first; returns 404 if not found.
-- A user cannot like their own post; the attempt is silently ignored (same as a
-  duplicate like).
+- A user may like their own post.
 - `ON CONFLICT DO NOTHING` makes liking idempotent.
 - Unliking a non-liked post is a no-op (no error).
 

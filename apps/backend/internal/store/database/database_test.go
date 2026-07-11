@@ -578,7 +578,7 @@ func TestDatabaseRepositoryPostOwnerCanDeleteComments(t *testing.T) {
 	}
 }
 
-func TestDatabaseRepositorySelfLikeIsNoop(t *testing.T) {
+func TestDatabaseRepositorySelfLikeSucceeds(t *testing.T) {
 	client := openTestClient(t)
 	ctx := context.Background()
 	ownerID := createTestUser(t, client, "self_like_owner")
@@ -593,8 +593,16 @@ func TestDatabaseRepositorySelfLikeIsNoop(t *testing.T) {
 		post.ID, ownerID).Scan(&count); err != nil {
 		t.Fatalf("like count query error = %v", err)
 	}
-	if count != 0 {
-		t.Fatalf("self-like inserted %d like rows, want 0", count)
+	if count != 1 {
+		t.Fatalf("self-like inserted %d like rows, want 1", count)
+	}
+	var likeCount int
+	if err := client.DB().Pool().QueryRow(ctx,
+		`SELECT like_count FROM posts WHERE id = $1`, post.ID).Scan(&likeCount); err != nil {
+		t.Fatalf("like_count query error = %v", err)
+	}
+	if likeCount != 1 {
+		t.Fatalf("posts.like_count = %d, want 1", likeCount)
 	}
 }
 
