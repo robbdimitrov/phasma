@@ -141,7 +141,7 @@
 		<input
 			bind:this={inputEl}
 			type="search"
-			class="input input-bordered w-full rounded-full pl-4 pr-10"
+			class="input input-bordered w-full rounded-full"
 			placeholder="Search users, posts, hashtags…"
 			value={data.q}
 			oninput={onInput}
