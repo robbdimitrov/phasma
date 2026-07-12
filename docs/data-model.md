@@ -177,11 +177,16 @@ cleanup automatically when a post or user is deleted.
 
 ## Meilisearch Indexes
 
-| Index    | Searchable            | Filterable | Sortable   | Primary key                  |
-| -------- | --------------------- | ---------- | ---------- | ---------------------------- |
-| users    | username, name        | —          | —          | id (string, stringified int) |
-| posts    | description, username | hashtags   | created    | post_id (post public_id UUID) |
-| hashtags | name                  | —          | post_count | name                         |
+| Index    | Searchable            | Filterable | Sortable   | Primary key                  | Stored (not searchable) |
+| -------- | --------------------- | ---------- | ---------- | ---------------------------- | ------------------------ |
+| users    | username, name        | —          | —          | id (string, stringified int) | avatar                   |
+| posts    | description, username | hashtags   | created    | post_id (post public_id UUID) | filename                |
+| hashtags | name                  | —          | post_count | name                         | —                        |
+
+`avatar` and `filename` are carried through the outbox → Kafka → Meilisearch
+sync pipeline so search results can render a real avatar/thumbnail instead of
+a placeholder; they are populated on each entity's next create/update and are
+not backfilled for already-indexed rows.
 
 ## Domain Invariants
 

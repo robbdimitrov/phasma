@@ -19,7 +19,7 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
     │   └── [mode=connections]/ load: followers or following list; public read, follow gated to login
     └── (private)/          +layout.server.ts: redirect /login if currentUser absent
         ├── notifications/      load: GET /notifications + PUT /notifications/{id}/read (mark all unread as read)
-        ├── search/             load: GET /search?q=&type= (empty query shows discovery content: suggested users via GET /users/suggested + popular posts grid via GET /posts/popular)
+        ├── search/             load: GET /search?q=&type=users|posts|hashtags (3x in parallel, small preview limit) → unified grouped sections, no tabs; empty query shows discovery content: suggested users via GET /users/suggested + popular posts grid via GET /posts/popular; live dropdown-as-you-type calls GET /suggest (users, hashtags) + GET /search?type=posts&limit= (posts preview)
         ├── upload/             form action: POST /uploads → POST /posts
         ├── suggest/            GET +server.ts — typeahead proxy: GET /users/search or /hashtags/search
         ├── logout/             form action: DELETE /sessions → delete session cookie → redirect /login (cookie deleted even if backend call fails)
@@ -113,9 +113,9 @@ for explicit validation.
 | `/feed`                      | GET    | +server.ts        | GET /feed?cursor=                                         |
 | `/notifications`             | GET    | page load         | GET /notifications + PUT /notifications/{id}/read         |
 | `/notifications`             | GET    | +server.ts        | GET /notifications?cursor= + PUT /notifications/{id}/read |
-| `/search`                    | GET    | page load         | GET /search                                               |
-| `/search`                    | GET    | +server.ts        | GET /search?cursor=                                       |
-| `/suggest`                   | GET    | +server.ts        | GET /users/search or /hashtags/search                     |
+| `/search`                    | GET    | page load         | GET /search?type=users,posts,hashtags (parallel, limit=5)  |
+| `/search`                    | GET    | +server.ts        | GET /search?cursor= (per-section "Load more"), or ?limit= (dropdown posts preview) |
+| `/suggest`                   | GET    | +server.ts        | GET /users/search or /hashtags/search (dropdown users/hashtags preview) |
 | `/@{username}`               | GET    | page load         | GET /users/{u} + GET /users/{u}/posts                     |
 | `/@{username}`               | GET    | +server.ts        | GET /users/{u}/posts?cursor=                              |
 | `/@{username}/likes`         | GET    | page load         | GET /users/{u}/likes                                      |

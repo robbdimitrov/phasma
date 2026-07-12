@@ -226,13 +226,20 @@ enforced in the UPDATE query.
 ## Search Endpoint (`GET /search`)
 
 - `type=posts`: full-text search on description and username; supports
-  `q=#hashtag` to filter by hashtag (exact match via Meilisearch filter).
-- `type=users`: full-text search on username and name.
-- `type=hashtags`: full-text search on name.
+  `q=#hashtag` to filter by hashtag (exact match via Meilisearch filter). Items
+  include `filename` for rendering a thumbnail.
+- `type=users`: full-text search on username and name. Items include `name` and
+  `avatar` (nullable) alongside `username`.
+- `type=hashtags`: full-text search on name. Items are `{name, postCount}`.
 - Cursor encodes a Meilisearch offset (base64-encoded integer string); page size
-  is 20.
+  defaults to 20 and accepts an optional `limit` (1–50, clamped) for smaller
+  previews.
 - Returns 503 if Meilisearch is not configured.
 - Query must be 1–50 UTF-8 runes.
+
+`GET /users/search` and `GET /hashtags/search` typeahead results share the
+same `avatar`/`name`/`postCount` fields as the corresponding `/search` item
+shapes.
 
 ## User Object Shape
 
