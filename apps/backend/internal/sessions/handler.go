@@ -40,11 +40,9 @@ func (h Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteMessage(w, http.StatusBadRequest, "Email and password are required.")
 		return
 	}
-	if !validation.ValidPassword(body.Password) {
-		httpx.WriteMessage(w, http.StatusBadRequest, "Password must be between 8 and 1024 characters long.")
-		return
-	}
 
+	// No length policy check here: login must fail identically (401, generic
+	// message) for any wrong credential so the response can't reveal why.
 	output, err := h.Service.Login(r.Context(), LoginInput{
 		Email:    email,
 		Password: body.Password,

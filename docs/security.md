@@ -43,6 +43,9 @@
   (`NeedsRehash` check).
 - A pre-computed decoy hash is verified when the email is not found, preventing
   timing-oracle user enumeration.
+- The length policy is enforced when a password is set (registration, change),
+  not at login: login always fails the same way (401, generic message) for any
+  wrong or out-of-policy password, so the response can't reveal why it failed.
 
 ## Ownership Rules
 
