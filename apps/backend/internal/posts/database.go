@@ -305,7 +305,32 @@ func (r *PostRepository) DeletePost(ctx context.Context, postID, userID string) 
 	return filename, err
 }
 
-func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) error {
+// likeMutation pairs a like/unlike SQL statement with the outbox op name and
+// like_count delta it implies, so the three can't drift apart at a call site.
+// sql must remain a hardcoded literal taking ($1=userID, $2=postID) and affect
+// at most one row — toggleLike's not-found/no-op detection assumes that.
+type likeMutation struct {
+	op    string
+	sql   string
+	delta int
+}
+
+var likeInsert = likeMutation{
+	op: "like",
+	sql: `INSERT INTO likes (user_id, post_id)
+		SELECT $1, id FROM posts WHERE public_id = $2
+		ON CONFLICT DO NOTHING`,
+	delta: 1,
+}
+
+var unlikeDelete = likeMutation{
+	op: "unlike",
+	sql: `DELETE FROM likes
+		WHERE user_id = $1 AND post_id = (SELECT id FROM posts WHERE public_id = $2)`,
+	delta: -1,
+}
+
+func (r *PostRepository) toggleLike(ctx context.Context, postID, userID string, m likeMutation) error {
 	err := r.db.Write(ctx, func() error {
 		tx, err := r.db.Pool().Begin(ctx)
 		if err != nil {
@@ -313,14 +338,12 @@ func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) er
 		}
 		defer database.Rollback(ctx, tx)
 
-		likeTag, err := tx.Exec(ctx, `INSERT INTO likes (user_id, post_id)
-			SELECT $1, id FROM posts WHERE public_id = $2
-			ON CONFLICT DO NOTHING`, userID, postID)
+		tag, err := tx.Exec(ctx, m.sql, userID, postID)
 		if err != nil {
 			return err
 		}
-		if likeTag.RowsAffected() == 0 {
-			// Distinguish "post gone" from "already liked" atomically.
+		if tag.RowsAffected() == 0 {
+			// Distinguish "post gone" from "already in that state" atomically.
 			var exists bool
 			if err := tx.QueryRow(ctx,
 				`SELECT EXISTS (SELECT 1 FROM posts WHERE public_id = $1)`, postID).Scan(&exists); err != nil {
@@ -333,7 +356,7 @@ func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) er
 		}
 
 		if _, err := tx.Exec(ctx,
-			`UPDATE posts SET like_count = like_count + 1 WHERE public_id = $1`, postID); err != nil {
+			`UPDATE posts SET like_count = GREATEST(like_count + $2, 0) WHERE public_id = $1`, postID, m.delta); err != nil {
 			return err
 		}
 
@@ -344,7 +367,7 @@ func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) er
 		}
 
 		payload, err := database.MarshalOutboxPayload(database.ActivityPayload{
-			Op:          "like",
+			Op:          m.op,
 			PostID:      postID,
 			ActorID:     userID,
 			RecipientID: recipientID,
@@ -365,64 +388,12 @@ func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) er
 	return err
 }
 
+func (r *PostRepository) LikePost(ctx context.Context, postID, userID string) error {
+	return r.toggleLike(ctx, postID, userID, likeInsert)
+}
+
 func (r *PostRepository) UnlikePost(ctx context.Context, postID, userID string) error {
-	err := r.db.Write(ctx, func() error {
-		tx, err := r.db.Pool().Begin(ctx)
-		if err != nil {
-			return err
-		}
-		defer database.Rollback(ctx, tx)
-
-		unlikeTag, err := tx.Exec(ctx, `DELETE FROM likes
-			WHERE user_id = $1 AND post_id = (SELECT id FROM posts WHERE public_id = $2)`,
-			userID, postID)
-		if err != nil {
-			return err
-		}
-		if unlikeTag.RowsAffected() == 0 {
-			// Distinguish "post gone" from "not liked" atomically.
-			var exists bool
-			if err := tx.QueryRow(ctx,
-				`SELECT EXISTS (SELECT 1 FROM posts WHERE public_id = $1)`, postID).Scan(&exists); err != nil {
-				return err
-			}
-			if !exists {
-				return store.ErrNotFound
-			}
-			return tx.Commit(ctx)
-		}
-
-		if _, err := tx.Exec(ctx,
-			`UPDATE posts SET like_count = GREATEST(like_count - 1, 0) WHERE public_id = $1`, postID); err != nil {
-			return err
-		}
-
-		var recipientID string
-		if err := tx.QueryRow(ctx,
-			`SELECT user_id::text FROM posts WHERE public_id = $1`, postID).Scan(&recipientID); err != nil {
-			return err
-		}
-
-		payload, err := database.MarshalOutboxPayload(database.ActivityPayload{
-			Op:          "unlike",
-			PostID:      postID,
-			ActorID:     userID,
-			RecipientID: recipientID,
-		})
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx,
-			`INSERT INTO outbox (topic, payload) VALUES ($1, $2)`, "activity", payload); err != nil {
-			return err
-		}
-
-		return tx.Commit(ctx)
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return store.ErrNotFound
-	}
-	return err
+	return r.toggleLike(ctx, postID, userID, unlikeDelete)
 }
 
 func (r *PostRepository) queryPosts(ctx context.Context, query string, args ...any) ([]Post, error) {
