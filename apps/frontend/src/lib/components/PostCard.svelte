@@ -270,7 +270,7 @@
 								return async ({ result }) => {
 									isSubmittingComment = false;
 									if (result.type === 'success' && result.data?.comment) {
-										comments = [...comments, result.data.comment as Comment];
+										comments = [result.data.comment as Comment, ...comments];
 										commentCount += 1;
 										newCommentBody = '';
 										commentTypeahead.reset();
