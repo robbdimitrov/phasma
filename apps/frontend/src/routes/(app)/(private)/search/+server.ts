@@ -11,11 +11,18 @@ export const GET: RequestHandler = async (event) => {
 	const q = event.url.searchParams.get('q') ?? '';
 	const typeParam = event.url.searchParams.get('type') ?? 'posts';
 	const cursor = event.url.searchParams.get('cursor') ?? undefined;
+	const limitParam = event.url.searchParams.get('limit');
+	const limit = limitParam ? Number(limitParam) : undefined;
 
 	if (!q || q.length > MAX_Q_LENGTH || !VALID_TYPES.has(typeParam)) {
 		return json({ items: [], nextCursor: null });
 	}
 
-	const page = await search(apiClient(event), { q, type: typeParam as SearchType, cursor });
+	const page = await search(apiClient(event), {
+		q,
+		type: typeParam as SearchType,
+		cursor,
+		limit
+	});
 	return json(page);
 };

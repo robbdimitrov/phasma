@@ -1,38 +1,65 @@
 import type { PageServerLoad, Actions } from './$types';
-import { search, type SearchType } from '$lib/server/api/search';
+import {
+	search,
+	type SearchUserItem,
+	type SearchPostItem,
+	type SearchHashtagItem,
+	type SearchItem,
+	type SearchPage
+} from '$lib/server/api/search';
 import { getSuggestedUsers, followUser, unfollowUser } from '$lib/server/api/users';
 import { getPopularPosts } from '$lib/server/api/posts';
 import { apiClient } from '$lib/server/api/client';
+import { SEARCH_PREVIEW_LIMIT, searchQueryPrefix, stripSearchQueryPrefix } from '$lib/utils/searchQuery';
 
 const MAX_Q_LENGTH = 50;
 
-function resolveType(q: string, param: string | null): SearchType {
-	if (param === 'users' || param === 'posts' || param === 'hashtags') return param;
-	if (q.startsWith('@')) return 'users';
-	if (q.startsWith('#')) return 'hashtags';
-	return 'posts';
+const EMPTY_SECTION = { items: [], nextCursor: null };
+
+// A category search failing (e.g. Meilisearch briefly unavailable, or an
+// invalid #hashtag filter) must not take down the other two sections.
+function searchSection<T extends SearchItem>(promise: Promise<SearchPage<T>>): Promise<SearchPage<T>> {
+	return promise.catch(() => EMPTY_SECTION);
 }
 
 export const load: PageServerLoad = async (event) => {
 	const q = event.url.searchParams.get('q') ?? '';
-	const typeParam = event.url.searchParams.get('type');
-	const type = resolveType(q, typeParam);
 
 	if (!q || q.length > MAX_Q_LENGTH) {
 		const api = apiClient(event);
 		const [suggested, popular] = await Promise.all([getSuggestedUsers(api), getPopularPosts(api)]);
 		return {
 			q,
-			type: 'posts' as SearchType,
-			items: [],
-			nextCursor: null,
+			users: EMPTY_SECTION,
+			posts: EMPTY_SECTION,
+			hashtags: EMPTY_SECTION,
 			suggested: suggested.items,
 			popular: popular.items
 		};
 	}
 
-	const page = await search(apiClient(event), { q, type });
-	return { q, type, items: page.items, nextCursor: page.nextCursor, suggested: [], popular: [] };
+	const api = apiClient(event);
+	const prefix = searchQueryPrefix(q);
+	// Neither the users nor hashtags index understands a literal @/# prefix,
+	// so strip it before querying; posts keeps it as-is since the backend
+	// treats a leading #tag as an exact hashtag filter.
+	const usersQuery = prefix === '@' ? stripSearchQueryPrefix(q, prefix) : q;
+	const hashtagsQuery = prefix === '#' ? stripSearchQueryPrefix(q, prefix) : q;
+	const [users, posts, hashtags] = await Promise.all([
+		searchSection(
+			search<SearchUserItem>(api, { q: usersQuery, type: 'users', limit: SEARCH_PREVIEW_LIMIT })
+		),
+		searchSection(search<SearchPostItem>(api, { q, type: 'posts', limit: SEARCH_PREVIEW_LIMIT })),
+		searchSection(
+			search<SearchHashtagItem>(api, {
+				q: hashtagsQuery,
+				type: 'hashtags',
+				limit: SEARCH_PREVIEW_LIMIT
+			})
+		)
+	]);
+
+	return { q, users, posts, hashtags, suggested: [], popular: [] };
 };
 
 export const actions: Actions = {

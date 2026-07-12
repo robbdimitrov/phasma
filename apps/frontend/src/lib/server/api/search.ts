@@ -4,6 +4,7 @@ import { unwrap } from './http';
 export interface UserSuggestion {
 	username: string;
 	name: string;
+	avatar: string | null;
 }
 
 export interface HashtagSuggestion {
@@ -23,37 +24,38 @@ export async function searchHashtags(fetch: ApiClient, q: string): Promise<Hasht
 export type SearchType = 'users' | 'posts' | 'hashtags';
 
 export interface SearchUserItem {
-	id: string;
 	username: string;
 	name: string;
+	avatar: string | null;
 }
 
 export interface SearchPostItem {
 	id: string;
 	username: string;
 	description: string;
+	filename: string;
 }
 
 export interface SearchHashtagItem {
-	id: string;
 	name: string;
-	post_count: number;
+	postCount: number;
 }
 
 export type SearchItem = SearchUserItem | SearchPostItem | SearchHashtagItem;
 
-export interface SearchPage {
-	items: SearchItem[];
+export interface SearchPage<T extends SearchItem = SearchItem> {
+	items: T[];
 	nextCursor: string | null;
 }
 
-export async function search(
+export async function search<T extends SearchItem = SearchItem>(
 	fetch: ApiClient,
-	params: { q: string; type: SearchType; cursor?: string }
-): Promise<SearchPage> {
+	params: { q: string; type: SearchType; cursor?: string; limit?: number }
+): Promise<SearchPage<T>> {
 	const qs = new URLSearchParams({ q: params.q, type: params.type });
 	if (params.cursor) qs.set('cursor', params.cursor);
+	if (params.limit) qs.set('limit', String(params.limit));
 	const res = await fetch(`/search?${qs.toString()}`);
-	const page = await unwrap<{ items: SearchItem[]; nextCursor: string | null }>(res);
+	const page = await unwrap<SearchPage<T>>(res);
 	return { items: page?.items ?? [], nextCursor: page?.nextCursor ?? null };
 }
