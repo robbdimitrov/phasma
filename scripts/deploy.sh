@@ -47,7 +47,7 @@ DATABASE_MANIFESTS=("database.yaml")
 BROKER_MANIFEST="broker.yaml"
 STATIC_MANIFESTS=(
   "serviceaccounts.yaml"
-  "network-policy.yaml"
+  "networkpolicy.yaml"
   "pdb.yaml"
   "ingress.yaml"
 )

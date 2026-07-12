@@ -2,12 +2,14 @@
 	import { enhance } from '$app/forms';
 	import { SquarePlus } from '@lucide/svelte';
 	import { resizeImageForUpload, supportedUploadMimeTypes } from '$lib/utils/image-resizer';
-	import { activeToken } from '$lib/utils/activeToken';
+	import { getCaretLineTop } from '$lib/utils/caretLineTop';
+	import { createTypeaheadController } from '$lib/typeaheadController.svelte';
+	import { createFloatingPosition } from '$lib/utils/floatingPosition.svelte';
+	import { portal } from '$lib/actions/portal';
 	import Typeahead from '$lib/components/Typeahead.svelte';
 	import type { ActionData } from './$types';
 
 	const MAX_DESCRIPTION = 1000;
-	const TYPEAHEAD_DEBOUNCE_MS = 150;
 
 	let { form }: { form: ActionData } = $props();
 
@@ -19,74 +21,41 @@
 	let selectedFile = $state<File | undefined>(undefined);
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let descriptionTextarea = $state<HTMLTextAreaElement | null>(null);
-	let typeaheadItems = $state<unknown[]>([]);
-	let typeaheadToken = $state<{
-		trigger: '@' | '#';
-		query: string;
-		start: number;
-		end: number;
-	} | null>(null);
-	let debounceTimer = $state<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-	async function fetchSuggestions(trigger: '@' | '#', query: string) {
-		const type = trigger === '@' ? 'users' : 'hashtags';
-		try {
-			const res = await fetch(`/suggest?type=${type}&q=${encodeURIComponent(query || ' ')}`);
-			if (!res.ok) {
-				typeaheadItems = [];
-				return;
-			}
-			typeaheadItems = (await res.json()) as unknown[];
-		} catch {
-			typeaheadItems = [];
-		}
-	}
-
-	function displayItem(item: unknown): string {
-		if (typeaheadToken?.trigger === '@') {
-			const u = item as { username: string };
-			return u.username;
-		}
-		const h = item as { name: string };
-		return h.name;
-	}
+	let typeahead = createTypeaheadController();
+	let dropdownPos = createFloatingPosition();
+	let lastCaretLineTop = 0;
+	let lastPaddingLeft = 0;
 
 	function handleDescriptionInput(e: Event) {
 		const textarea = e.currentTarget as HTMLTextAreaElement;
 		const caret = textarea.selectionStart ?? description.length;
-		const token = activeToken(description, caret);
-		typeaheadToken = token;
-
-		clearTimeout(debounceTimer);
-		if (token && token.query.length > 0) {
-			debounceTimer = setTimeout(() => {
-				fetchSuggestions(token.trigger, token.query);
-			}, TYPEAHEAD_DEBOUNCE_MS);
-		} else {
-			typeaheadItems = [];
+		typeahead.handleInput(description, caret);
+		if (typeahead.token) {
+			lastCaretLineTop = getCaretLineTop(textarea, caret);
+			lastPaddingLeft = parseFloat(getComputedStyle(textarea).paddingLeft) || 0;
+			dropdownPos.placeAtLine(textarea, lastCaretLineTop, lastPaddingLeft);
 		}
 	}
 
 	function handleTypeaheadSelect(value: string) {
-		if (!typeaheadToken) {
-			typeaheadItems = [];
-			return;
-		}
-		const { trigger, start, end } = typeaheadToken;
-		// Replace [start, end) with trigger + value + trailing space.
-		description = description.slice(0, start) + trigger + value + ' ' + description.slice(end);
-		typeaheadItems = [];
-		typeaheadToken = null;
-
-		// Restore caret after the inserted text.
-		const newCaret = start + 1 + value.length + 1;
-		requestAnimationFrame(() => {
-			if (descriptionTextarea) {
-				descriptionTextarea.setSelectionRange(newCaret, newCaret);
-				descriptionTextarea.focus();
-			}
-		});
+		const next = typeahead.select(description, value, descriptionTextarea);
+		if (next !== null) description = next;
 	}
+
+	// The dropdown is portalled to <body> (see the caption textarea markup
+	// below) and positioned in viewport coordinates, so it must be kept in
+	// sync while open as the page scrolls or the viewport resizes.
+	$effect(() => {
+		if (typeahead.items.length === 0 || !descriptionTextarea) return;
+		const el = descriptionTextarea;
+		const reposition = () => dropdownPos.placeAtLine(el, lastCaretLineTop, lastPaddingLeft);
+		window.addEventListener('scroll', reposition, true);
+		window.addEventListener('resize', reposition);
+		return () => {
+			window.removeEventListener('scroll', reposition, true);
+			window.removeEventListener('resize', reposition);
+		};
+	});
 
 	async function selectFile(file: File | null | undefined) {
 		errorMessage = '';
@@ -242,7 +211,7 @@
 						>
 					</div>
 
-					<div class="relative flex-1">
+					<div class="flex-1">
 						<textarea
 							bind:this={descriptionTextarea}
 							name="description"
@@ -252,13 +221,18 @@
 							maxlength={MAX_DESCRIPTION}
 							autocomplete="off"
 							oninput={handleDescriptionInput}></textarea>
-						<div class="absolute left-6 sm:left-8">
-							<Typeahead
-								onselect={handleTypeaheadSelect}
-								items={typeaheadItems}
-								display={displayItem}
-							/>
-						</div>
+						{#if typeahead.items.length > 0}
+							<div
+								use:portal
+								style="position: fixed; top: {dropdownPos.top}px; left: {dropdownPos.left}px;"
+							>
+								<Typeahead
+									onselect={handleTypeaheadSelect}
+									items={typeahead.items}
+									display={typeahead.displayItem}
+								/>
+							</div>
+						{/if}
 					</div>
 
 					{#if errorMessage}

@@ -110,7 +110,7 @@ Placeholder UI for empty lists.
 ### `Typeahead`
 
 Keyboard-navigable dropdown list (arrow keys, Enter to select, Escape to clear).
-Used in upload description and search inputs.
+Used in upload description and comment inputs.
 
 ## Layout Widths
 
