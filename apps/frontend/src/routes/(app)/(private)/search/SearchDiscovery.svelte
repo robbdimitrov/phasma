@@ -2,11 +2,15 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { Users } from '@lucide/svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Thumbnail from '$lib/components/Thumbnail.svelte';
 	import type { Post, User } from '$lib/types';
 
 	let { suggested, popular }: { suggested: User[]; popular: Post[] } = $props();
+
+	let pendingFollowIds = new SvelteSet<string>();
+	let followingOverrides = new SvelteMap<string, boolean>();
 
 	let scrollEl: HTMLDivElement | undefined = $state();
 	let atStart = $state(true);
@@ -47,6 +51,7 @@
 			style:-webkit-mask-image={mask}
 		>
 			{#each suggested as user (user.id)}
+				{@const isFollowing = followingOverrides.get(user.id) ?? user.isFollowing}
 				<div
 					class="flex w-40 shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-base-300 bg-base-100 p-4 text-center"
 				>
@@ -59,15 +64,34 @@
 							<span class="block truncate text-xs text-base-content/60">@{user.username}</span>
 						</span>
 					</a>
-					<form method="POST" action="?/{user.isFollowing ? 'unfollow' : 'follow'}" use:enhance class="w-full">
+					<form
+						method="POST"
+						action="?/{isFollowing ? 'unfollow' : 'follow'}"
+						class="w-full"
+						use:enhance={() => {
+							pendingFollowIds.add(user.id);
+							followingOverrides.set(user.id, !isFollowing);
+							return async ({ result }) => {
+								pendingFollowIds.delete(user.id);
+								if (result.type === 'error' || result.type === 'failure') {
+									followingOverrides.set(user.id, isFollowing);
+								}
+							};
+						}}
+					>
 						<input type="hidden" name="username" value={user.username} />
 						<button
 							type="submit"
-							class="btn btn-sm h-9 min-h-9 w-full rounded-full px-3 text-xs font-extrabold {user.isFollowing
+							disabled={pendingFollowIds.has(user.id)}
+							class="btn btn-sm h-9 min-h-9 w-full rounded-full px-3 text-xs font-extrabold {isFollowing
 								? 'btn-outline'
 								: 'btn-neutral'}"
 						>
-							{user.isFollowing ? 'Unfollow' : 'Follow'}
+							{#if pendingFollowIds.has(user.id)}
+								<span class="loading loading-spinner loading-xs"></span>
+							{:else}
+								{isFollowing ? 'Unfollow' : 'Follow'}
+							{/if}
 						</button>
 					</form>
 				</div>
