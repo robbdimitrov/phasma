@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Heart, MessageCircle, UserPlus } from '@lucide/svelte';
 	import { createPagination } from '$lib/createPagination.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
@@ -53,25 +55,35 @@
 						? 'opacity-60'
 						: ''}"
 				>
-					<div
-						class="grid h-9 w-9 shrink-0 place-items-center rounded-full {notification.read
-							? 'bg-base-200 text-base-content/50'
-							: 'bg-primary/10 text-primary'}"
-					>
-						{#if notification.type === 'like'}
-							<Heart class="h-4 w-4" />
-						{:else if notification.type === 'comment'}
-							<MessageCircle class="h-4 w-4" />
-						{:else}
-							<UserPlus class="h-4 w-4" />
-						{/if}
-					</div>
+					<a href={resolve(`/@${notification.actorUsername}`)} class="relative shrink-0">
+						<Avatar
+							username={notification.actorUsername}
+							avatar={notification.actorAvatar}
+							size="h-9 w-9"
+						/>
+						<span
+							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {notification.read
+								? 'bg-base-200 text-base-content/50'
+								: 'bg-primary/10 text-primary'}"
+						>
+							{#if notification.type === 'like'}
+								<Heart class="h-2.5 w-2.5" />
+							{:else if notification.type === 'comment'}
+								<MessageCircle class="h-2.5 w-2.5" />
+							{:else}
+								<UserPlus class="h-2.5 w-2.5" />
+							{/if}
+						</span>
+					</a>
 					<div class="min-w-0 flex-1">
 						<p
 							class="text-sm {notification.read
 								? 'font-normal text-base-content/60'
 								: 'font-semibold text-base-content'}"
 						>
+							<a href={resolve(`/@${notification.actorUsername}`)} class="hover:underline"
+								>{notification.actorName || notification.actorUsername}</a
+							>
 							{typeLabel[notification.type]}
 						</p>
 						<time

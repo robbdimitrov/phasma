@@ -196,7 +196,9 @@ Returns an empty items array (not an error) when the feed is empty.
   "items": [
     {
       "id": "01904d2e-7f4d-7c33-ae21-2f94737eaa10",
-      "externalId": "activity-0-1234",
+      "actorUsername": "alice",
+      "actorName": "Alice",
+      "actorAvatar": null,
       "type": "like",
       "entityId": "01904d2e-7f4d-7c33-ae21-2f94737eab20",
       "read": false,
@@ -206,6 +208,9 @@ Returns an empty items array (not an error) when the feed is empty.
   "nextCursor": null
 }
 ```
+
+`actorUsername`, `actorName`, and `actorAvatar` describe the user who
+triggered the notification (joined from `notifications.actor_id`).
 
 Notification types: `like` (entityId = post public_id), `comment` (entityId =
 comment id), `follow` (entityId = actor user id as string).

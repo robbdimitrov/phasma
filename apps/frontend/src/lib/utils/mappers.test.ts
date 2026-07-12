@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { mapUser, mapPost, mapComment, mapSession } from '$lib/utils/mappers';
-import type { UserDto, PostDto, CommentDto, SessionDto } from '$lib/types';
+import { mapUser, mapPost, mapComment, mapSession, mapNotification } from '$lib/utils/mappers';
+import type { UserDto, PostDto, CommentDto, SessionDto, NotificationDto } from '$lib/types';
 
 const baseUserDto: UserDto = {
 	id: '550e8400-e29b-41d4-a716-446655440001',
@@ -106,5 +106,31 @@ describe('mapSession', () => {
 
 	it.each(['created', 'expiresAt'] as const)('rejects an invalid %s timestamp', (field) => {
 		expect(() => mapSession({ ...session, [field]: 'invalid' })).toThrow('Invalid timestamp');
+	});
+});
+
+describe('mapNotification', () => {
+	const notification: NotificationDto = {
+		id: '01904d2e-7f4d-7c33-ae21-2f94737eaa10',
+		actorUsername: 'johndoe',
+		actorName: 'John Doe',
+		actorAvatar: 'avatar.jpg',
+		type: 'like',
+		entityId: '01904d2e-7f4d-7c33-ae21-2f94737eab20',
+		read: false,
+		created: '2026-06-22T12:00:00Z'
+	};
+
+	it('maps DTO to Notification with Date object and actor fields', () => {
+		const mapped = mapNotification(notification);
+		expect(mapped).toEqual({
+			...notification,
+			created: new Date(notification.created)
+		});
+	});
+
+	it('preserves a null actor avatar', () => {
+		const mapped = mapNotification({ ...notification, actorAvatar: null });
+		expect(mapped.actorAvatar).toBeNull();
 	});
 });

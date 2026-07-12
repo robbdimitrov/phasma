@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"phasma/backend/internal/pagination"
@@ -27,11 +28,13 @@ func (r *NotificationRepository) ListNotifications(ctx context.Context, userID i
 
 	var result []Notification
 	err := r.db.Read(ctx, func() error {
-		rows, err := r.db.Pool().Query(ctx, `SELECT id, public_id::text, external_id, user_id, actor_id, type, entity_id, read, created
-			FROM notifications
-			WHERE user_id = $1
-			AND (NOT $2 OR (created, id) < ($3, $4))
-			ORDER BY created DESC, id DESC LIMIT $5`,
+		rows, err := r.db.Pool().Query(ctx, `SELECT n.id, n.public_id::text, n.external_id, n.user_id, n.actor_id,
+			u.username, u.name, u.avatar, n.type, n.entity_id, n.read, n.created
+			FROM notifications n
+			JOIN users u ON u.id = n.actor_id
+			WHERE n.user_id = $1
+			AND (NOT $2 OR (n.created, n.id) < ($3, $4))
+			ORDER BY n.created DESC, n.id DESC LIMIT $5`,
 			userID, hasCursor, cursorCreated, cursorID, limit)
 		if err != nil {
 			return err
@@ -40,10 +43,12 @@ func (r *NotificationRepository) ListNotifications(ctx context.Context, userID i
 		result = []Notification{}
 		for rows.Next() {
 			var n Notification
+			var avatar sql.NullString
 			if err := rows.Scan(&n.ID, &n.PublicID, &n.ExternalID, &n.UserID, &n.ActorID,
-				&n.Type, &n.EntityID, &n.Read, &n.Created); err != nil {
+				&n.ActorUsername, &n.ActorName, &avatar, &n.Type, &n.EntityID, &n.Read, &n.Created); err != nil {
 				return err
 			}
+			n.ActorAvatar = database.NullableString(avatar)
 			result = append(result, n)
 		}
 		return rows.Err()

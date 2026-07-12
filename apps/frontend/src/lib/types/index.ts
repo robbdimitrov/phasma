@@ -101,6 +101,9 @@ export type NotificationType = 'like' | 'comment' | 'follow';
 
 export interface NotificationDto {
 	id: string;
+	actorUsername: string;
+	actorName: string;
+	actorAvatar: string | null;
 	type: NotificationType;
 	entityId: string;
 	read: boolean;
@@ -109,6 +112,9 @@ export interface NotificationDto {
 
 export interface Notification {
 	id: string;
+	actorUsername: string;
+	actorName: string;
+	actorAvatar: string | null;
 	type: NotificationType;
 	entityId: string;
 	read: boolean;
