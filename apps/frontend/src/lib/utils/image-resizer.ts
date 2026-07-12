@@ -1,4 +1,5 @@
 const DEFAULT_MAX_DIMENSION = 1600;
+const MIN_DIMENSION = 320;
 const MIN_QUALITY = 0.6;
 const QUALITY_STEP = 0.08;
 const SCALE_STEP = 0.85;
@@ -73,7 +74,7 @@ export async function resizeImageForUpload(file: File): Promise<File> {
 		image.naturalHeight,
 		DEFAULT_MAX_DIMENSION
 	);
-	while (width >= 320 && height >= 320) {
+	while (true) {
 		const canvas = drawImage(image, width, height);
 		let quality = 0.88;
 		while (quality >= MIN_QUALITY) {
@@ -86,6 +87,7 @@ export async function resizeImageForUpload(file: File): Promise<File> {
 			}
 			quality -= QUALITY_STEP;
 		}
+		if (width <= MIN_DIMENSION || height <= MIN_DIMENSION) break;
 		width = Math.round(width * SCALE_STEP);
 		height = Math.round(height * SCALE_STEP);
 	}
