@@ -34,31 +34,31 @@
 		class="flex shrink-0 items-center gap-1 rounded-full bg-base-content/5 p-1 leading-none sm:gap-2"
 		aria-label="Primary navigation"
 	>
-		<a
-			href={resolve('/feed')}
-			class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
-			class:bg-white={isActive('/feed')}
-			class:text-slate-950={isActive('/feed')}
-			class:shadow-md={isActive('/feed')}
-			title="Home"
-			aria-label="Home"
-		>
-			<Home class="h-5 w-5" />
-		</a>
-
-		<a
-			href={resolve('/search')}
-			class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
-			class:bg-white={isActive('/search')}
-			class:text-slate-950={isActive('/search')}
-			class:shadow-md={isActive('/search')}
-			title="Search"
-			aria-label="Search"
-		>
-			<Search class="h-5 w-5" />
-		</a>
-
 		{#if currentUser}
+			<a
+				href={resolve('/feed')}
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
+				class:bg-white={isActive('/feed')}
+				class:text-slate-950={isActive('/feed')}
+				class:shadow-md={isActive('/feed')}
+				title="Home"
+				aria-label="Home"
+			>
+				<Home class="h-5 w-5" />
+			</a>
+
+			<a
+				href={resolve('/search')}
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
+				class:bg-white={isActive('/search')}
+				class:text-slate-950={isActive('/search')}
+				class:shadow-md={isActive('/search')}
+				title="Search"
+				aria-label="Search"
+			>
+				<Search class="h-5 w-5" />
+			</a>
+
 			<a
 				href={resolve('/upload')}
 				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-100 hover:text-base-content dark:hover:bg-white/15"
