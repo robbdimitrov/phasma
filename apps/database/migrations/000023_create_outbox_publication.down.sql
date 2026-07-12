@@ -1,1 +1,0 @@
-DROP PUBLICATION IF EXISTS outbox_relay;

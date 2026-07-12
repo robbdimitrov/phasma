@@ -8,3 +8,5 @@ CREATE TABLE outbox (
 
 CREATE INDEX outbox_created_idx ON outbox(created);
 CREATE INDEX outbox_published_at_idx ON outbox(published_at) WHERE published_at IS NULL;
+
+CREATE PUBLICATION outbox_relay FOR TABLE outbox;
