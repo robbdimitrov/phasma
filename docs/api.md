@@ -123,9 +123,10 @@ failure. Use `DELETE /sessions` to terminate the current session.
 
 | Method | Path             | Purpose                                |
 | ------ | ---------------- | ---------------------------------------- |
-| GET    | /users/suggested | Get up to 10 suggested users to follow |
+| GET    | /users/suggested | Get up to 5 suggested users to follow |
 
-`GET /users/suggested` returns users ordered by `follower_count` descending,
+`GET /users/suggested` returns users with at least one follower or post,
+ordered by `follower_count` descending then `post_count` descending,
 excluding users the authenticated user already follows and the authenticated
 user themselves. Response:
 

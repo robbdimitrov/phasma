@@ -445,10 +445,11 @@ func (r *UserRepository) ListSuggestedUsers(ctx context.Context, viewerID string
 		rows, err := r.db.Pool().Query(ctx, `SELECT `+userColumns+`
             FROM users u
             WHERE u.id IS DISTINCT FROM NULLIF($1, '')::bigint
+              AND (u.follower_count > 0 OR u.post_count > 0)
               AND NOT EXISTS (
                 SELECT 1 FROM follows WHERE follower_id = NULLIF($1, '')::bigint AND followee_id = u.id
               )
-            ORDER BY u.follower_count DESC
+            ORDER BY u.follower_count DESC, u.post_count DESC
             LIMIT $2`, viewerID, limit)
 		if err != nil {
 			return err

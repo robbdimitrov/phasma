@@ -132,5 +132,5 @@ func (s *Service) UnfollowUser(ctx context.Context, command FollowCommand) error
 }
 
 func (s *Service) ListSuggestedUsers(ctx context.Context, viewerID string) ([]User, error) {
-	return s.repository.ListSuggestedUsers(ctx, viewerID, 10)
+	return s.repository.ListSuggestedUsers(ctx, viewerID, 5)
 }
