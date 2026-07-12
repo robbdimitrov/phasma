@@ -41,4 +41,14 @@ describe('activeToken', () => {
 		const result = activeToken('foo#bar', 7);
 		expect(result).toBeNull();
 	});
+
+	it('returns null when a #hashtag query contains a dot (backend allows only [A-Za-z0-9_])', () => {
+		const result = activeToken('check #sv.elte', 14);
+		expect(result).toBeNull();
+	});
+
+	it('allows a dot in an @mention query (usernames allow it)', () => {
+		const result = activeToken('hello @al.ice', 13);
+		expect(result).toEqual({ trigger: '@', query: 'al.ice', start: 6, end: 13 });
+	});
 });

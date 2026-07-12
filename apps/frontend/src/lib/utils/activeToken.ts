@@ -5,8 +5,10 @@ export type ActiveToken = {
 	end: number;
 };
 
-// Characters that can appear in a mention or hashtag after the trigger.
+// Superset scan charset (matches the username pattern); hashtags are
+// narrower (backend extracts only `[A-Za-z0-9_]`) and filtered below.
 const TOKEN_CHAR_RE = /[A-Za-z0-9._]/;
+const HASHTAG_CHAR_RE = /^[A-Za-z0-9_]*$/;
 
 /**
  * Given a text value and the current caret position, returns the active
@@ -31,9 +33,12 @@ export function activeToken(value: string, caret: number): ActiveToken | null {
 	// The trigger must be at the start of the string or preceded by whitespace.
 	if (triggerIndex > 0 && !/\s/.test(value.charAt(triggerIndex - 1))) return null;
 
+	const query = value.slice(triggerIndex + 1, caret);
+	if (trigger === '#' && !HASHTAG_CHAR_RE.test(query)) return null;
+
 	return {
 		trigger,
-		query: value.slice(triggerIndex + 1, caret),
+		query,
 		start: triggerIndex,
 		end: caret
 	};

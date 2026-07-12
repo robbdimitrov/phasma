@@ -28,8 +28,10 @@
 
 	function handleDescriptionInput(e: Event) {
 		const textarea = e.currentTarget as HTMLTextAreaElement;
-		const caret = textarea.selectionStart ?? description.length;
-		typeahead.handleInput(description, caret);
+		// Read the DOM directly: bind:value's listener syncs `description`
+		// after this handler runs, so it's one keystroke stale here.
+		const caret = textarea.selectionStart ?? textarea.value.length;
+		typeahead.handleInput(textarea.value, caret);
 		if (typeahead.token) {
 			lastCaretLineTop = getCaretLineTop(textarea, caret);
 			lastPaddingLeft = parseFloat(getComputedStyle(textarea).paddingLeft) || 0;

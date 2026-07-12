@@ -38,4 +38,34 @@ describe('createTypeaheadController', () => {
 		expect(controller.token).toBeNull();
 		expect(controller.items).toEqual([]);
 	});
+
+	it('derives the active token from the live DOM value, not a same-tick bound variable', () => {
+		// Svelte's compiled bind:value listener always registers after a
+		// template `oninput` handler, so a bound variable read inside it is one keystroke stale.
+		const textarea = document.createElement('textarea');
+		document.body.appendChild(textarea);
+		const controller = createTypeaheadController();
+
+		let boundState = '';
+		let staleBoundStateSeenByHandler = '';
+
+		textarea.addEventListener('input', () => {
+			staleBoundStateSeenByHandler = boundState; // what the buggy code read
+			controller.handleInput(textarea.value, textarea.selectionStart ?? textarea.value.length);
+		});
+		textarea.addEventListener('input', () => {
+			boundState = textarea.value;
+		});
+
+		textarea.value = '@al';
+		textarea.selectionStart = 3;
+		textarea.dispatchEvent(new Event('input'));
+
+		expect(controller.token).toEqual({ trigger: '@', query: 'al', start: 0, end: 3 });
+
+		// Confirms the bug: passing the stale bound value finds no token.
+		expect(staleBoundStateSeenByHandler).toBe('');
+		controller.handleInput(staleBoundStateSeenByHandler, 3);
+		expect(controller.token).toBeNull();
+	});
 });

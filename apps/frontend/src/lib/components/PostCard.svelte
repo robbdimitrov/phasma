@@ -105,8 +105,10 @@
 
 	function handleCommentInput(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
-		const caret = input.selectionStart ?? newCommentBody.length;
-		commentTypeahead.handleInput(newCommentBody, caret);
+		// Read the DOM directly: bind:value's listener syncs `newCommentBody`
+		// after this handler runs, so it's one keystroke stale here.
+		const caret = input.selectionStart ?? input.value.length;
+		commentTypeahead.handleInput(input.value, caret);
 		if (commentTypeahead.token) commentDropdownPos.placeBelow(input);
 	}
 
