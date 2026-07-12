@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { createPagination } from '$lib/createPagination.svelte';
 	import ProfileHeader from '$lib/components/ProfileHeader.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -14,8 +15,8 @@
 
 	let profileUser = $derived(data.profileUser);
 	let isFollowPending = $state(false);
-	let pendingFollowIds = $state(new Set<string>());
-	let followingOverrides = $state(new Map<string, boolean>());
+	let pendingFollowIds = new SvelteSet<string>();
+	let followingOverrides = new SvelteMap<string, boolean>();
 
 	const isCurrentUser = $derived(data.currentUser?.id === profileUser.id);
 	const username = $derived(profileUser.username);
@@ -72,7 +73,7 @@
 						{#if data.currentUser}
 							<form
 								method="POST"
-								action="/@{username}?/{isFollowing ? 'unfollow' : 'follow'}"
+								action="/@{user.username}?/{isFollowing ? 'unfollow' : 'follow'}"
 								use:enhance={() => {
 									pendingFollowIds.add(user.id);
 									followingOverrides.set(user.id, !isFollowing);
