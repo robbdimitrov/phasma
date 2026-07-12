@@ -13,7 +13,7 @@
 </script>
 
 <header
-	class="relative z-10 mx-auto flex h-16 w-full items-center justify-between gap-3 rounded-full border border-base-300 bg-base-100/75 px-3 py-2 text-base-content shadow-lg shadow-slate-900/10 backdrop-blur-xl sm:px-5"
+	class="sticky top-4 z-10 mx-auto flex h-16 w-full items-center justify-between gap-3 rounded-full border border-base-300 bg-base-100/75 px-3 py-2 text-base-content shadow-lg shadow-slate-900/10 backdrop-blur-xl sm:px-5"
 >
 	<a
 		class="flex min-w-0 items-center gap-2 no-underline transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] sm:gap-3"
