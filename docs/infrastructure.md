@@ -21,25 +21,28 @@ Local deployment targets a `kind` cluster.
 `scripts/deploy.sh` applies manifests in three stages — infra
 (storage/cache/search/broker), then database, then backend/frontend —
 waiting for each to be healthy before the next, so a real rollout never
-races a dependency backend checks synchronously at startup. `kubectl
-apply`/`set image` are no-ops when nothing changed, so an unchanged stage
-never restarts. Each workload that reads a Secret also gets a
+races a dependency backend checks synchronously at startup. Custom images
+are tagged with a stable checksum of that component's build context, so a
+backend-only change does not create a new frontend or migration image tag.
+`kubectl apply`/`set image` are no-ops when nothing changed, so an unchanged
+stage never restarts. Each workload that reads a Secret also gets a
 `checksum/<secret>` pod-template annotation computed from that Secret's
-data, so a value change with no manifest diff still triggers a real
-rollout instead of going unnoticed until the next unrelated restart.
-`connect` and the `broker-backfill` Job are exceptions: both are always
+data, so a value change with no manifest diff still triggers a real rollout
+instead of going unnoticed until the next unrelated restart. `connect` and
+the `broker-backfill` Job are exceptions: both are always
 re-applied/restarted every run since they depend on state written after
 apply (the Meilisearch key, a fresh backfill run).
 
 ## Image Registry
 
-All custom images are pushed to `localhost:5000/phasma/<service>:<git-sha>`,
-where the tag is the short Git commit SHA
-(`GIT_SHA ?= $(shell git rev-parse --short HEAD)`). Built and pushed via
-top-level `Makefile` targets; `scripts/deploy.sh` passes the SHA to `make` and
-uses `kubectl set image` to roll out each new tag. Third-party images in
-Kubernetes manifests are pinned to explicit version tags; do not use implicit
-`latest`.
+All custom images are pushed to `localhost:5000/phasma/<service>:<tag>`.
+The top-level `Makefile` defaults to the short Git commit SHA for manual
+builds. `scripts/deploy.sh` overrides that per target with a 12-character
+SHA-256 checksum of the service build context and uses `kubectl set image`
+to roll out only workloads whose resolved image tag changed. Override
+`BACKEND_IMAGE_TAG`, `DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only when
+you deliberately need a fixed tag. Third-party images in Kubernetes manifests
+are pinned to explicit version tags; do not use implicit `latest`.
 
 ## Init Container Sequencing
 

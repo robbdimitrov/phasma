@@ -8,7 +8,6 @@ NS="${NS:-phasma}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S_DIR="$ROOT/deploy"
 REGISTRY="${REGISTRY:-localhost:5000/phasma}"
-GIT_SHA="${GIT_SHA:-$(git -C "${ROOT}" rev-parse --short HEAD)}"
 APP_HOST="${APP_HOST:-phasma.localhost}"
 LOCAL_PORT="${LOCAL_PORT:-8080}"
 REMOTE_PORT="${REMOTE_PORT:-8080}"
@@ -18,6 +17,9 @@ PORT_FORWARD_PID_FILE="${PORT_FORWARD_PID_FILE:-/tmp/phasma-port-forward-${LOCAL
 STORAGE_IMAGE="chrislusf/seaweedfs:3.76"
 CACHE_IMAGE="docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0"
 SEARCH_IMAGE="getmeili/meilisearch:v1.11.3"
+BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG:-}"
+DATABASE_IMAGE_TAG="${DATABASE_IMAGE_TAG:-}"
+FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG:-}"
 
 SERVICES=(backend database frontend)
 # storage/database are hard startup deps for backend; stage+wait avoids
@@ -313,19 +315,55 @@ handle_existing_port_forward() {
   exit 1
 }
 
+context_checksum() {
+  local dir="$1"
+  (
+    cd "${ROOT}/${dir}"
+    find . -type f \
+      ! -path './.git/*' \
+      ! -path './bin/*' \
+      ! -path './tmp/*' \
+      ! -path './coverage/*' \
+      ! -path './node_modules/*' \
+      ! -path './.svelte-kit/*' \
+      ! -path './build/*' \
+      ! -path './dist/*' \
+      -print |
+      LC_ALL=C sort |
+      while IFS= read -r file; do
+        case "${dir}:${file}" in
+          apps/backend:./api | apps/backend:./api/*) continue ;;
+          apps/frontend:*.md | apps/frontend:./.env | apps/frontend:./.env.*)
+            [[ "${file}" == "./.env.example" ]] || continue
+            ;;
+        esac
+        printf '%s\0' "${file}"
+        openssl dgst -sha256 -binary "${file}"
+      done
+  ) | openssl dgst -sha256 -r | awk '{print substr($1, 1, 12)}'
+}
+
+init_image_tags() {
+  BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG:-$(context_checksum apps/backend)}"
+  DATABASE_IMAGE_TAG="${DATABASE_IMAGE_TAG:-$(context_checksum apps/database)}"
+  FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG:-$(context_checksum apps/frontend)}"
+}
+
 build_images() {
   log "building images"
+  log "image tags: backend=${BACKEND_IMAGE_TAG} database=${DATABASE_IMAGE_TAG} frontend=${FRONTEND_IMAGE_TAG}"
   export DOCKER_BUILDKIT=1
-  export GIT_SHA
-  make -C "${ROOT}" GIT_SHA="${GIT_SHA}"
+  make -C "${ROOT}" backend IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${BACKEND_IMAGE_TAG}"
+  make -C "${ROOT}" database IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${DATABASE_IMAGE_TAG}"
+  make -C "${ROOT}" frontend IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${FRONTEND_IMAGE_TAG}"
   if docker container inspect --format '{{.State.Running}}' phasma-control-plane 2>/dev/null | grep -qx true; then
     log "loading images into kind node"
     docker pull "${STORAGE_IMAGE}"
     docker pull "${CACHE_IMAGE}"
     docker pull "${SEARCH_IMAGE}"
-    docker save "${REGISTRY}/backend:${GIT_SHA}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-    docker save "${REGISTRY}/database:${GIT_SHA}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-    docker save "${REGISTRY}/frontend:${GIT_SHA}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
+    docker save "${REGISTRY}/backend:${BACKEND_IMAGE_TAG}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
+    docker save "${REGISTRY}/database:${DATABASE_IMAGE_TAG}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
+    docker save "${REGISTRY}/frontend:${FRONTEND_IMAGE_TAG}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
     docker save "${STORAGE_IMAGE}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
     docker save "${CACHE_IMAGE}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
     docker save "${SEARCH_IMAGE}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
@@ -341,7 +379,8 @@ apply_manifest_files() {
 }
 
 secret_checksum() {
-  kubectl -n "${NS}" get secret "$1" -o go-template='{{ range $k, $v := .data }}{{ $k }}{{ $v }}{{ end }}' \
+  kubectl -n "${NS}" get secret "$1" -o go-template='{{ range $k, $v := .data }}{{ printf "%s=%s\n" $k $v }}{{ end }}' \
+    | LC_ALL=C sort \
     | openssl dgst -sha256 -r | awk '{print $1}'
 }
 
@@ -445,9 +484,9 @@ roll_out_stack() {
   apply_manifest_files "${REST_MANIFESTS[@]}"
   kubectl -n "${NS}" set env deployment/frontend ORIGIN="${LOCAL_ORIGIN}" >/dev/null
   kubectl -n "${NS}" set image deployment/backend \
-    migration="${REGISTRY}/database:${GIT_SHA}" \
-    backend="${REGISTRY}/backend:${GIT_SHA}" >/dev/null
-  kubectl -n "${NS}" set image deployment/frontend frontend="${REGISTRY}/frontend:${GIT_SHA}" >/dev/null
+    migration="${REGISTRY}/database:${DATABASE_IMAGE_TAG}" \
+    backend="${REGISTRY}/backend:${BACKEND_IMAGE_TAG}" >/dev/null
+  kubectl -n "${NS}" set image deployment/frontend frontend="${REGISTRY}/frontend:${FRONTEND_IMAGE_TAG}" >/dev/null
   annotate_secret_checksums deployment/backend \
     database-secret app-db-secret storage-secret cache-secret backend-secret search-secret
   wait_for_rollouts "${ROLL_OUT_REST[@]}"
@@ -539,6 +578,7 @@ EOF
 require_tools
 require_docker
 require_colima_aio_capacity
+init_image_tags
 
 if [[ -n "$(port_pids)" ]]; then
   echo "note: local port ${LOCAL_PORT} is already in use; deploy will reuse a frontend port-forward or report the conflict." >&2
