@@ -81,8 +81,9 @@ data:
       sql_select:
         driver: postgres
         dsn: "${DATABASE_URL}"
-        table: users
-        columns: [id, username, name]
+        table: |
+          (SELECT id, username, name, COALESCE(avatar, '') AS avatar FROM users) AS search_users
+        columns: [id, username, name, avatar]
         suffix: ORDER BY id
 
     pipeline:
@@ -93,6 +94,7 @@ data:
             root.id = this.id
             root.username = this.username
             root.name = this.name
+            root.avatar = this.avatar
 
     output:
       kafka_franz:
@@ -115,14 +117,15 @@ data:
                      FILTER (WHERE h.name IS NOT NULL), '[]'::json)::text AS hashtags,
                    to_char(p.created AT TIME ZONE 'UTC',
                      'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created,
-                   u.is_celebrity
+                   u.is_celebrity,
+                   p.filename
             FROM posts p
             JOIN users u ON u.id = p.user_id
             LEFT JOIN post_hashtags ph ON ph.post_id = p.id
             LEFT JOIN hashtags h ON h.id = ph.hashtag_id
             GROUP BY p.id, u.username, u.is_celebrity
           ) AS search_posts
-        columns: [id, post_id, author_id, description, username, hashtags, created, is_celebrity]
+        columns: [id, post_id, author_id, description, username, hashtags, created, is_celebrity, filename]
         suffix: ORDER BY id
 
     pipeline:
@@ -138,6 +141,7 @@ data:
             root.hashtags = this.hashtags.parse_json()
             root.created = this.created
             root.is_celebrity = this.is_celebrity
+            root.filename = this.filename
 
     output:
       kafka_franz:
