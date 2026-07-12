@@ -20,6 +20,7 @@ SEARCH_IMAGE="getmeili/meilisearch:v1.11.3"
 BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG:-}"
 DATABASE_IMAGE_TAG="${DATABASE_IMAGE_TAG:-}"
 FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG:-}"
+FORCE_BACKFILL="${FORCE_BACKFILL:-0}"
 
 SERVICES=(backend database frontend)
 # storage/database are hard startup deps for backend; stage+wait avoids
@@ -41,10 +42,9 @@ INFRA_MANIFESTS=(
   "storage.yaml"
   "cache.yaml"
   "search.yaml"
-  "broker.yaml"
 )
 DATABASE_MANIFESTS=("database.yaml")
-REST_MANIFESTS=("backend.yaml" "frontend.yaml")
+BROKER_MANIFEST="broker.yaml"
 STATIC_MANIFESTS=(
   "serviceaccounts.yaml"
   "network-policy.yaml"
@@ -378,25 +378,130 @@ apply_manifest_files() {
   kubectl apply "${files[@]}" -n "${NS}" >/dev/null
 }
 
-secret_checksum() {
-  kubectl -n "${NS}" get secret "$1" -o go-template='{{ range $k, $v := .data }}{{ printf "%s=%s\n" $k $v }}{{ end }}' \
+select_manifest_documents() {
+  local manifest="$1"
+  local mode="$2"
+  local kind="$3"
+  local name="$4"
+  awk -v mode="${mode}" -v want_kind="${kind}" -v want_name="${name}" '
+    function reset() {
+      doc = ""
+      doc_kind = ""
+      doc_name = ""
+      in_metadata = 0
+    }
+    function should_emit() {
+      matched = (doc_kind == want_kind && doc_name == want_name)
+      return mode == "only" ? matched : !matched
+    }
+    function emit() {
+      if (doc != "" && should_emit()) {
+        printf "%s---\n", doc
+      }
+    }
+    /^---[[:space:]]*$/ {
+      emit()
+      reset()
+      next
+    }
+    {
+      doc = doc $0 "\n"
+    }
+    /^kind:[[:space:]]*/ {
+      doc_kind = $2
+    }
+    /^metadata:[[:space:]]*$/ {
+      in_metadata = 1
+      next
+    }
+    /^[^[:space:]]/ && $0 !~ /^metadata:/ {
+      in_metadata = 0
+    }
+    in_metadata && /^[[:space:]]+name:[[:space:]]*/ {
+      doc_name = $2
+    }
+    END {
+      emit()
+    }
+  ' "${K8S_DIR}/${manifest}"
+}
+
+append_rendered_app_manifest() {
+  local rendered="$1"
+  local manifest="$2"
+  local name="$3"
+  local deployment
+  deployment="$(mktemp)"
+  shift 3
+
+  select_manifest_documents "${manifest}" only Service "${name}" >> "${rendered}"
+  select_manifest_documents "${manifest}" only Deployment "${name}" > "${deployment}"
+  if ! kubectl set image --local -o yaml -f "${deployment}" "$@" >> "${rendered}"; then
+    rm -f "${deployment}"
+    return 1
+  fi
+  rm -f "${deployment}"
+}
+
+apply_rendered_app_manifests() {
+  local rendered
+  rendered="$(mktemp)"
+  trap 'rm -f "${rendered}"' RETURN
+
+  append_rendered_app_manifest "${rendered}" "backend.yaml" backend \
+    migration="${REGISTRY}/database:${DATABASE_IMAGE_TAG}" \
+    backend="${REGISTRY}/backend:${BACKEND_IMAGE_TAG}"
+
+  append_rendered_app_manifest "${rendered}" "frontend.yaml" frontend \
+    frontend="${REGISTRY}/frontend:${FRONTEND_IMAGE_TAG}"
+
+  kubectl apply -f "${rendered}" -n "${NS}" >/dev/null
+  trap - RETURN
+  rm -f "${rendered}"
+}
+
+apply_broker_infra_manifest() {
+  local rendered
+  rendered="$(mktemp)"
+  trap 'rm -f "${rendered}"' RETURN
+  select_manifest_documents "${BROKER_MANIFEST}" except Job broker-backfill > "${rendered}"
+  kubectl apply -f "${rendered}" -n "${NS}" >/dev/null
+  trap - RETURN
+  rm -f "${rendered}"
+}
+
+data_resource_checksum() {
+  local kind="$1"
+  local name="$2"
+  kubectl -n "${NS}" get "${kind}" "${name}" -o go-template='{{ range $k, $v := .data }}{{ printf "%s=%s\n" $k $v }}{{ end }}' \
     | LC_ALL=C sort \
     | openssl dgst -sha256 -r | awk '{print $1}'
 }
 
-# Stamps a checksum/<secret> pod-template annotation per secret a workload
-# reads, so a secret value change (with no manifest diff) still rolls it out.
-annotate_secret_checksums() {
-  local resource="$1"
-  shift
-  local secret pairs=()
-  for secret in "$@"; do
-    pairs+=("\"checksum/${secret}\":\"$(secret_checksum "${secret}")\"")
+annotate_data_resource_checksums() {
+  local kind="$1"
+  local resource="$2"
+  shift 2
+  local name pairs=()
+  for name in "$@"; do
+    pairs+=("\"checksum/${name}\":\"$(data_resource_checksum "${kind}" "${name}")\"")
   done
   local joined
   joined="$(IFS=,; echo "${pairs[*]}")"
   kubectl -n "${NS}" patch "${resource}" --type merge \
     -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{${joined}}}}}}" >/dev/null
+}
+
+annotate_secret_checksums() {
+  local resource="$1"
+  shift
+  annotate_data_resource_checksums secret "${resource}" "$@"
+}
+
+annotate_configmap_checksums() {
+  local resource="$1"
+  shift
+  annotate_data_resource_checksums configmap "${resource}" "$@"
 }
 
 apply_manifests() {
@@ -407,15 +512,7 @@ apply_manifests() {
   ensure_connect_secret
   ensure_tls_secret
   ensure_database_tls_secret
-  kubectl -n "${NS}" delete job broker-backfill --ignore-not-found --wait=true >/dev/null
   apply_manifest_files "${STATIC_MANIFESTS[@]}"
-}
-
-rollout_restart() {
-  local resource
-  for resource in "$@"; do
-    kubectl -n "${NS}" rollout restart "${resource}"
-  done
 }
 
 wait_for_rollouts() {
@@ -452,9 +549,24 @@ wait_for_rollouts() {
 }
 
 run_broker_backfill() {
+  local complete
+  complete="$(kubectl -n "${NS}" get job broker-backfill -o jsonpath='{range .status.conditions[?(@.type=="Complete")]}{.status}{end}' 2>/dev/null || true)"
+  if [[ "${FORCE_BACKFILL}" != "1" && "${complete}" == "True" ]]; then
+    log "broker backfill already complete"
+    kubectl -n "${NS}" patch job broker-backfill --type=json \
+      -p='[{"op":"remove","path":"/spec/ttlSecondsAfterFinished"}]' >/dev/null 2>&1 || true
+    return 0
+  fi
+
   log "running broker backfill"
+  local manifest
+  manifest="$(mktemp)"
+  trap 'rm -f "${manifest}"' RETURN
+  select_manifest_documents "${BROKER_MANIFEST}" only Job broker-backfill > "${manifest}"
   kubectl -n "${NS}" delete job broker-backfill --ignore-not-found --wait=true >/dev/null
-  kubectl apply -f "${K8S_DIR}/broker.yaml" -n "${NS}" >/dev/null
+  kubectl apply -f "${manifest}" -n "${NS}" >/dev/null
+  trap - RETURN
+  rm -f "${manifest}"
   kubectl -n "${NS}" patch job broker-backfill --type merge -p '{"spec":{"suspend":false}}' >/dev/null
   if kubectl -n "${NS}" wait --for=condition=complete job/broker-backfill --timeout=180s; then
     return 0
@@ -470,6 +582,7 @@ run_broker_backfill() {
 roll_out_stack() {
   log "applying infra dependencies"
   apply_manifest_files "${INFRA_MANIFESTS[@]}"
+  apply_broker_infra_manifest
   annotate_secret_checksums statefulset/storage storage-secret
   annotate_secret_checksums statefulset/cache cache-secret
   annotate_secret_checksums statefulset/search search-secret
@@ -481,21 +594,17 @@ roll_out_stack() {
   wait_for_rollouts "${ROLL_OUT_DATABASE[@]}"
 
   log "applying application services"
-  apply_manifest_files "${REST_MANIFESTS[@]}"
+  apply_rendered_app_manifests
   kubectl -n "${NS}" set env deployment/frontend ORIGIN="${LOCAL_ORIGIN}" >/dev/null
-  kubectl -n "${NS}" set image deployment/backend \
-    migration="${REGISTRY}/database:${DATABASE_IMAGE_TAG}" \
-    backend="${REGISTRY}/backend:${BACKEND_IMAGE_TAG}" >/dev/null
-  kubectl -n "${NS}" set image deployment/frontend frontend="${REGISTRY}/frontend:${FRONTEND_IMAGE_TAG}" >/dev/null
   annotate_secret_checksums deployment/backend \
     database-secret app-db-secret storage-secret cache-secret backend-secret search-secret
   wait_for_rollouts "${ROLL_OUT_REST[@]}"
 
   provision_meili_connect_key
 
-  # must restart even if unchanged: picks up the key just written above
-  log "restarting connect (after broker is ready)"
-  rollout_restart "${ROLL_OUT_CONNECT[@]}"
+  log "checking connect inputs"
+  annotate_secret_checksums deployment/connect connect-secret
+  annotate_configmap_checksums deployment/connect broker-pipelines
   wait_for_rollouts "${ROLL_OUT_CONNECT[@]}"
 
   run_broker_backfill

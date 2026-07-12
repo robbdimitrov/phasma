@@ -24,22 +24,24 @@ waiting for each to be healthy before the next, so a real rollout never
 races a dependency backend checks synchronously at startup. Custom images
 are tagged with a stable checksum of that component's build context, so a
 backend-only change does not create a new frontend or migration image tag.
-`kubectl apply`/`set image` are no-ops when nothing changed, so an unchanged
-stage never restarts. Each workload that reads a Secret also gets a
+`kubectl apply` is a no-op when nothing changed, so an unchanged stage never
+restarts. Each workload that reads a Secret also gets a
 `checksum/<secret>` pod-template annotation computed from that Secret's
 data, so a value change with no manifest diff still triggers a real rollout
-instead of going unnoticed until the next unrelated restart. `connect` and
-the `broker-backfill` Job are exceptions: both are always
-re-applied/restarted every run since they depend on state written after
-apply (the Meilisearch key, a fresh backfill run).
+instead of going unnoticed until the next unrelated restart. `connect` also
+gets checksums for `connect-secret` and the `broker-pipelines` ConfigMap, so
+it restarts only when its runtime inputs change. The `broker-backfill` Job is
+created on first deploy and skipped after it completes; rerun it deliberately
+with `FORCE_BACKFILL=1 scripts/deploy.sh`.
 
 ## Image Registry
 
 All custom images are pushed to `localhost:5000/phasma/<service>:<tag>`.
 The top-level `Makefile` defaults to the short Git commit SHA for manual
 builds. `scripts/deploy.sh` overrides that per target with a 12-character
-SHA-256 checksum of the service build context and uses `kubectl set image`
-to roll out only workloads whose resolved image tag changed. Override
+SHA-256 checksum of the service build context, renders those tags into the
+applied manifests, and rolls out only workloads whose resolved image tag
+changed. Override
 `BACKEND_IMAGE_TAG`, `DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only when
 you deliberately need a fixed tag. Third-party images in Kubernetes manifests
 are pinned to explicit version tags; do not use implicit `latest`.
@@ -66,7 +68,8 @@ The broker-backfill Job runs one init container:
 `deploy.sh` provisions a Meilisearch scoped key (`documents.add` and
 `documents.delete` on `users`, `posts`, `hashtags` indexes only) after
 Meilisearch is ready and stores it in `connect-secret`. The connect Deployment
-is restarted after this provisioning step to pick up the new key.
+uses a `checksum/connect-secret` pod-template annotation so it rolls out only
+when that key or another connect secret value changes.
 
 ## Service Accounts
 
