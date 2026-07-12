@@ -43,12 +43,15 @@ func (r *FeedRepository) ListFeed(ctx context.Context, userID string, cursor *pa
 		SELECT `+feedPostColumns+`, posts.created AS cursor_created
 		FROM posts
 		JOIN users u ON u.id = posts.user_id
-		WHERE posts.user_id IN (
-		  SELECT fl.followee_id
-		  FROM follows fl
-		  JOIN users cu ON cu.id = fl.followee_id
-		  WHERE fl.follower_id = $1
-		    AND cu.is_celebrity = TRUE
+		WHERE (
+		  posts.user_id = $1
+		  OR posts.user_id IN (
+		    SELECT fl.followee_id
+		    FROM follows fl
+		    JOIN users cu ON cu.id = fl.followee_id
+		    WHERE fl.follower_id = $1
+		      AND cu.is_celebrity = TRUE
+		  )
 		)
 		AND NOT EXISTS (
 		  SELECT 1 FROM feed WHERE feed.user_id = $1 AND feed.post_id = posts.id

@@ -68,7 +68,8 @@ kubectl delete namespace phasma
   focused; do not build for hypothetical requirements.
 - Search for an existing helper, abstraction, or platform primitive before
   adding one. Add abstractions only when they remove concrete complexity or
-  duplication.
+  duplication — a second occurrence already justifies extracting; don't
+  extract before any duplication exists.
 - Match surrounding structure, naming, and idioms so the codebase reads as one
   system.
 - Use precise names and standard initialisms. Prefer clarity over compressed

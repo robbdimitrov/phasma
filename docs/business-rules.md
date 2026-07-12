@@ -95,10 +95,14 @@ The feed reads from a pre-materialized `feed` table populated by the
   never reset. Fan-out routing decisions (both write-path and read-path) use
   `is_celebrity`, not the volatile `follower_count`, so posts pushed before the
   threshold was crossed are never lost if a user later loses followers.
-- **Hybrid read**: celebrity posts are merged into each viewer's feed at query
-  time via `UNION ALL` with `NOT EXISTS` dedup against the fan-out inbox,
-  ensuring no duplicate entries appear when both paths would otherwise produce
-  the same row.
+- **Hybrid read**: celebrity posts and the viewer's own posts are merged into
+  the feed at query time via a single `UNION ALL` branch — both are read
+  live, deduped with `NOT EXISTS` against the materialized `feed` table so no
+  duplicate appears once fan-out catches up.
+- **Own-post read-after-write**: fan-out is asynchronous (outbox relay →
+  Kafka → `feed-consumer`), so a viewer's own just-created post may not have a
+  `feed` row yet. It is covered by the same live-read branch as celebrity
+  posts, so it's visible immediately regardless of fan-out completion.
 
 ## Notifications
 
