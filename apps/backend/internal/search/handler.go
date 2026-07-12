@@ -124,14 +124,7 @@ func (h Handler) Search(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteMessage(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
-		users := make([]UserResult, 0, len(hits))
-		for _, hit := range hits {
-			u := UserResult{Username: stringField(hit, "username")}
-			if av, ok := hit["avatar"].(string); ok {
-				u.Avatar = &av
-			}
-			users = append(users, u)
-		}
+		users := usersFromHits(hits)
 		items = users
 		count = len(users)
 
@@ -141,13 +134,7 @@ func (h Handler) Search(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteMessage(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
-		hashtags := make([]HashtagResult, 0, len(hits))
-		for _, hit := range hits {
-			hashtags = append(hashtags, HashtagResult{
-				Name:      stringField(hit, "name"),
-				PostCount: intField(hit, "post_count"),
-			})
-		}
+		hashtags := hashtagsFromHits(hits)
 		items = hashtags
 		count = len(hashtags)
 
@@ -174,6 +161,7 @@ func (h Handler) Search(w http.ResponseWriter, r *http.Request) {
 				ID:          stringField(hit, "post_id"),
 				Username:    stringField(hit, "username"),
 				Description: stringField(hit, "description"),
+				Filename:    stringField(hit, "filename"),
 			})
 		}
 		items = posts
@@ -197,15 +185,7 @@ func searchUsersWithClient(ctx context.Context, mc *SearchClient, q string) ([]U
 	if err != nil {
 		return nil, err
 	}
-	results := make([]UserResult, 0, len(hits))
-	for _, hit := range hits {
-		u := UserResult{Username: stringField(hit, "username")}
-		if av, ok := hit["avatar"].(string); ok {
-			u.Avatar = &av
-		}
-		results = append(results, u)
-	}
-	return results, nil
+	return usersFromHits(hits), nil
 }
 
 func searchHashtagsWithClient(ctx context.Context, mc *SearchClient, q string) ([]HashtagResult, error) {
@@ -213,6 +193,22 @@ func searchHashtagsWithClient(ctx context.Context, mc *SearchClient, q string) (
 	if err != nil {
 		return nil, err
 	}
+	return hashtagsFromHits(hits), nil
+}
+
+func usersFromHits(hits []map[string]any) []UserResult {
+	results := make([]UserResult, 0, len(hits))
+	for _, hit := range hits {
+		u := UserResult{Username: stringField(hit, "username"), Name: stringField(hit, "name")}
+		if av, ok := hit["avatar"].(string); ok {
+			u.Avatar = &av
+		}
+		results = append(results, u)
+	}
+	return results
+}
+
+func hashtagsFromHits(hits []map[string]any) []HashtagResult {
 	results := make([]HashtagResult, 0, len(hits))
 	for _, hit := range hits {
 		results = append(results, HashtagResult{
@@ -220,7 +216,7 @@ func searchHashtagsWithClient(ctx context.Context, mc *SearchClient, q string) (
 			PostCount: intField(hit, "post_count"),
 		})
 	}
-	return results, nil
+	return results
 }
 
 func searchIndex(ctx context.Context, mc *SearchClient, index, q, filter string, offset, limit int) ([]map[string]any, error) {

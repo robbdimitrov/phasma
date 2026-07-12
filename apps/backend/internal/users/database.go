@@ -388,6 +388,7 @@ func (r *UserRepository) UpdateUser(ctx context.Context, userID, name, username,
 			Name:     name,
 			Username: username,
 			Bio:      bioStr,
+			Avatar:   avatar,
 		})
 		if err != nil {
 			return err

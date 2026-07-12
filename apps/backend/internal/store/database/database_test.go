@@ -438,6 +438,75 @@ func TestDatabaseRepositoryPostHashtagOutboxUsesVisiblePostCount(t *testing.T) {
 	}
 }
 
+func TestDatabaseRepositoryPostOutboxIncludesFilename(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	userID := createTestUser(t, client, "post_outbox_owner")
+
+	if created, err := client.CreateUpload(ctx, stringID(userID), "post-outbox-upload"); err != nil || !created {
+		t.Fatalf("CreateUpload() = %v, %v", created, err)
+	}
+	if publicID, created, err := client.CreatePost(ctx, stringID(userID), "post-outbox-upload", nil, ""); err != nil || !created || publicID == "" {
+		t.Fatalf("CreatePost() = %q, %v, %v", publicID, created, err)
+	}
+
+	var payload []byte
+	if err := client.DB().Pool().QueryRow(ctx,
+		`SELECT payload
+		FROM outbox
+		WHERE topic = 'entity-changes'
+		AND payload->>'table' = 'posts'
+		AND payload->>'filename' = 'post-outbox-upload'
+		ORDER BY id DESC LIMIT 1`,
+	).Scan(&payload); err != nil {
+		t.Fatalf("post outbox payload query error = %v", err)
+	}
+
+	var decoded database.EntityPostUpsertPayload
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if decoded.Filename != "post-outbox-upload" {
+		t.Fatalf("filename = %q, want %q; payload = %s", decoded.Filename, "post-outbox-upload", payload)
+	}
+}
+
+func TestDatabaseRepositoryUserOutboxIncludesAvatar(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	userID := createTestUser(t, client, "user_outbox_owner")
+
+	if created, err := client.CreateUpload(ctx, stringID(userID), "user-outbox-avatar"); err != nil || !created {
+		t.Fatalf("CreateUpload() = %v, %v", created, err)
+	}
+	if _, err := client.UpdateUser(
+		ctx, stringID(userID), "Owner", "user_user_outbox_owner",
+		"user_outbox_owner@example.com", "user-outbox-avatar", nil,
+	); err != nil {
+		t.Fatalf("UpdateUser() error = %v", err)
+	}
+
+	var payload []byte
+	if err := client.DB().Pool().QueryRow(ctx,
+		`SELECT payload
+		FROM outbox
+		WHERE topic = 'entity-changes'
+		AND payload->>'table' = 'users'
+		AND payload->>'avatar' = 'user-outbox-avatar'
+		ORDER BY id DESC LIMIT 1`,
+	).Scan(&payload); err != nil {
+		t.Fatalf("user outbox payload query error = %v", err)
+	}
+
+	var decoded database.EntityUserUpsertPayload
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if decoded.Avatar != "user-outbox-avatar" {
+		t.Fatalf("avatar = %q, want %q; payload = %s", decoded.Avatar, "user-outbox-avatar", payload)
+	}
+}
+
 func TestDatabaseRepositoryProfileAvatarOwnershipAndUnusedAvatar(t *testing.T) {
 	client := openTestClient(t)
 	ctx := context.Background()
@@ -1220,8 +1289,8 @@ func TestSearchRepositoryTypeaheadResultsAndLimit(t *testing.T) {
 		t.Fatalf("SearchUsers() result count = %d, want 8", len(userResults))
 	}
 	for _, result := range userResults {
-		if result.Username == "" || result.Avatar == nil {
-			t.Fatalf("SearchUsers() result = %+v, want username and avatar", result)
+		if result.Username == "" || result.Name == "" || result.Avatar == nil {
+			t.Fatalf("SearchUsers() result = %+v, want username, name, and avatar", result)
 		}
 	}
 

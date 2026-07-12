@@ -19,7 +19,7 @@ func (r *SearchRepository) SearchUsers(ctx context.Context, q string) ([]UserRes
 	var results []UserResult
 	err := r.db.Read(ctx, func() error {
 		rows, err := r.db.Pool().Query(ctx,
-			`SELECT username, avatar FROM users
+			`SELECT username, name, avatar FROM users
 			WHERE username % $1
 			ORDER BY similarity(username, $1) DESC, username
 			LIMIT 8`, q)
@@ -31,7 +31,7 @@ func (r *SearchRepository) SearchUsers(ctx context.Context, q string) ([]UserRes
 		for rows.Next() {
 			var u UserResult
 			var avatar sql.NullString
-			if err := rows.Scan(&u.Username, &avatar); err != nil {
+			if err := rows.Scan(&u.Username, &u.Name, &avatar); err != nil {
 				return err
 			}
 			u.Avatar = database.NullableString(avatar)

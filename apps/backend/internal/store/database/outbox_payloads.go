@@ -10,6 +10,7 @@ type EntityUserUpsertPayload struct {
 	Name     string `json:"name"`
 	Username string `json:"username"`
 	Bio      string `json:"bio"`
+	Avatar   string `json:"avatar"`
 }
 
 type EntityPostUpsertPayload struct {
@@ -23,6 +24,7 @@ type EntityPostUpsertPayload struct {
 	Hashtags    []string `json:"hashtags"`
 	Created     string   `json:"created"`
 	IsCelebrity bool     `json:"is_celebrity"`
+	Filename    string   `json:"filename"`
 }
 
 type EntityPostDeletePayload struct {

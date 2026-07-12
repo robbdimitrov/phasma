@@ -80,6 +80,7 @@ func (r *PostRepository) CreatePost(ctx context.Context, userID, filename string
 			Hashtags:    hashtags,
 			Created:     createdAt.UTC().Format(time.RFC3339Nano),
 			IsCelebrity: isCelebrity,
+			Filename:    filename,
 		})
 		if err != nil {
 			return err

@@ -103,8 +103,8 @@ func TestSearchQueryValidation(t *testing.T) {
 func TestSearchUsersReturnsMinimalJSONShape(t *testing.T) {
 	avatar := "avatar.jpg"
 	application := &fakeApplication{users: []UserResult{
-		{Username: "alice", Avatar: &avatar},
-		{Username: "bob"},
+		{Username: "alice", Name: "Alice", Avatar: &avatar},
+		{Username: "bob", Name: "Bob"},
 	}}
 	res := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/users/search?q=%20ali%20", nil)
@@ -114,11 +114,51 @@ func TestSearchUsersReturnsMinimalJSONShape(t *testing.T) {
 	if res.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
 	}
-	if got := strings.TrimSpace(res.Body.String()); got != `[{"username":"alice","avatar":"avatar.jpg"},{"username":"bob","avatar":null}]` {
+	if got := strings.TrimSpace(res.Body.String()); got != `[{"username":"alice","name":"Alice","avatar":"avatar.jpg"},{"username":"bob","name":"Bob","avatar":null}]` {
 		t.Fatalf("body = %q", got)
 	}
 	if application.usersQuery != "ali" {
 		t.Fatalf("query = %q, want %q", application.usersQuery, "ali")
+	}
+}
+
+func newFakeMeiliClient(t *testing.T, body string) *SearchClient {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+	return &SearchClient{baseURL: server.URL, scopedKey: "test-key", httpClient: server.Client()}
+}
+
+func TestSearchUsersFullSearchIncludesNameAndAvatar(t *testing.T) {
+	client := newFakeMeiliClient(t, `{"hits":[{"username":"alice","name":"Alice","avatar":"avatar.jpg"}]}`)
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/search?q=ali&type=users", nil)
+
+	Handler{Client: client}.Search(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	if !strings.Contains(res.Body.String(), `"name":"Alice"`) || !strings.Contains(res.Body.String(), `"avatar":"avatar.jpg"`) {
+		t.Fatalf("body = %q", res.Body.String())
+	}
+}
+
+func TestSearchPostsFullSearchIncludesFilename(t *testing.T) {
+	client := newFakeMeiliClient(t, `{"hits":[{"post_id":"post-1","username":"alice","description":"hi","filename":"photo.jpg"}]}`)
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/search?q=hi&type=posts", nil)
+
+	Handler{Client: client}.Search(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	if !strings.Contains(res.Body.String(), `"filename":"photo.jpg"`) {
+		t.Fatalf("body = %q", res.Body.String())
 	}
 }
 
