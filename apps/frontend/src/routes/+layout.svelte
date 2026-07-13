@@ -13,8 +13,8 @@
 </script>
 
 {#if navigating.to}
-	<div class="fixed inset-x-0 top-0 z-50 h-0.5 bg-primary/20">
-		<div class="h-full w-1/3 animate-pulse rounded-full bg-primary"></div>
+	<div class="fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden bg-primary/20">
+		<div class="h-full w-1/3 origin-left rounded-full bg-primary animate-nav-progress"></div>
 	</div>
 {/if}
 
