@@ -9,6 +9,7 @@ export interface UserSuggestion {
 
 export interface HashtagSuggestion {
 	name: string;
+	postCount: number;
 }
 
 export async function searchUsers(fetch: ApiClient, q: string): Promise<UserSuggestion[]> {
@@ -21,7 +22,7 @@ export async function searchHashtags(fetch: ApiClient, q: string): Promise<Hasht
 	return (await unwrap<HashtagSuggestion[]>(res)) ?? [];
 }
 
-export type SearchType = 'users' | 'posts' | 'hashtags';
+export type SearchType = 'users' | 'posts' | 'hashtags' | 'all';
 
 export interface SearchUserItem {
 	username: string;
@@ -43,12 +44,19 @@ export interface SearchHashtagItem {
 
 export type SearchItem = SearchUserItem | SearchPostItem | SearchHashtagItem;
 
-export interface SearchPage<T extends SearchItem = SearchItem> {
+// A blended (type=all) result: one entity tagged with its type, matching the
+// backend's BlendedItem wire shape.
+export type SearchAllItem =
+	| { type: 'users'; item: SearchUserItem }
+	| { type: 'posts'; item: SearchPostItem }
+	| { type: 'hashtags'; item: SearchHashtagItem };
+
+export interface SearchPage<T = SearchItem> {
 	items: T[];
 	nextCursor: string | null;
 }
 
-export async function search<T extends SearchItem = SearchItem>(
+export async function search<T = SearchItem>(
 	fetch: ApiClient,
 	params: { q: string; type: SearchType; cursor?: string; limit?: number }
 ): Promise<SearchPage<T>> {

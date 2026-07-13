@@ -3,15 +3,15 @@
 	import { goto } from '$app/navigation';
 	import { createPagination } from '$lib/createPagination.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import SearchDiscovery from './SearchDiscovery.svelte';
-	import SearchResultSection from './SearchResultSection.svelte';
+	import SearchResultRow from './SearchResultRow.svelte';
 	import SearchSuggestions from './SearchSuggestions.svelte';
 	import type { PageData } from './$types';
 	import type {
-		SearchUserItem,
+		SearchAllItem,
 		SearchPostItem,
-		SearchHashtagItem,
 		UserSuggestion,
 		HashtagSuggestion
 	} from '$lib/server/api/search';
@@ -67,16 +67,18 @@
 
 			const users = usersRes?.ok ? ((await usersRes.json()) as UserSuggestion[]) : [];
 			const hashtags = hashtagsRes?.ok ? ((await hashtagsRes.json()) as HashtagSuggestion[]) : [];
-			const postsPage = postsRes?.ok
-				? ((await postsRes.json()) as { items: SearchPostItem[] })
-				: null;
+			// The posts preview goes through the shared /search endpoint, so its
+			// items arrive wrapped in the same {type, item} shape as a blended page.
+			const postsPage = postsRes?.ok ? ((await postsRes.json()) as { items: SearchAllItem[] }) : null;
 
 			// Only stale-check once, after every await point, so an out-of-order
 			// response can never partially overwrite fresher suggestions.
 			if (token !== requestToken) return;
 			suggestUsers = users;
 			suggestHashtags = hashtags;
-			suggestPosts = postsPage?.items ?? [];
+			suggestPosts = (postsPage?.items ?? [])
+				.filter((row): row is Extract<SearchAllItem, { type: 'posts' }> => row.type === 'posts')
+				.map((row) => row.item);
 		} catch {
 			if (token === requestToken) closeSuggestions();
 		}
@@ -97,39 +99,21 @@
 		goto(resolve(buildSearchUrl(value)));
 	}
 
-	const usersPagination = createPagination(
-		() => data.users,
+	const resultsPagination = createPagination(
+		() => data.results,
 		(cursor) =>
-			fetchCursorPage<SearchUserItem>(
+			fetchCursorPage<SearchAllItem>(
 				fetch,
-				`/search?q=${encodeURIComponent(data.q)}&type=users`,
-				cursor
-			)
-	);
-	const postsPagination = createPagination(
-		() => data.posts,
-		(cursor) =>
-			fetchCursorPage<SearchPostItem>(
-				fetch,
-				`/search?q=${encodeURIComponent(data.q)}&type=posts`,
-				cursor
-			)
-	);
-	const hashtagsPagination = createPagination(
-		() => data.hashtags,
-		(cursor) =>
-			fetchCursorPage<SearchHashtagItem>(
-				fetch,
-				`/search?q=${encodeURIComponent(data.q)}&type=hashtags`,
+				`/search?q=${encodeURIComponent(data.resultsQuery)}&type=${data.resultsType}`,
 				cursor
 			)
 	);
 
-	let hasAnyResults = $derived(
-		usersPagination.items.length > 0 ||
-			postsPagination.items.length > 0 ||
-			hashtagsPagination.items.length > 0
-	);
+	function resultKey(row: SearchAllItem): string {
+		if (row.type === 'users') return `users-${row.item.username}`;
+		if (row.type === 'posts') return `posts-${row.item.id}`;
+		return `hashtags-${row.item.name}`;
+	}
 </script>
 
 <svelte:head>
@@ -157,39 +141,29 @@
 
 	{#if !data.q}
 		<SearchDiscovery suggested={data.suggested} popular={data.popular} />
-	{:else if !hasAnyResults}
+	{:else if resultsPagination.items.length === 0}
 		<EmptyState
 			icon="triangle-alert"
 			title="No results"
 			description="Nothing matched &ldquo;{data.q}&rdquo;. Try a different query."
 		/>
 	{:else}
-		<SearchResultSection
-			label="Users"
-			type="users"
-			items={usersPagination.items}
-			done={usersPagination.done}
-			loading={usersPagination.loading}
-			error={usersPagination.error}
-			onMore={usersPagination.more}
-		/>
-		<SearchResultSection
-			label="Posts"
-			type="posts"
-			items={postsPagination.items}
-			done={postsPagination.done}
-			loading={postsPagination.loading}
-			error={postsPagination.error}
-			onMore={postsPagination.more}
-		/>
-		<SearchResultSection
-			label="Hashtags"
-			type="hashtags"
-			items={hashtagsPagination.items}
-			done={hashtagsPagination.done}
-			loading={hashtagsPagination.loading}
-			error={hashtagsPagination.error}
-			onMore={hashtagsPagination.more}
-		/>
+		<section class="flex flex-col gap-3">
+			<ul class="flex flex-col gap-2">
+				{#each resultsPagination.items as row (resultKey(row))}
+					<li>
+						<SearchResultRow {row} />
+					</li>
+				{/each}
+			</ul>
+			{#if !resultsPagination.done}
+				<div class="flex flex-col items-center gap-2">
+					{#if resultsPagination.error}
+						<p class="text-sm text-error">{resultsPagination.error}</p>
+					{/if}
+					<LoadMoreButton loading={resultsPagination.loading} onclick={resultsPagination.more} />
+				</div>
+			{/if}
+		</section>
 	{/if}
 </div>

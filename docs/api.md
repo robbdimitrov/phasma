@@ -179,7 +179,7 @@ Returns an empty items array (not an error) when the feed is empty.
 | ------ | ------------------------ | ------------------------------------------------------------------------- |
 | GET    | /users/search?q=         | Typeahead user search (up to 8 results)                                   |
 | GET    | /hashtags/search?q=      | Typeahead hashtag search (up to 8 results)                                |
-| GET    | /search?q=&type=&cursor= | Full search — type: `users`, `posts`, or `hashtags`; requires Meilisearch |
+| GET    | /search?q=&type=&cursor= | Full search — type: `users`, `posts`, `hashtags`, or `all` (blended); requires Meilisearch |
 
 #### Notifications
 
@@ -237,10 +237,22 @@ enforced in the UPDATE query.
 - `type=users`: full-text search on username and name. Items include `name` and
   `avatar` (nullable) alongside `username`.
 - `type=hashtags`: full-text search on name. Items are `{name, postCount}`.
-- Cursor encodes a Meilisearch offset (base64-encoded integer string); page size
-  defaults to 20 and accepts an optional `limit` (1–50, clamped) for smaller
-  previews.
-- Returns 503 if Meilisearch is not configured.
+- `type=all`: a single blended, ranked page mixing all three entity types —
+  the results page's default mode (Instagram/Twitter-style, replacing three
+  separate per-type sections). Roughly a 20/60/20 users/posts/hashtags split
+  per page (`computeBlendTargets`, min 1 user/1 hashtag once `limit >= 3`).
+  Items are `{"type": "users"|"posts"|"hashtags", "item": <the type's normal
+  item shape>}`. Users the viewer follows are boosted to the front of the
+  page's user results (never across pages). Cursor encodes independent
+  per-index offsets (opaque to the client). A page can legitimately return
+  fewer than `limit` items when two entity types are simultaneously scarce
+  (no result is ever skipped, duplicated, or fabricated). Also supports
+  `q=#hashtag` — same exact-match filter as `type=posts`, applied only to the
+  posts portion of the blend.
+- For `type=users|posts|hashtags`, cursor encodes a single Meilisearch offset
+  (base64-encoded integer string); page size defaults to 20 and accepts an
+  optional `limit` (1–50, clamped) for smaller previews.
+- Returns 503 if Meilisearch is not configured (all `type` values).
 - Query must be 1–50 UTF-8 runes.
 
 `GET /users/search` and `GET /hashtags/search` typeahead results share the

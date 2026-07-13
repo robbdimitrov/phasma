@@ -17,3 +17,7 @@ func (s *Service) SearchUsers(ctx context.Context, q string) ([]UserResult, erro
 func (s *Service) SearchHashtags(ctx context.Context, q string) ([]HashtagResult, error) {
 	return s.repository.SearchHashtags(ctx, q)
 }
+
+func (s *Service) FollowingUsernames(ctx context.Context, viewerID string, usernames []string) (map[string]bool, error) {
+	return s.repository.FollowingUsernames(ctx, viewerID, usernames)
+}

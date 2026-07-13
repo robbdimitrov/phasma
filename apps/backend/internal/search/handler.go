@@ -13,6 +13,8 @@ import (
 
 	"phasma/backend/internal/httpx"
 	"phasma/backend/internal/pagination"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // hashtagNameRe matches valid hashtag names as stored in the database.
@@ -27,6 +29,7 @@ const (
 type Application interface {
 	SearchUsers(ctx context.Context, q string) ([]UserResult, error)
 	SearchHashtags(ctx context.Context, q string) ([]HashtagResult, error)
+	FollowingUsernames(ctx context.Context, viewerID string, usernames []string) (map[string]bool, error)
 }
 
 type Handler struct {
@@ -95,21 +98,26 @@ func (h Handler) Search(w http.ResponseWriter, r *http.Request) {
 
 	searchType := r.URL.Query().Get("type")
 	switch searchType {
-	case "users", "posts", "hashtags":
+	case "users", "posts", "hashtags", "all":
 	default:
-		httpx.WriteMessage(w, http.StatusBadRequest, "type must be one of: users, posts, hashtags.")
-		return
-	}
-
-	offset, err := decodeCursor(r.URL.Query().Get("cursor"))
-	if err != nil {
-		httpx.WriteMessage(w, http.StatusBadRequest, "Invalid cursor.")
+		httpx.WriteMessage(w, http.StatusBadRequest, "type must be one of: users, posts, hashtags, all.")
 		return
 	}
 
 	limit, ok := pagination.ParseLimit(r.URL.Query(), 20)
 	if !ok {
 		httpx.WriteMessage(w, http.StatusBadRequest, "Invalid limit.")
+		return
+	}
+
+	if searchType == "all" {
+		h.searchAll(w, r, q, limit)
+		return
+	}
+
+	offset, err := decodeCursor(r.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteMessage(w, http.StatusBadRequest, "Invalid cursor.")
 		return
 	}
 
@@ -139,31 +147,17 @@ func (h Handler) Search(w http.ResponseWriter, r *http.Request) {
 		count = len(hashtags)
 
 	case "posts":
-		filter := ""
-		searchQ := q
-		if strings.HasPrefix(q, "#") {
-			tag := q[1:]
-			if !hashtagNameRe.MatchString(tag) {
-				httpx.WriteMessage(w, http.StatusBadRequest, "Invalid hashtag.")
-				return
-			}
-			filter = fmt.Sprintf(`hashtags = "%s"`, tag)
-			searchQ = ""
+		searchQ, filter, ok := resolvePostsQuery(q)
+		if !ok {
+			httpx.WriteMessage(w, http.StatusBadRequest, "Invalid hashtag.")
+			return
 		}
 		hits, err := searchIndex(ctx, h.Client, "posts", searchQ, filter, offset, limit)
 		if err != nil {
 			httpx.WriteMessage(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
-		posts := make([]PostResult, 0, len(hits))
-		for _, hit := range hits {
-			posts = append(posts, PostResult{
-				ID:          stringField(hit, "post_id"),
-				Username:    stringField(hit, "username"),
-				Description: stringField(hit, "description"),
-				Filename:    stringField(hit, "filename"),
-			})
-		}
+		posts := postsFromHits(hits)
 		items = posts
 		count = len(posts)
 	}
@@ -176,6 +170,80 @@ func (h Handler) Search(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"items":      items,
+		"nextCursor": nextCursor,
+	})
+}
+
+// searchAll serves type=all: a single blended, ranked page drawn from all
+// three indexes. See blend.go for the pagination/backfill invariants.
+func (h Handler) searchAll(w http.ResponseWriter, r *http.Request, q string, limit int) {
+	cur, err := decodeBlendCursor(r.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteMessage(w, http.StatusBadRequest, "Invalid cursor.")
+		return
+	}
+
+	postsQ, postsFilter, ok := resolvePostsQuery(q)
+	if !ok {
+		httpx.WriteMessage(w, http.StatusBadRequest, "Invalid hashtag.")
+		return
+	}
+
+	targetUsers, targetPosts, targetHashtags := computeBlendTargets(limit)
+
+	var userHits, postHits, hashtagHits []map[string]any
+	group, ctx := errgroup.WithContext(r.Context())
+	group.Go(func() error {
+		hits, err := searchIndex(ctx, h.Client, "users", q, "", cur.Users, targetUsers+1)
+		userHits = hits
+		return err
+	})
+	group.Go(func() error {
+		hits, err := searchIndex(ctx, h.Client, "posts", postsQ, postsFilter, cur.Posts, targetPosts+1)
+		postHits = hits
+		return err
+	})
+	group.Go(func() error {
+		hits, err := searchIndex(ctx, h.Client, "hashtags", q, "", cur.Hashtags, targetHashtags+1)
+		hashtagHits = hits
+		return err
+	})
+	if err := group.Wait(); err != nil {
+		httpx.WriteMessage(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+
+	users := usersFromHits(userHits)
+	posts := postsFromHits(postHits)
+	hashtags := hashtagsFromHits(hashtagHits)
+
+	plan := planBlend(targetUsers, targetPosts, targetHashtags, len(users), len(posts), len(hashtags))
+	users = users[:plan.ConsumeUsers]
+	posts = posts[:plan.ConsumePosts]
+	hashtags = hashtags[:plan.ConsumeHashtags]
+
+	if viewerID, ok := httpx.UserID(r); ok && len(users) > 0 {
+		usernames := make([]string, len(users))
+		for i, u := range users {
+			usernames[i] = u.Username
+		}
+		if following, err := h.Service.FollowingUsernames(r.Context(), viewerID, usernames); err == nil {
+			users = partitionByFollowing(users, following)
+		}
+	}
+
+	var nextCursor *string
+	if plan.HasMoreUsers || plan.HasMorePosts || plan.HasMoreHashtags {
+		nc := encodeBlendCursor(blendCursor{
+			Users:    cur.Users + plan.ConsumeUsers,
+			Posts:    cur.Posts + plan.ConsumePosts,
+			Hashtags: cur.Hashtags + plan.ConsumeHashtags,
+		})
+		nextCursor = &nc
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items":      interleaveBlended(users, posts, hashtags),
 		"nextCursor": nextCursor,
 	})
 }
@@ -206,6 +274,19 @@ func usersFromHits(hits []map[string]any) []UserResult {
 		results = append(results, u)
 	}
 	return results
+}
+
+func postsFromHits(hits []map[string]any) []PostResult {
+	posts := make([]PostResult, 0, len(hits))
+	for _, hit := range hits {
+		posts = append(posts, PostResult{
+			ID:          stringField(hit, "post_id"),
+			Username:    stringField(hit, "username"),
+			Description: stringField(hit, "description"),
+			Filename:    stringField(hit, "filename"),
+		})
+	}
+	return posts
 }
 
 func hashtagsFromHits(hits []map[string]any) []HashtagResult {
@@ -268,6 +349,20 @@ func stringField(m map[string]any, key string) string {
 func intField(m map[string]any, key string) int {
 	v, _ := m[key].(float64)
 	return int(v)
+}
+
+// resolvePostsQuery splits a posts query into a Meilisearch search string and
+// an optional exact-match hashtag filter. A "#tag" query filters by hashtag
+// instead of doing a literal text search; ok is false for an invalid tag.
+func resolvePostsQuery(q string) (searchQ, filter string, ok bool) {
+	if !strings.HasPrefix(q, "#") {
+		return q, "", true
+	}
+	tag := q[1:]
+	if !hashtagNameRe.MatchString(tag) {
+		return "", "", false
+	}
+	return "", fmt.Sprintf(`hashtags = "%s"`, tag), true
 }
 
 func validQuery(q string) bool {

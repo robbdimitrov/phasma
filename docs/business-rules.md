@@ -138,6 +138,16 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
 - Typeahead endpoints (`/users/search`, `/hashtags/search`) use PostgreSQL
   trigram similarity (`%` operator) when Meilisearch is absent; Meilisearch when
   present (up to 8 results).
+- `GET /search?type=all` blends users, posts, and hashtags into one ranked
+  page instead of three separate result sets (`computeBlendTargets`: roughly
+  20/60/20 users/posts/hashtags per page, minimum 1 user and 1 hashtag once
+  `limit >= 3`). Within a page, users the viewer follows are moved to the
+  front of that page's user results (stable otherwise); this never reorders
+  across pages. Each entity type's Meilisearch offset advances only by how
+  many of its fetched results were actually placed on the page, so a result is
+  never skipped or duplicated across pages — a type that comes up short is
+  backfilled from another type's surplus within the same page, and a page can
+  come back smaller than `limit` when two types are simultaneously scarce.
 
 ## Follow Rules
 
@@ -159,7 +169,9 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
 - `page` parameter is explicitly rejected (400).
 - Cursor validity: must be base64url-encoded JSON
   `{created: timestamp, id: positive int}`.
-- Search endpoint cursor encodes a Meilisearch offset (base64 integer string).
+- Search endpoint cursor encodes a Meilisearch offset (base64 integer string)
+  for `type=users|posts|hashtags`, or independent per-type offsets
+  (base64 JSON `{u, p, h}`) for `type=all`.
 
 ## Ordering Guarantees
 

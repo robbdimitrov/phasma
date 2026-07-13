@@ -39,9 +39,9 @@ describe('search page load', () => {
 
 		expect(result).toEqual({
 			q: '',
-			users: { items: [], nextCursor: null },
-			posts: { items: [], nextCursor: null },
-			hashtags: { items: [], nextCursor: null },
+			resultsQuery: '',
+			resultsType: 'all',
+			results: { items: [], nextCursor: null },
 			suggested: [{ username: 'alice' }],
 			popular: [{ publicId: 'post-1' }]
 		});
@@ -58,41 +58,32 @@ describe('search page load', () => {
 		expect(search).not.toHaveBeenCalled();
 	});
 
-	it('fetches all three categories in parallel with a preview limit', async () => {
-		search.mockImplementation((_api, params: { type: string }) =>
-			Promise.resolve({ items: [{ type: params.type }], nextCursor: null })
-		);
+	it('fetches one blended page for a bare query', async () => {
+		search.mockResolvedValue({
+			items: [{ type: 'users', item: {} }],
+			nextCursor: null
+		});
 
 		const result = await load(loadEvent('http://localhost/search?q=alice'));
 
-		expect(search).toHaveBeenCalledTimes(3);
+		expect(search).toHaveBeenCalledTimes(1);
 		expect(search).toHaveBeenCalledWith(expect.anything(), {
 			q: 'alice',
-			type: 'users',
-			limit: 5
-		});
-		expect(search).toHaveBeenCalledWith(expect.anything(), {
-			q: 'alice',
-			type: 'posts',
-			limit: 5
-		});
-		expect(search).toHaveBeenCalledWith(expect.anything(), {
-			q: 'alice',
-			type: 'hashtags',
+			type: 'all',
 			limit: 5
 		});
 		expect(result).toEqual({
 			q: 'alice',
-			users: { items: [{ type: 'users' }], nextCursor: null },
-			posts: { items: [{ type: 'posts' }], nextCursor: null },
-			hashtags: { items: [{ type: 'hashtags' }], nextCursor: null },
+			resultsQuery: 'alice',
+			resultsType: 'all',
+			results: { items: [{ type: 'users', item: {} }], nextCursor: null },
 			suggested: [],
 			popular: []
 		});
 	});
 
-	it('an @ prefix narrows the search to users only', async () => {
-		search.mockResolvedValue({ items: [], nextCursor: null });
+	it('an @ prefix narrows the search to users only, tagged as type users', async () => {
+		search.mockResolvedValue({ items: [{ username: 'alice' }], nextCursor: null });
 
 		const result = await load(loadEvent('http://localhost/search?q=%40alice'));
 
@@ -104,14 +95,15 @@ describe('search page load', () => {
 		});
 		expect(result).toEqual(
 			expect.objectContaining({
-				posts: { items: [], nextCursor: null },
-				hashtags: { items: [], nextCursor: null }
+				resultsQuery: 'alice',
+				resultsType: 'users',
+				results: { items: [{ type: 'users', item: { username: 'alice' } }], nextCursor: null }
 			})
 		);
 	});
 
-	it('a # prefix narrows the search to posts only', async () => {
-		search.mockResolvedValue({ items: [], nextCursor: null });
+	it('a # prefix narrows the search to posts only, tagged as type posts', async () => {
+		search.mockResolvedValue({ items: [{ id: 'p1' }], nextCursor: null });
 
 		const result = await load(loadEvent('http://localhost/search?q=%23vacation'));
 
@@ -123,25 +115,23 @@ describe('search page load', () => {
 		});
 		expect(result).toEqual(
 			expect.objectContaining({
-				users: { items: [], nextCursor: null },
-				hashtags: { items: [], nextCursor: null }
+				resultsQuery: '#vacation',
+				resultsType: 'posts',
+				results: { items: [{ type: 'posts', item: { id: 'p1' } }], nextCursor: null }
 			})
 		);
 	});
 
-	it('degrades one failing category to empty instead of failing the whole page', async () => {
-		search.mockImplementation((_api, params: { type: string }) => {
-			if (params.type === 'hashtags') return Promise.reject(new Error('backend down'));
-			return Promise.resolve({ items: [{ type: params.type }], nextCursor: null });
-		});
+	it('degrades a failing blended search to empty results instead of failing the page', async () => {
+		search.mockRejectedValue(new Error('backend down'));
 
 		const result = await load(loadEvent('http://localhost/search?q=alice'));
 
 		expect(result).toEqual({
 			q: 'alice',
-			users: { items: [{ type: 'users' }], nextCursor: null },
-			posts: { items: [{ type: 'posts' }], nextCursor: null },
-			hashtags: { items: [], nextCursor: null },
+			resultsQuery: 'alice',
+			resultsType: 'all',
+			results: { items: [], nextCursor: null },
 			suggested: [],
 			popular: []
 		});

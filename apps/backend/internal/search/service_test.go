@@ -26,6 +26,10 @@ func (r *fakeRepository) SearchHashtags(ctx context.Context, q string) ([]Hashta
 	return r.hashtags, nil
 }
 
+func (r *fakeRepository) FollowingUsernames(_ context.Context, _ string, _ []string) (map[string]bool, error) {
+	return map[string]bool{}, nil
+}
+
 func TestServiceDelegatesSearchesWithoutChangingResults(t *testing.T) {
 	users := make([]UserResult, 9)
 	for i := range users {
