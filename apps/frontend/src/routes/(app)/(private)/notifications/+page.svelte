@@ -32,6 +32,18 @@
 		comment: 'commented on your post',
 		follow: 'started following you'
 	};
+
+	const typeIcon: Record<NotificationType, typeof Heart> = {
+		like: Heart,
+		comment: MessageCircle,
+		follow: UserPlus
+	};
+
+	const typeBadge: Record<NotificationType, string> = {
+		like: 'bg-rose-500/10 text-rose-500 dark:text-rose-400',
+		comment: 'bg-primary/10 text-primary',
+		follow: 'bg-primary/10 text-primary'
+	};
 </script>
 
 <svelte:head>
@@ -50,10 +62,9 @@
 	{:else}
 		<ul class="flex flex-col gap-2" aria-label="Notifications">
 			{#each pagination.items as notification (notification.id)}
+				{@const Icon = typeIcon[notification.type]}
 				<li
-					class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 px-4 py-3 shadow-sm shadow-slate-900/5 transition-colors {notification.read
-						? 'opacity-60'
-						: ''}"
+					class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 px-4 py-3 shadow-sm shadow-slate-900/5 transition-colors"
 				>
 					<a href={resolve(`/@${notification.actorUsername}`)} class="relative shrink-0">
 						<Avatar
@@ -64,15 +75,9 @@
 						<span
 							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {notification.read
 								? 'bg-base-200 text-base-content/50'
-								: 'bg-primary/10 text-primary'}"
+								: typeBadge[notification.type]}"
 						>
-							{#if notification.type === 'like'}
-								<Heart class="h-2.5 w-2.5" />
-							{:else if notification.type === 'comment'}
-								<MessageCircle class="h-2.5 w-2.5" />
-							{:else}
-								<UserPlus class="h-2.5 w-2.5" />
-							{/if}
+							<Icon class="h-2.5 w-2.5" />
 						</span>
 					</a>
 					<div class="min-w-0 flex-1">
