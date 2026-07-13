@@ -79,7 +79,7 @@
 
 {#if flat.length > 0}
 	<div
-		class="dropdown-content z-10 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg shadow-slate-900/10"
+		class="absolute top-full z-10 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg shadow-slate-900/10"
 		onfocusout={handleFocusOut}
 	>
 		<ul class="menu menu-sm w-full gap-1 p-0">
