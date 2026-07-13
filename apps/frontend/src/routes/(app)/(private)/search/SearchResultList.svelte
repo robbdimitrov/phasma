@@ -32,29 +32,21 @@
 	</ul>
 {:else if type === 'posts'}
 	{@const posts = items as SearchPostItem[]}
-	<ul class="flex flex-col gap-2">
+	<div class="grid grid-cols-3 gap-2 sm:gap-4">
 		{#each posts as post (post.id)}
-			<li>
-				<a
-					href={resolve(`/posts/${post.id}`)}
-					class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 p-3 transition-colors hover:bg-base-200"
-				>
-					<img
-						class="h-10 w-10 shrink-0 rounded-xl object-cover"
-						src={imageUrl(post.filename)}
-						alt=""
-						loading="lazy"
-					/>
-					<div class="min-w-0">
-						<p class="truncate text-sm font-bold text-base-content/60">@{post.username}</p>
-						{#if post.description}
-							<p class="truncate text-sm text-base-content/80">{post.description}</p>
-						{/if}
-					</div>
-				</a>
-			</li>
+			<a
+				href={resolve(`/posts/${post.id}`)}
+				class="block aspect-square overflow-hidden rounded-2xl border border-base-300 bg-base-300/30"
+			>
+				<img
+					class="h-full w-full object-cover"
+					src={imageUrl(post.filename)}
+					alt={post.description}
+					loading="lazy"
+				/>
+			</a>
 		{/each}
-	</ul>
+	</div>
 {:else}
 	{@const tags = items as SearchHashtagItem[]}
 	<ul class="flex flex-col gap-2">

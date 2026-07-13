@@ -40,23 +40,26 @@ export const load: PageServerLoad = async (event) => {
 
 	const api = apiClient(event);
 	const prefix = searchQueryPrefix(q);
-	// Neither the users nor hashtags index understands a literal @/# prefix,
-	// so strip it before querying; posts keeps it as-is since the backend
-	// treats a leading #tag as an exact hashtag filter.
+	// An explicit @/# prefix means the user picked a specific entity, so show
+	// only the matching section instead of three mostly-empty ones. Hashtags
+	// is therefore only ever queried without a prefix, so it never needs
+	// stripping; the users index does, since @ is only meaningful client-side.
+	const wantUsers = prefix !== '#';
+	const wantPosts = prefix !== '@';
+	const wantHashtags = prefix === null;
 	const usersQuery = prefix === '@' ? stripSearchQueryPrefix(q, prefix) : q;
-	const hashtagsQuery = prefix === '#' ? stripSearchQueryPrefix(q, prefix) : q;
 	const [users, posts, hashtags] = await Promise.all([
-		searchSection(
-			search<SearchUserItem>(api, { q: usersQuery, type: 'users', limit: SEARCH_PREVIEW_LIMIT })
-		),
-		searchSection(search<SearchPostItem>(api, { q, type: 'posts', limit: SEARCH_PREVIEW_LIMIT })),
-		searchSection(
-			search<SearchHashtagItem>(api, {
-				q: hashtagsQuery,
-				type: 'hashtags',
-				limit: SEARCH_PREVIEW_LIMIT
-			})
-		)
+		wantUsers
+			? searchSection(
+					search<SearchUserItem>(api, { q: usersQuery, type: 'users', limit: SEARCH_PREVIEW_LIMIT })
+				)
+			: EMPTY_SECTION,
+		wantPosts
+			? searchSection(search<SearchPostItem>(api, { q, type: 'posts', limit: SEARCH_PREVIEW_LIMIT }))
+			: EMPTY_SECTION,
+		wantHashtags
+			? searchSection(search<SearchHashtagItem>(api, { q, type: 'hashtags', limit: SEARCH_PREVIEW_LIMIT }))
+			: EMPTY_SECTION
 	]);
 
 	return { q, users, posts, hashtags, suggested: [], popular: [] };

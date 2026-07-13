@@ -91,48 +91,42 @@ describe('search page load', () => {
 		});
 	});
 
-	it('strips the @ prefix for the users search but keeps it for posts', async () => {
+	it('an @ prefix narrows the search to users only', async () => {
 		search.mockResolvedValue({ items: [], nextCursor: null });
 
-		await load(loadEvent('http://localhost/search?q=%40alice'));
+		const result = await load(loadEvent('http://localhost/search?q=%40alice'));
 
+		expect(search).toHaveBeenCalledTimes(1);
 		expect(search).toHaveBeenCalledWith(expect.anything(), {
 			q: 'alice',
 			type: 'users',
 			limit: 5
 		});
-		expect(search).toHaveBeenCalledWith(expect.anything(), {
-			q: '@alice',
-			type: 'posts',
-			limit: 5
-		});
-		expect(search).toHaveBeenCalledWith(expect.anything(), {
-			q: '@alice',
-			type: 'hashtags',
-			limit: 5
-		});
+		expect(result).toEqual(
+			expect.objectContaining({
+				posts: { items: [], nextCursor: null },
+				hashtags: { items: [], nextCursor: null }
+			})
+		);
 	});
 
-	it('strips the # prefix for the hashtags search but keeps it for posts', async () => {
+	it('a # prefix narrows the search to posts only', async () => {
 		search.mockResolvedValue({ items: [], nextCursor: null });
 
-		await load(loadEvent('http://localhost/search?q=%23vacation'));
+		const result = await load(loadEvent('http://localhost/search?q=%23vacation'));
 
-		expect(search).toHaveBeenCalledWith(expect.anything(), {
-			q: '#vacation',
-			type: 'users',
-			limit: 5
-		});
+		expect(search).toHaveBeenCalledTimes(1);
 		expect(search).toHaveBeenCalledWith(expect.anything(), {
 			q: '#vacation',
 			type: 'posts',
 			limit: 5
 		});
-		expect(search).toHaveBeenCalledWith(expect.anything(), {
-			q: 'vacation',
-			type: 'hashtags',
-			limit: 5
-		});
+		expect(result).toEqual(
+			expect.objectContaining({
+				users: { items: [], nextCursor: null },
+				hashtags: { items: [], nextCursor: null }
+			})
+		);
 	});
 
 	it('degrades one failing category to empty instead of failing the whole page', async () => {
