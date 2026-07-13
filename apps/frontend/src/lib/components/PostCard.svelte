@@ -10,10 +10,6 @@
 	import { fetchJson } from '$lib/utils/clientFetch';
 	import type { Post, Comment } from '$lib/types';
 	import Linkified from '$lib/components/Linkified.svelte';
-	import Typeahead from '$lib/components/Typeahead.svelte';
-	import { createTypeaheadController } from '$lib/typeaheadController.svelte';
-	import { createFloatingPosition } from '$lib/utils/floatingPosition.svelte';
-	import { portal } from '$lib/actions/portal';
 
 	const mentionLinkClass =
 		'mr-1.5 font-bold text-base-content transition-colors hover:text-primary';
@@ -49,9 +45,6 @@
 	let commentCount = $state(initialValues.commentCount);
 	let nextCommentsCursor = $state(initialValues.nextCommentsCursor);
 	let newCommentBody = $state('');
-	let commentInput = $state<HTMLInputElement | null>(null);
-	let commentTypeahead = createTypeaheadController();
-	let commentDropdownPos = createFloatingPosition();
 	let isSubmittingComment = $state(false);
 	let isLoadingMoreComments = $state(false);
 	let showDeleteModal = $state(false);
@@ -102,35 +95,6 @@
 			isLoadingMoreComments = false;
 		}
 	}
-
-	function handleCommentInput(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		// Read the DOM directly: bind:value's listener syncs `newCommentBody`
-		// after this handler runs, so it's one keystroke stale here.
-		const caret = input.selectionStart ?? input.value.length;
-		commentTypeahead.handleInput(input.value, caret);
-		if (commentTypeahead.token) commentDropdownPos.placeBelow(input);
-	}
-
-	function handleCommentTypeaheadSelect(value: string) {
-		const next = commentTypeahead.select(newCommentBody, value, commentInput);
-		if (next !== null) newCommentBody = next;
-	}
-
-	// The dropdown is portalled to <body> (see the comment input markup below)
-	// and positioned in viewport coordinates, so it must be kept in sync while
-	// open as the page scrolls or the viewport resizes.
-	$effect(() => {
-		if (commentTypeahead.items.length === 0 || !commentInput) return;
-		const el = commentInput;
-		const reposition = () => commentDropdownPos.placeBelow(el);
-		window.addEventListener('scroll', reposition, true);
-		window.addEventListener('resize', reposition);
-		return () => {
-			window.removeEventListener('scroll', reposition, true);
-			window.removeEventListener('resize', reposition);
-		};
-	});
 </script>
 
 <div
@@ -275,14 +239,12 @@
 										comments = [result.data.comment as Comment, ...comments];
 										commentCount += 1;
 										newCommentBody = '';
-										commentTypeahead.reset();
 									}
 								};
 							}}
 						>
 							<div class="min-w-0 flex-1">
 								<input
-									bind:this={commentInput}
 									type="text"
 									name="body"
 									bind:value={newCommentBody}
@@ -290,20 +252,7 @@
 									placeholder="Add a comment…"
 									maxlength="400"
 									autocomplete="off"
-									oninput={handleCommentInput}
 								/>
-								{#if commentTypeahead.items.length > 0}
-									<div
-										use:portal
-										style="position: fixed; top: {commentDropdownPos.top}px; left: {commentDropdownPos.left}px;"
-									>
-										<Typeahead
-											onselect={handleCommentTypeaheadSelect}
-											items={commentTypeahead.items}
-											display={commentTypeahead.displayItem}
-										/>
-									</div>
-								{/if}
 							</div>
 							<button
 								type="submit"

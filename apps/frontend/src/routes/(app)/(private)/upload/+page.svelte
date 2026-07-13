@@ -2,11 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { SquarePlus } from '@lucide/svelte';
 	import { resizeImageForUpload, supportedUploadMimeTypes } from '$lib/utils/image-resizer';
-	import { getCaretLineTop } from '$lib/utils/caretLineTop';
-	import { createTypeaheadController } from '$lib/typeaheadController.svelte';
-	import { createFloatingPosition } from '$lib/utils/floatingPosition.svelte';
-	import { portal } from '$lib/actions/portal';
-	import Typeahead from '$lib/components/Typeahead.svelte';
 	import type { ActionData } from './$types';
 
 	const MAX_DESCRIPTION = 1000;
@@ -20,44 +15,6 @@
 	let description = $state('');
 	let selectedFile = $state<File | undefined>(undefined);
 	let fileInput = $state<HTMLInputElement | null>(null);
-	let descriptionTextarea = $state<HTMLTextAreaElement | null>(null);
-	let typeahead = createTypeaheadController();
-	let dropdownPos = createFloatingPosition();
-	let lastCaretLineTop = 0;
-	let lastPaddingLeft = 0;
-
-	function handleDescriptionInput(e: Event) {
-		const textarea = e.currentTarget as HTMLTextAreaElement;
-		// Read the DOM directly: bind:value's listener syncs `description`
-		// after this handler runs, so it's one keystroke stale here.
-		const caret = textarea.selectionStart ?? textarea.value.length;
-		typeahead.handleInput(textarea.value, caret);
-		if (typeahead.token) {
-			lastCaretLineTop = getCaretLineTop(textarea, caret);
-			lastPaddingLeft = parseFloat(getComputedStyle(textarea).paddingLeft) || 0;
-			dropdownPos.placeAtLine(textarea, lastCaretLineTop, lastPaddingLeft);
-		}
-	}
-
-	function handleTypeaheadSelect(value: string) {
-		const next = typeahead.select(description, value, descriptionTextarea);
-		if (next !== null) description = next;
-	}
-
-	// The dropdown is portalled to <body> (see the caption textarea markup
-	// below) and positioned in viewport coordinates, so it must be kept in
-	// sync while open as the page scrolls or the viewport resizes.
-	$effect(() => {
-		if (typeahead.items.length === 0 || !descriptionTextarea) return;
-		const el = descriptionTextarea;
-		const reposition = () => dropdownPos.placeAtLine(el, lastCaretLineTop, lastPaddingLeft);
-		window.addEventListener('scroll', reposition, true);
-		window.addEventListener('resize', reposition);
-		return () => {
-			window.removeEventListener('scroll', reposition, true);
-			window.removeEventListener('resize', reposition);
-		};
-	});
 
 	async function selectFile(file: File | null | undefined) {
 		errorMessage = '';
@@ -215,26 +172,12 @@
 
 					<div class="flex-1">
 						<textarea
-							bind:this={descriptionTextarea}
 							name="description"
 							bind:value={description}
 							class="min-h-52 w-full resize-none border-0 bg-transparent px-6 py-5 text-base leading-7 text-base-content placeholder:text-base-content/40 shadow-none outline-none focus:outline-none focus:ring-0 sm:px-8"
 							placeholder="Write a caption..."
 							maxlength={MAX_DESCRIPTION}
-							autocomplete="off"
-							oninput={handleDescriptionInput}></textarea>
-						{#if typeahead.items.length > 0}
-							<div
-								use:portal
-								style="position: fixed; top: {dropdownPos.top}px; left: {dropdownPos.left}px;"
-							>
-								<Typeahead
-									onselect={handleTypeaheadSelect}
-									items={typeahead.items}
-									display={typeahead.displayItem}
-								/>
-							</div>
-						{/if}
+							autocomplete="off"></textarea>
 					</div>
 
 					{#if errorMessage}

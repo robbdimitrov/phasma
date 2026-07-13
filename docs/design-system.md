@@ -107,11 +107,6 @@ Loading-state-aware button that calls `createPagination().more()`.
 
 Placeholder UI for empty lists.
 
-### `Typeahead`
-
-Keyboard-navigable dropdown list (arrow keys, Enter to select, Escape to clear).
-Used in upload description and comment inputs.
-
 ## Layout Widths
 
 | Context                              | Width       |
