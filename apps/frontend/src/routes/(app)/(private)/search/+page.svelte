@@ -140,7 +140,7 @@
 		<input
 			bind:this={inputEl}
 			type="search"
-			class="input input-bordered w-full rounded-full pr-10 [&::-webkit-search-cancel-button]:hidden"
+			class="input w-full rounded-full pr-14 [&::-webkit-search-cancel-button]:hidden"
 			placeholder="Search users, posts, hashtags…"
 			bind:value={inputValue}
 			oninput={onInput}
@@ -150,7 +150,7 @@
 			<button
 				type="button"
 				onclick={clearInput}
-				class="absolute top-1/2 right-4 -translate-y-1/2 text-base-content/50 hover:text-base-content"
+				class="absolute top-1/2 right-4 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-base-content transition-colors hover:bg-base-300"
 				aria-label="Clear search"
 			>
 				<X class="h-4 w-4" />

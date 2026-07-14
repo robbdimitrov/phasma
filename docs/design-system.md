@@ -100,6 +100,13 @@ and the search page's discovery (popular posts) grid.
 Wraps `ImageTile` directly (no like-count overlay). Used only for the search
 page's query-results grid, once a search is active.
 
+### Form Controls
+
+Text inputs and textareas use DaisyUI v5 `input`/`textarea` without legacy
+`*-bordered` classes. Focus state is a single high-contrast control border with
+no offset halo; embedded action icons use opaque strokes so overlapping paths do
+not darken at intersections.
+
 ### `ProfileHeader`
 
 Horizontal card with avatar, display name, `@username`, bio (linkified),

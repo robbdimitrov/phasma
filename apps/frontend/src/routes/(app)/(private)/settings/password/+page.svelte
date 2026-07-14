@@ -67,7 +67,7 @@
 					placeholder="Current password"
 					autocomplete="current-password"
 					required
-					class="input input-bordered w-full rounded-xl pr-20"
+					class="input w-full rounded-xl pr-20"
 				/>
 				<button
 					type="button"
@@ -95,7 +95,7 @@
 					maxlength="30"
 					autocomplete="new-password"
 					required
-					class="input input-bordered w-full rounded-xl pr-20"
+					class="input w-full rounded-xl pr-20"
 				/>
 				<button
 					type="button"

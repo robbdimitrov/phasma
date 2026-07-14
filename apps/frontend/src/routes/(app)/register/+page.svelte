@@ -62,7 +62,7 @@
 				maxlength="100"
 				autocomplete="name"
 				required
-				class="input input-bordered w-full rounded-xl"
+				class="input w-full rounded-xl"
 			/>
 		</div>
 
@@ -83,7 +83,7 @@
 				minlength="3"
 				maxlength="30"
 				required
-				class="input input-bordered w-full rounded-xl"
+				class="input w-full rounded-xl"
 			/>
 		</div>
 
@@ -102,7 +102,7 @@
 				pattern="[^@]+@[^@]+\.[^@]+"
 				autocomplete="email"
 				required
-				class="input input-bordered w-full rounded-xl"
+				class="input w-full rounded-xl"
 			/>
 		</div>
 
@@ -123,7 +123,7 @@
 					maxlength="30"
 					autocomplete="new-password"
 					required
-					class="input input-bordered w-full rounded-xl pr-20"
+					class="input w-full rounded-xl pr-20"
 				/>
 				<button
 					type="button"

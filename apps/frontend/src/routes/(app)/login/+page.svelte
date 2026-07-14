@@ -61,7 +61,7 @@
 				placeholder="johndoe@mail.com"
 				autocomplete="username"
 				required
-				class="input input-bordered w-full rounded-xl"
+				class="input w-full rounded-xl"
 			/>
 		</div>
 
@@ -81,7 +81,7 @@
 					maxlength="30"
 					autocomplete="current-password"
 					required
-					class="input input-bordered w-full rounded-xl pr-20"
+					class="input w-full rounded-xl pr-20"
 				/>
 				<button
 					type="button"

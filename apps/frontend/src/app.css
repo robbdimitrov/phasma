@@ -82,3 +82,19 @@
 		}
 	}
 }
+
+:where(.input, .textarea, .select):focus,
+:where(.input, .textarea, .select):focus-within {
+	--input-color: var(--color-base-content);
+	border-color: var(--input-color);
+	box-shadow: 0 0 0 1px var(--input-color) inset;
+	outline: 0;
+}
+
+@media (forced-colors: active) {
+	:where(.input, .textarea, .select):focus,
+	:where(.input, .textarea, .select):focus-within {
+		outline: 2px solid CanvasText;
+		outline-offset: 0;
+	}
+}

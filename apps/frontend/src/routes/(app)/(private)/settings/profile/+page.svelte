@@ -163,7 +163,7 @@
 					placeholder="Enter your name"
 					autocomplete="name"
 					required
-					class="input input-bordered w-full rounded-xl"
+					class="input w-full rounded-xl"
 				/>
 			</div>
 
@@ -183,7 +183,7 @@
 					minlength="3"
 					maxlength="30"
 					required
-					class="input input-bordered w-full rounded-xl"
+					class="input w-full rounded-xl"
 				/>
 			</div>
 
@@ -201,7 +201,7 @@
 					placeholder="Enter email"
 					autocomplete="email"
 					required
-					class="input input-bordered w-full rounded-xl"
+					class="input w-full rounded-xl"
 				/>
 			</div>
 
@@ -218,7 +218,7 @@
 					placeholder="Tell people about yourself..."
 					maxlength="300"
 					autocomplete="off"
-					class="textarea textarea-bordered h-24 w-full resize-none rounded-xl"></textarea>
+					class="textarea h-24 w-full resize-none rounded-xl"></textarea>
 			</div>
 		</div>
 
