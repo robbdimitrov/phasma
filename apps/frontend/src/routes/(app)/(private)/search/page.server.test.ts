@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiClient, search, getSuggestedUsers, getPopularPosts, followUser, unfollowUser } = vi.hoisted(
-	() => ({
+const { apiClient, search, getSuggestedUsers, getPopularPosts, followUser, unfollowUser } =
+	vi.hoisted(() => ({
 		apiClient: vi.fn(() => vi.fn()),
 		search: vi.fn(),
 		getSuggestedUsers: vi.fn(),
 		getPopularPosts: vi.fn(),
 		followUser: vi.fn(),
 		unfollowUser: vi.fn()
-	})
-);
+	}));
 
 vi.mock('$lib/server/api/client', () => ({ apiClient }));
 vi.mock('$lib/server/api/search', () => ({ search }));
@@ -172,7 +171,10 @@ describe('search page follow action', () => {
 
 		const result = await followAction()(actionEvent(usernameFormData('alice')));
 
-		expect(result).toMatchObject({ status: 503, data: { error: 'Could not update follow status.' } });
+		expect(result).toMatchObject({
+			status: 503,
+			data: { error: 'Could not update follow status.' }
+		});
 	});
 
 	it('succeeds when the backend call succeeds', async () => {
@@ -198,7 +200,10 @@ describe('search page unfollow action', () => {
 
 		const result = await unfollowAction()(actionEvent(usernameFormData('alice')));
 
-		expect(result).toMatchObject({ status: 503, data: { error: 'Could not update follow status.' } });
+		expect(result).toMatchObject({
+			status: 503,
+			data: { error: 'Could not update follow status.' }
+		});
 	});
 
 	it('succeeds when the backend call succeeds', async () => {

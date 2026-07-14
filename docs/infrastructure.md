@@ -134,7 +134,7 @@ Secrets are split per service to limit blast radius:
 | `backend-secret`  | `session-hash-secret` | Backend HMAC session hashing                                                                                    |
 | `storage-secret`  | `s3-access-key`       | Backend S3 client, SeaweedFS config                                                                             |
 | `storage-secret`  | `s3-secret-key`       | Backend S3 client, SeaweedFS config                                                                             |
-| `cache-secret`    | `cache-password`      | Backend cache client                                                                                            |
+| `cache-secret`    | `cache-password`      | Backend cache client, Dragonfly `--requirepass`                                                                 |
 | `search-secret`   | `search-master-key`   | Backend search key provisioning, search service                                                                 |
 | `connect-secret`  | `connect-db-password` | broker-backfill provision-connect-user init container and DATABASE_URL                                          |
 | `connect-secret`  | `search-connect-key`  | connect Meilisearch scoped key (documents.add/delete only; provisioned by deploy.sh after Meilisearch is ready) |
@@ -144,23 +144,23 @@ Secrets are split per service to limit blast radius:
 - `runAsNonRoot: true`
 - `automountServiceAccountToken: false`
 - `allowPrivilegeEscalation: false`
-- `readOnlyRootFilesystem: true` (backend, frontend, cache, search, storage
-  init, broker, connect; not PostgreSQL)
+- `readOnlyRootFilesystem: true` (backend, frontend, cache, search, storage,
+  and all init containers, broker, connect; not PostgreSQL)
 - `capabilities: drop: [ALL]`
 - `seccompProfile: RuntimeDefault`
 
-| Service                                   | UID                           |
-| ----------------------------------------- | ----------------------------- |
-| backend                                   | 65532                         |
-| backend migration init container          | 65532                         |
-| backend provision-app-user init container | root (default postgres image) |
-| frontend                                  | 1000                          |
-| database                                  | 70                            |
-| cache                                     | 1000                          |
-| search                                    | 1000                          |
-| storage                                   | 65532                         |
-| broker                                    | 101                           |
-| connect                                   | 101                           |
+| Service                                   | UID   |
+| ----------------------------------------- | ----- |
+| backend                                   | 65532 |
+| backend migration init container          | 65532 |
+| backend provision-app-user init container | 65532 |
+| frontend                                  | 1000  |
+| database                                  | 70    |
+| cache                                     | 1000  |
+| search                                    | 1000  |
+| storage                                   | 65532 |
+| broker                                    | 101   |
+| connect                                   | 101   |
 
 ## Resource Limits
 
@@ -205,16 +205,16 @@ colima ssh -- sudo sh -c 'echo fs.aio-max-nr=1048576 >/etc/sysctl.d/99-redpanda-
 
 ## Health Probes
 
-| Service  | Liveness                  | Readiness                     | Startup                           |
-| -------- | ------------------------- | ----------------------------- | --------------------------------- |
+| Service  | Liveness                  | Readiness                                                         | Startup                           |
+| -------- | ------------------------- | ----------------------------------------------------------------- | --------------------------------- |
 | backend  | GET /health               | GET /ready (pings PostgreSQL and configured background pipelines) | GET /health, 30×2 s               |
-| frontend | GET /health               | GET /health                   | GET /health, 30×2 s               |
-| database | pg_isready                | pg_isready                    | pg_isready, 30×2 s                |
-| cache    | tcpSocket :6379           | tcpSocket :6379               | tcpSocket :6379, 30×2 s           |
-| search   | GET /health               | GET /health                   | GET /health, 30×2 s               |
-| storage  | tcpSocket :8333           | tcpSocket :8333               | tcpSocket :8333, 30×2 s           |
-| broker   | GET :9644/v1/status/ready | GET :9644/v1/status/ready     | GET :9644/v1/status/ready, 60×2 s |
-| connect  | GET :4195/ready           | GET :4195/ready               | GET :4195/ready, 30×2 s           |
+| frontend | GET /health               | GET /health                                                       | GET /health, 30×2 s               |
+| database | pg_isready                | pg_isready                                                        | pg_isready, 30×2 s                |
+| cache    | tcpSocket :6379           | tcpSocket :6379                                                   | tcpSocket :6379, 30×2 s           |
+| search   | GET /health               | GET /health                                                       | GET /health, 30×2 s               |
+| storage  | tcpSocket :8333           | tcpSocket :8333                                                   | tcpSocket :8333, 30×2 s           |
+| broker   | GET :9644/v1/status/ready | GET :9644/v1/status/ready                                         | GET :9644/v1/status/ready, 60×2 s |
+| connect  | GET :4195/ready           | GET :4195/ready                                                   | GET :4195/ready, 30×2 s           |
 
 ## Pod Disruption Budgets
 
@@ -266,25 +266,25 @@ rolled out. Override the namespace and wait budget with `NAMESPACE=...` and
 
 ## Environment Variables (backend)
 
-| Variable                          | Source                           | Purpose                                                                                                     |
-| --------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                    | constructed from `app-db-secret` | PostgreSQL connection as `phasma_user` (least-privilege)                                                    |
-| `SESSION_HASH_SECRET`             | secret                           | HMAC key for session tokens                                                                                 |
-| `S3_ENDPOINT`                     | literal                          | SeaweedFS endpoint                                                                                          |
-| `S3_BUCKET`                       | literal                          | S3 bucket name                                                                                              |
-| `S3_REGION`                       | literal                          | S3 region                                                                                                   |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | secrets                          | S3 credentials                                                                                              |
-| `CACHE_URL`                       | literal                          | Cache connection                                                                                            |
-| `CACHE_PASSWORD`                  | secret                           | Cache auth                                                                                                  |
-| `CACHE_CONN_LIFETIME_MINUTES`     | optional                         | Dragonfly client connection lifetime; defaults to 30                                                        |
-| `CACHE_CONN_WRITE_TIMEOUT_MS`     | optional                         | Dragonfly connection write deadline; defaults to 3000                                                       |
-| `TRUST_PROXY`                     | literal `"true"`                 | Honor valid X-Forwarded-* headers from the ingress, which must overwrite client-supplied forwarding headers |
-| `MEILI_URL`                       | literal                          | Meilisearch endpoint                                                                                        |
-| `MEILI_MASTER_KEY`                | secret                           | Meilisearch key provisioning                                                                                |
-| `REDPANDA_BROKERS`                | literal                          | Kafka broker address for consumers                                                                          |
-| `BACKGROUND_PIPELINE_STALE_SECONDS` | optional                       | Readiness stale threshold for configured background pipelines; defaults to 120                               |
-| `POSTGRES_CONN_LIFETIME_MINUTES`  | optional                         | PostgreSQL pool connection lifetime; defaults to 30                                                         |
-| `PORT`                            | literal `"8080"`                 | Listen port                                                                                                 |
+| Variable                            | Source                           | Purpose                                                                                                      |
+| ----------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                      | constructed from `app-db-secret` | PostgreSQL connection as `phasma_user` (least-privilege)                                                     |
+| `SESSION_HASH_SECRET`               | secret                           | HMAC key for session tokens                                                                                  |
+| `S3_ENDPOINT`                       | literal                          | SeaweedFS endpoint                                                                                           |
+| `S3_BUCKET`                         | literal                          | S3 bucket name                                                                                               |
+| `S3_REGION`                         | literal                          | S3 region                                                                                                    |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY`   | secrets                          | S3 credentials                                                                                               |
+| `CACHE_URL`                         | literal                          | Cache connection                                                                                             |
+| `CACHE_PASSWORD`                    | secret                           | Cache auth                                                                                                   |
+| `CACHE_CONN_LIFETIME_MINUTES`       | optional                         | Dragonfly client connection lifetime; defaults to 30                                                         |
+| `CACHE_CONN_WRITE_TIMEOUT_MS`       | optional                         | Dragonfly connection write deadline; defaults to 3000                                                        |
+| `TRUST_PROXY`                       | literal `"true"`                 | Honor valid X-Forwarded-\* headers from the ingress, which must overwrite client-supplied forwarding headers |
+| `MEILI_URL`                         | literal                          | Meilisearch endpoint                                                                                         |
+| `MEILI_MASTER_KEY`                  | secret                           | Meilisearch key provisioning                                                                                 |
+| `REDPANDA_BROKERS`                  | literal                          | Kafka broker address for consumers                                                                           |
+| `BACKGROUND_PIPELINE_STALE_SECONDS` | optional                         | Readiness stale threshold for configured background pipelines; defaults to 120                               |
+| `POSTGRES_CONN_LIFETIME_MINUTES`    | optional                         | PostgreSQL pool connection lifetime; defaults to 30                                                          |
+| `PORT`                              | literal `"8080"`                 | Listen port                                                                                                  |
 
 ## Environment Variables (frontend)
 

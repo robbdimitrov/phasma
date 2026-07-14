@@ -15,7 +15,6 @@
 		onmouseenter?: () => void;
 		onclick?: () => void;
 	} = $props();
-
 </script>
 
 {#if row.type === 'users'}

@@ -68,7 +68,7 @@ Missing or unreachable PostgreSQL fails startup.
 - Cookies remain `HttpOnly`, `SameSite=Strict`, and `Secure` behind TLS.
 - Passwords use Argon2id PHC hashes with constant-time verification. Password
   changes revoke other sessions, and login failures remain throttled through
-  `login_failures`.
+  per-IP and per-email counters in Dragonfly (`sessions.LoginThrottle`).
 
 ## PostgreSQL and Distributed State
 

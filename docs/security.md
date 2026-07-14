@@ -49,15 +49,15 @@
 
 ## Ownership Rules
 
-| Operation             | Enforcement                                                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Update user profile   | `userId` path param must equal session `userID` (checked in handler)                                          |
-| Delete post           | `WHERE public_id = $1 AND user_id = $2` (atomic in DB)                                                        |
-| Delete comment        | `WHERE public_id = $1 AND id = $2 AND user_id = $3` (atomic in DB)                                            |
-| Revoke remote session | Atomic delete constrained by `public_id` and authenticated `user_id`; missing and unowned IDs both return 404 |
-| Follow/unfollow self  | Blocked at service layer (`currentUserID == targetUserID`)                                                    |
-| Read email field      | Stripped in handler unless requester is the user                                                              |
-| Upload image          | Registered to `userID`; consumed atomically at post/avatar creation                                           |
+| Operation             | Enforcement                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Update user profile   | `userId` path param must equal session `userID` (checked in handler)                                                                              |
+| Delete post           | `WHERE public_id = $1 AND user_id = $2` (atomic in DB)                                                                                            |
+| Delete comment        | `WHERE public_id = $1 AND post_id = ... AND (user_id = $3 OR post_id IN (posts owned by $3))` — comment author or the post's owner (atomic in DB) |
+| Revoke remote session | Atomic delete constrained by `public_id` and authenticated `user_id`; missing and unowned IDs both return 404                                     |
+| Follow/unfollow self  | Blocked at service layer (`currentUserID == targetUserID`)                                                                                        |
+| Read email field      | Stripped in handler unless requester is the user                                                                                                  |
+| Upload image          | Registered to `userID`; consumed atomically at post/avatar creation                                                                               |
 
 ## What Is Protected
 
@@ -161,3 +161,12 @@ origins.
   `users`, `posts`, and `hashtags` indexes.
 - All subsequent Meilisearch operations use the scoped key; the master key is
   not retained in memory.
+
+## Database Privilege Isolation
+
+- The backend connects as `phasma_app`, which holds SELECT/INSERT/UPDATE/DELETE
+  on all tables and USAGE/SELECT on all sequences — no DDL or superuser
+  privileges.
+- Kafka Connect syncs Meilisearch data as `phasma_connect`, a read-only role
+  scoped to `outbox`, `users`, `posts`, `hashtags`, and `post_hashtags` — it
+  cannot read `sessions`, `notifications`, or any other table.

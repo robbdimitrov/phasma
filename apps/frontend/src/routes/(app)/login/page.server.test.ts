@@ -42,7 +42,10 @@ describe('login action', () => {
 	it('rejects a submission missing email or password before calling the backend', async () => {
 		const result = await loginAction()(actionEvent(formData('', 'secret')));
 
-		expect(result).toMatchObject({ status: 400, data: { error: 'Email and password are required.' } });
+		expect(result).toMatchObject({
+			status: 400,
+			data: { error: 'Email and password are required.' }
+		});
 		expect(login).not.toHaveBeenCalled();
 	});
 

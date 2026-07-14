@@ -23,6 +23,7 @@ make                     # build and push all images
 make backend             # backend image
 make database            # migration image
 make frontend            # frontend image
+make format              # format backend Go code
 make lint                # backend formatting check and frontend lint
 make test                # backend and frontend unit tests
 make test-integration    # PostgreSQL integration tests

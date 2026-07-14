@@ -40,13 +40,13 @@ prevent FOUC.
 
 ### Custom Tokens (`@theme`)
 
-| Token                   | Value                                | Use                                 |
-| ----------------------- | ------------------------------------ | ------------------------------------ |
-| `--shadow-glass`        | `0 8px 32px 0 rgba(31,38,135,0.07)`  | Glassmorphism card shadow (light)    |
-| `--shadow-glass-dark`   | `0 8px 32px 0 rgba(0,0,0,0.37)`      | Glassmorphism card shadow (dark)     |
-| `--shadow-glass-glow`   | `0 0 15px rgba(255,51,102,0.2)`      | Primary glow effect                  |
-| `--animate-like-pop`    | `like-pop 220ms ease-out`            | Heart like animation                 |
-| `--animate-like-burst`  | `like-burst 700ms ease-out`          | Double-click-to-like image overlay   |
+| Token                  | Value                               | Use                                |
+| ---------------------- | ----------------------------------- | ---------------------------------- |
+| `--shadow-glass`       | `0 8px 32px 0 rgba(31,38,135,0.07)` | Glassmorphism card shadow (light)  |
+| `--shadow-glass-dark`  | `0 8px 32px 0 rgba(0,0,0,0.37)`     | Glassmorphism card shadow (dark)   |
+| `--shadow-glass-glow`  | `0 0 15px rgba(255,51,102,0.2)`     | Primary glow effect                |
+| `--animate-like-pop`   | `like-pop 220ms ease-out`           | Heart like animation               |
+| `--animate-like-burst` | `like-burst 700ms ease-out`         | Double-click-to-like image overlay |
 
 ## Component Inventory
 
@@ -54,7 +54,15 @@ prevent FOUC.
 
 Fixed-height pill header (`h-16`, `rounded-full`, backdrop blur). Contains app
 logo and primary navigation links (Home, Search, Upload, Profile). Active state:
-white background + shadow on the icon pill.
+white background + shadow on the icon pill. The notifications bell shows a
+small `bg-primary` dot when `unreadCount > 0`; it does not show a count.
+
+### Notifications List (`/notifications`)
+
+Each row's leading icon is color-coded by notification type: `like` uses a
+rose `Heart` icon (`bg-rose-500/10 text-rose-500`), `comment` and `follow` use
+a primary-tinted `MessageCircle`/`UserPlus` icon (`bg-primary/10 text-primary`).
+Unread rows are marked with a small `bg-primary` dot, not a background fade.
 
 ### `Avatar`
 
@@ -67,8 +75,9 @@ Full-width card (`rounded-2xl`, `border-base-300`, `bg-base-100`). Two modes:
 
 - Default (feed): shows image, like button with `animate-like-pop`, comment
   count link, description (linkified), timestamp.
-- `singleView=true`: adds comment input form, comment list with pagination,
-  delete buttons per own comments.
+- `singleView=true`: adds comment input form (with the current user's `Avatar`
+  in the composer), comment list with pagination, delete buttons per own
+  comments.
 - Owner sees a delete button; triggers a confirmation modal (`role="dialog"`,
   `aria-modal`).
 - Optimistic like/unlike with rollback on failure.
@@ -83,8 +92,13 @@ Base primitive for post grid tiles.
 
 ### `Thumbnail`
 
-Wraps `ImageTile`, adding a like-count overlay on hover. Used in profile and
-search grid layouts.
+Wraps `ImageTile`, adding a like-count overlay on hover. Used in profile grids
+and the search page's discovery (popular posts) grid.
+
+### `SearchPostThumbnail`
+
+Wraps `ImageTile` directly (no like-count overlay). Used only for the search
+page's query-results grid, once a search is active.
 
 ### `ProfileHeader`
 
@@ -115,14 +129,14 @@ Placeholder UI for empty lists.
 
 ## Layout Widths
 
-| Context                              | Width       |
-| ------------------------------------ | ----------- |
-| Auth pages (login, register)         | `max-w-xl`  |
-| Settings pages                       | `max-w-xl`  |
-| Feed                                 | `max-w-xl`  |
-| Single post view                     | `max-w-xl`  |
-| Profile page grid, upload, app shell | `max-w-5xl` |
-| Connections (followers/following)    | `max-w-xl`  |
+| Context                              | Width                                   |
+| ------------------------------------ | --------------------------------------- |
+| Auth pages (login, register)         | `max-w-xl`                              |
+| Settings pages                       | `max-w-xl`                              |
+| Feed                                 | `max-w-xl`                              |
+| Single post view                     | `max-w-xl`                              |
+| Profile page grid, upload, app shell | `max-w-5xl`                             |
+| Connections (followers/following)    | `max-w-5xl` (list itself is `max-w-xl`) |
 
 ## Icons
 

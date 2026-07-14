@@ -55,7 +55,10 @@
 				<div
 					class="flex w-40 shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-base-300 bg-base-100 p-4 text-center"
 				>
-					<a href={resolve(`/@${user.username}`)} class="flex w-full min-w-0 flex-col items-center gap-2">
+					<a
+						href={resolve(`/@${user.username}`)}
+						class="flex w-full min-w-0 flex-col items-center gap-2"
+					>
 						<Avatar username={user.username} avatar={user.avatar} size="h-16 w-16" />
 						<span class="w-full min-w-0">
 							<span class="block truncate text-sm font-bold text-base-content">

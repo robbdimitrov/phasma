@@ -1,10 +1,19 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { search, type SearchPostItem, type SearchAllItem, type SearchPage } from '$lib/server/api/search';
+import {
+	search,
+	type SearchPostItem,
+	type SearchAllItem,
+	type SearchPage
+} from '$lib/server/api/search';
 import { getSuggestedUsers, followUser, unfollowUser } from '$lib/server/api/users';
 import { getPopularPosts } from '$lib/server/api/posts';
 import { apiClient } from '$lib/server/api/client';
-import { SEARCH_PREVIEW_LIMIT, searchQueryPrefix, stripSearchQueryPrefix } from '$lib/utils/searchQuery';
+import {
+	SEARCH_PREVIEW_LIMIT,
+	searchQueryPrefix,
+	stripSearchQueryPrefix
+} from '$lib/utils/searchQuery';
 
 const MAX_Q_LENGTH = 50;
 
@@ -21,7 +30,9 @@ function wrapPosts(page: SearchPage<SearchPostItem>): SearchPage<SearchAllItem> 
 
 // A failing search (e.g. Meilisearch briefly unavailable, or an invalid
 // #hashtag filter) must not take down the whole page.
-function searchResults(promise: Promise<SearchPage<SearchAllItem>>): Promise<SearchPage<SearchAllItem>> {
+function searchResults(
+	promise: Promise<SearchPage<SearchAllItem>>
+): Promise<SearchPage<SearchAllItem>> {
 	return promise.catch(() => EMPTY_RESULTS);
 }
 
@@ -48,7 +59,11 @@ export const load: PageServerLoad = async (event) => {
 	// posts search can apply its exact-hashtag filter.
 	const resultsQuery = prefix === '@' ? stripSearchQueryPrefix(q, prefix) : q;
 	const results = searchResults(
-		search<SearchPostItem>(api, { q: resultsQuery, type: 'posts', limit: SEARCH_PREVIEW_LIMIT }).then(wrapPosts)
+		search<SearchPostItem>(api, {
+			q: resultsQuery,
+			type: 'posts',
+			limit: SEARCH_PREVIEW_LIMIT
+		}).then(wrapPosts)
 	);
 
 	return { q, resultsQuery, results: await results, suggested: [], popular: [] };

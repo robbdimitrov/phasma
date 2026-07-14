@@ -5,33 +5,35 @@ Error bodies are `{"message": "..."}`.
 
 ## Middleware Stack (outermost → innermost)
 
-1. `RequestID` — accepts `X-Request-ID` (max 64 chars; generates a new 16-byte
+1. `Recover` — recovers a panic anywhere in the stack and returns a structured
+   `500` JSON response instead of an aborted connection.
+2. `RequestID` — accepts `X-Request-ID` (max 64 chars; generates a new 16-byte
    hex id if absent or over the limit) and echoes it in the response header.
-2. `Logger` — structured JSON request log with method, route pattern, path,
+3. `Logger` — structured JSON request log with method, route pattern, path,
    status, duration.
-3. `SecurityHeaders` — sets `X-XSS-Protection: 0`,
+4. `SecurityHeaders` — sets `X-XSS-Protection: 0`,
    `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`,
    `Referrer-Policy: no-referrer`,
    `Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'`,
    and `Strict-Transport-Security: max-age=31536000; includeSubDomains` on HTTPS
    or trusted forwarded HTTPS requests.
-4. `OriginGuard` — for POST/PUT/PATCH/DELETE, rejects requests where `Origin`
+5. `OriginGuard` — for POST/PUT/PATCH/DELETE, rejects requests where `Origin`
    header is present but does not match the request host.
-5. `RateLimit` — token bucket via Dragonfly Lua script; key priority: user id >
+6. `RateLimit` — token bucket via Dragonfly Lua script; key priority: user id >
    session cookie > client IP.
-6. `RequireSession` — validates `session` cookie; refreshes sliding TTL; injects
+7. `RequireSession` — validates `session` cookie; refreshes sliding TTL; injects
    `userID` into context. Exempt: `POST /sessions`, `POST /users`,
    `GET /health`, `GET /health/background`, `GET /metrics`, `GET /ready`,
    `OPTIONS`.
 
 ## Rate Limit Policies
 
-| Policy    | Endpoints                                            | Burst | Rate (req/s) |
-| --------- | ---------------------------------------------------- | ----- | ------------ |
-| strict    | POST /sessions, POST /users, POST /uploads           | 5     | 0.2          |
-| typeahead | GET /users/search, GET /hashtags/search, GET /search | 20    | 5            |
-| read      | GET/HEAD (all others)                                | 120   | 2            |
-| mutation  | POST/PUT/PATCH/DELETE (all others)                   | 30    | 1            |
+| Policy    | Endpoints                                                     | Burst | Rate (req/s) |
+| --------- | ------------------------------------------------------------- | ----- | ------------ |
+| strict    | POST /sessions, POST /users, POST /uploads                    | 5     | 0.2          |
+| typeahead | GET /users/search, GET /hashtags/search, GET /search          | 20    | 5            |
+| read      | GET/HEAD (all others)                                         | 120   | 2            |
+| mutation  | POST/PUT/PATCH/DELETE (all others)                            | 30    | 1            |
 | exempt    | GET /health, GET /health/background, GET /metrics, GET /ready | —     | —            |
 
 Defaults are overridable via env vars `RATE_LIMIT_{POLICY}_{BURST,RATE}`.
@@ -40,23 +42,23 @@ Defaults are overridable via env vars `RATE_LIMIT_{POLICY}_{BURST,RATE}`.
 
 ### Public (no auth required)
 
-| Method | Path                         | Purpose                                                             |
-| ------ | ---------------------------- | --------------------------------------------------------------------- |
-| GET    | /health                      | Liveness check — 204 No Content                                     |
-| GET    | /health/background           | Background pipeline health/progress snapshot                        |
-| GET    | /metrics                     | Prometheus text metrics for background pipeline health               |
-| GET    | /ready                       | Readiness check — pings PostgreSQL and configured background pipelines (2 s timeout), 204 No Content |
-| POST   | /users                       | Create account — returns `{"username": "..."}` on 201               |
-| POST   | /sessions                    | Login — sets `session` cookie, returns `{"username": "..."}` on 201 |
-| GET    | /uploads/                    | Serve uploaded file blob                                            |
-| GET    | /users/{username}            | Get user by username                                                |
-| GET    | /users/{username}/followers  | List followers (cursor-paginated)                                   |
-| GET    | /users/{username}/following  | List following (cursor-paginated)                                   |
-| GET    | /posts/popular                | Get up to 20 popular posts from the last 7 days                    |
-| GET    | /posts/{publicId}            | Get single post                                                     |
-| GET    | /users/{username}/posts      | List user's posts (cursor-paginated)                                |
-| GET    | /users/{username}/likes      | List user's liked posts (cursor-paginated)                          |
-| GET    | /posts/{publicId}/comments   | List comments on a post (cursor-paginated)                          |
+| Method | Path                        | Purpose                                                                                              |
+| ------ | --------------------------- | ---------------------------------------------------------------------------------------------------- |
+| GET    | /health                     | Liveness check — 204 No Content                                                                      |
+| GET    | /health/background          | Background pipeline health/progress snapshot                                                         |
+| GET    | /metrics                    | Prometheus text metrics for background pipeline health                                               |
+| GET    | /ready                      | Readiness check — pings PostgreSQL and configured background pipelines (2 s timeout), 204 No Content |
+| POST   | /users                      | Create account — returns `{"username": "..."}` on 201                                                |
+| POST   | /sessions                   | Login — sets `session` cookie, returns `{"username": "..."}` on 201                                  |
+| GET    | /uploads/                   | Serve uploaded file blob                                                                             |
+| GET    | /users/{username}           | Get user by username                                                                                 |
+| GET    | /users/{username}/followers | List followers (cursor-paginated)                                                                    |
+| GET    | /users/{username}/following | List following (cursor-paginated)                                                                    |
+| GET    | /posts/popular              | Get up to 20 popular posts from the last 7 days                                                      |
+| GET    | /posts/{publicId}           | Get single post                                                                                      |
+| GET    | /users/{username}/posts     | List user's posts (cursor-paginated)                                                                 |
+| GET    | /users/{username}/likes     | List user's liked posts (cursor-paginated)                                                           |
+| GET    | /posts/{publicId}/comments  | List comments on a post (cursor-paginated)                                                           |
 
 `GET /posts/popular` returns posts from the last 7 days ordered by like count
 descending, up to 20 results. Response:
@@ -110,20 +112,20 @@ failure. Use `DELETE /sessions` to terminate the current session.
 
 #### Users
 
-| Method | Path                        | Purpose                           |
-| ------ | --------------------------- | --------------------------------- |
-| GET    | /users/me                   | Get current authenticated user    |
-| PUT    | /users/me                   | Update profile or change password |
-| POST   | /users/{username}/follow    | Follow a user                     |
-| DELETE | /users/{username}/follow    | Unfollow a user                   |
+| Method | Path                     | Purpose                           |
+| ------ | ------------------------ | --------------------------------- |
+| GET    | /users/me                | Get current authenticated user    |
+| PUT    | /users/me                | Update profile or change password |
+| POST   | /users/{username}/follow | Follow a user                     |
+| DELETE | /users/{username}/follow | Unfollow a user                   |
 
 `GET /users/{username}`, `GET /users/{username}/followers`, and
 `GET /users/{username}/following` are public — see the Public section above.
 
 #### Discovery
 
-| Method | Path             | Purpose                                |
-| ------ | ---------------- | ---------------------------------------- |
+| Method | Path             | Purpose                               |
+| ------ | ---------------- | ------------------------------------- |
 | GET    | /users/suggested | Get up to 5 suggested users to follow |
 
 `GET /users/suggested` returns users with at least one follower or post,
@@ -149,22 +151,22 @@ Returns an empty items array (not an error) when the feed is empty.
 
 #### Posts
 
-| Method | Path                    | Purpose                     |
-| ------ | ----------------------- | ------------------------------ |
-| POST   | /posts                  | Create post from an upload  |
-| DELETE | /posts/{publicId}       | Delete own post              |
-| POST   | /posts/{publicId}/likes | Like a post                  |
-| DELETE | /posts/{publicId}/likes | Unlike a post                |
+| Method | Path                    | Purpose                    |
+| ------ | ----------------------- | -------------------------- |
+| POST   | /posts                  | Create post from an upload |
+| DELETE | /posts/{publicId}       | Delete own post            |
+| POST   | /posts/{publicId}/likes | Like a post                |
+| DELETE | /posts/{publicId}/likes | Unlike a post              |
 
 `GET /posts/{publicId}`, `GET /users/{username}/posts`, and
 `GET /users/{username}/likes` are public — see the Public section above.
 
 #### Comments
 
-| Method | Path                                   | Purpose             |
-| ------ | -------------------------------------- | ---------------------- |
-| POST   | /posts/{publicId}/comments             | Create a comment     |
-| DELETE | /posts/{publicId}/comments/{commentId} | Delete own comment   |
+| Method | Path                                   | Purpose                                           |
+| ------ | -------------------------------------- | ------------------------------------------------- |
+| POST   | /posts/{publicId}/comments             | Create a comment                                  |
+| DELETE | /posts/{publicId}/comments/{commentId} | Delete a comment (its author or the post's owner) |
 
 `GET /posts/{publicId}/comments` is public — see the Public section above.
 
@@ -176,18 +178,19 @@ Returns an empty items array (not an error) when the feed is empty.
 
 #### Search
 
-| Method | Path                     | Purpose                                                                   |
-| ------ | ------------------------ | ------------------------------------------------------------------------- |
-| GET    | /users/search?q=         | Typeahead user search (up to 8 results)                                   |
-| GET    | /hashtags/search?q=      | Typeahead hashtag search (up to 8 results)                                |
+| Method | Path                     | Purpose                                                                                    |
+| ------ | ------------------------ | ------------------------------------------------------------------------------------------ |
+| GET    | /users/search?q=         | Typeahead user search (up to 8 results)                                                    |
+| GET    | /hashtags/search?q=      | Typeahead hashtag search (up to 8 results)                                                 |
 | GET    | /search?q=&type=&cursor= | Full search — type: `users`, `posts`, `hashtags`, or `all` (blended); requires Meilisearch |
 
 #### Notifications
 
-| Method | Path                     | Purpose                                                          |
-| ------ | ------------------------ | ---------------------------------------------------------------- |
-| GET    | /notifications           | List notifications for the authenticated user (cursor-paginated) |
-| PUT    | /notifications/{id}/read | Mark one notification as read                                    |
+| Method | Path                        | Purpose                                                          |
+| ------ | --------------------------- | ---------------------------------------------------------------- |
+| GET    | /notifications              | List notifications for the authenticated user (cursor-paginated) |
+| GET    | /notifications/unread-count | Get the authenticated user's unread notification count           |
+| PUT    | /notifications/{id}/read    | Mark one notification as read                                    |
 
 `GET /notifications` returns cursor-paginated notifications ordered
 `(created DESC, id DESC)`:
@@ -212,6 +215,9 @@ Returns an empty items array (not an error) when the feed is empty.
 
 `actorUsername`, `actorName`, and `actorAvatar` describe the user who
 triggered the notification (joined from `notifications.actor_id`).
+
+`GET /notifications/unread-count` returns `{"count": <int>}`, the number of
+the authenticated user's notifications with `read = false`.
 
 Notification types: `like` (entityId = post public_id), `comment` (entityId =
 comment id), `follow` (entityId = actor user id as string).
@@ -245,7 +251,7 @@ enforced in the UPDATE query.
   a 20/60/20 users/posts/hashtags split per page (`computeBlendTargets`, min 1
   user/1 hashtag once `limit >= 3`).
   Items are `{"type": "users"|"posts"|"hashtags", "item": <the type's normal
-  item shape>}`. Users the viewer follows are boosted to the front of the
+item shape>}`. Users the viewer follows are boosted to the front of the
   page's user results (never across pages). Cursor encodes independent
   per-index offsets (opaque to the client). A page can legitimately return
   fewer than `limit` items when two entity types are simultaneously scarce

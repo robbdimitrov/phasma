@@ -115,9 +115,11 @@
 	const resultsPagination = createPagination(
 		() => toPostsPage(data.results),
 		(cursor) =>
-			fetchCursorPage<SearchAllItem>(fetch, `/search?q=${encodeURIComponent(data.resultsQuery)}&type=posts`, cursor).then(
-				toPostsPage
-			)
+			fetchCursorPage<SearchAllItem>(
+				fetch,
+				`/search?q=${encodeURIComponent(data.resultsQuery)}&type=posts`,
+				cursor
+			).then(toPostsPage)
 	);
 </script>
 

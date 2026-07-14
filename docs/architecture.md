@@ -2,16 +2,16 @@
 
 ## Service Topology
 
-| Service    | Role                                                 | Image                                                 |
-| ---------- | ---------------------------------------------------- | ----------------------------------------------------- |
-| `frontend` | SvelteKit SSR BFF — sole public entry point          | `localhost:5000/phasma/frontend`                      |
-| `backend`  | Go HTTP API — all business logic                     | `localhost:5000/phasma/backend`                       |
+| Service    | Role                                                      | Image                                                     |
+| ---------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| `frontend` | SvelteKit SSR BFF — sole public entry point               | `localhost:5000/phasma/frontend`                          |
+| `backend`  | Go HTTP API — all business logic                          | `localhost:5000/phasma/backend`                           |
 | `database` | PostgreSQL — primary data store; migration init container | `postgres:18.4-alpine` / `localhost:5000/phasma/database` |
-| `storage`  | SeaweedFS — S3-compatible object storage             | `chrislusf/seaweedfs:3.76`                            |
-| `cache`    | Dragonfly — rate limiting and login throttle         | `docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0` |
-| `search`   | Meilisearch — full-text search                       | `getmeili/meilisearch:v1.11.3`                        |
-| `broker`   | Redpanda — Kafka-compatible event broker             | `docker.redpanda.com/redpandadata/redpanda:v24.3.7`   |
-| `connect`  | Redpanda Connect — Meilisearch sync consumer/backfill   | `docker.redpanda.com/redpandadata/connect:4.38.0`     |
+| `storage`  | SeaweedFS — S3-compatible object storage                  | `chrislusf/seaweedfs:3.76`                                |
+| `cache`    | Dragonfly — rate limiting and login throttle              | `docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0`     |
+| `search`   | Meilisearch — full-text search                            | `getmeili/meilisearch:v1.11.3`                            |
+| `broker`   | Redpanda — Kafka-compatible event broker                  | `docker.redpanda.com/redpandadata/redpanda:v24.3.7`       |
+| `connect`  | Redpanda Connect — Meilisearch sync consumer/backfill     | `docker.redpanda.com/redpandadata/connect:4.38.0`         |
 
 ## Request Flow
 

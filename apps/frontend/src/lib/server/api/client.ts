@@ -8,7 +8,9 @@ const backendBase = (): string => env.BACKEND_URL ?? 'http://localhost:8080';
 
 /** Per-request BFF client; forwards the session cookie and, optionally, the real client IP. */
 export function apiClient(
-	event: Pick<RequestEvent, 'fetch' | 'cookies'> & { getClientAddress?: RequestEvent['getClientAddress'] }
+	event: Pick<RequestEvent, 'fetch' | 'cookies'> & {
+		getClientAddress?: RequestEvent['getClientAddress'];
+	}
 ): ApiClient {
 	return (path, init) => {
 		const headers = new Headers(init?.headers);
@@ -19,7 +21,10 @@ export function apiClient(
 				headers.set('x-forwarded-for', event.getClientAddress());
 			} catch (err) {
 				// Throws without a proxy setting ADDRESS_HEADER in front (e.g. local dev).
-				console.error('[warn] getClientAddress() failed:', err instanceof Error ? err.message : err);
+				console.error(
+					'[warn] getClientAddress() failed:',
+					err instanceof Error ? err.message : err
+				);
 			}
 		}
 		// event.fetch always adds an Origin header, tripping the backend's CSRF guard.

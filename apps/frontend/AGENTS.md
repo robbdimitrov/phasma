@@ -38,8 +38,10 @@ BACKEND_URL=http://localhost:8080 node build
 - Do not add a generic API proxy or fetch data on component mount.
 - Server-side reads and writes go through `apiClient(event)` in
   `src/lib/server/api/client.ts`, which resolves backend-relative paths against
-  `BACKEND_URL` and forwards only the session cookie. These calls run in the
-  Node server, never the browser, so they never involve CORS.
+  `BACKEND_URL` and forwards the session cookie, plus `X-Forwarded-For` (from
+  `event.getClientAddress()`) so login/register throttling sees the real client
+  IP. These calls run in the Node server, never the browser, so they never
+  involve CORS.
 - The browser must not call the backend directly; it talks only to this
   SvelteKit server. CSP `connect-src 'self'` enforces the boundary, keeps the
   session cookie `httpOnly`, keeps the backend API off the public surface, and

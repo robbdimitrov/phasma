@@ -34,7 +34,7 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
 ```
 +layout.svelte (root)
   - loads: theme from cookie
-  - renders: navigation progress bar + {children}
+  - renders: {children}
 
   (app)/+layout.svelte
     - loads: currentUser (GET /users/me) → User | null, no redirect; unreadCount from GET /notifications, only when authenticated
@@ -107,26 +107,26 @@ for explicit validation.
 
 ## Key Frontend Routes (API Endpoints)
 
-| Path                         | Method | Handler           | Backend call                                              |
-| ---------------------------- | ------ | ----------------- | --------------------------------------------------------- |
-| `/feed`                      | GET    | page load         | GET /feed                                                 |
-| `/feed`                      | GET    | +server.ts        | GET /feed?cursor=                                         |
-| `/notifications`             | GET    | page load         | GET /notifications + PUT /notifications/{id}/read         |
-| `/notifications`             | GET    | +server.ts        | GET /notifications?cursor= + PUT /notifications/{id}/read |
-| `/search`                    | GET    | page load         | GET /search?type=posts (limit=5); @ prefix stripped, # prefix kept for hashtag filter |
-| `/search`                    | GET    | +server.ts        | GET /search?type=posts&cursor= ("Load more"), or ?limit= (dropdown posts preview) |
-| `/suggest`                   | GET    | +server.ts        | GET /users/search or /hashtags/search (dropdown users/hashtags preview) |
-| `/@{username}`               | GET    | page load         | GET /users/{u} + GET /users/{u}/posts                     |
-| `/@{username}`               | GET    | +server.ts        | GET /users/{u}/posts?cursor=                              |
-| `/@{username}/likes`         | GET    | page load         | GET /users/{u}/likes                                      |
-| `/@{username}/likes`         | GET    | +server.ts        | GET /users/{u}/likes?cursor=                              |
-| `/@{username}/{mode}`        | GET    | page load         | GET /users/{u}/followers or /following                    |
-| `/@{username}/{mode}`        | GET    | +server.ts        | GET /users/{u}/followers or /following?cursor=            |
-| `/posts/{id}/comments`       | GET    | +server.ts        | GET /posts/{id}/comments?cursor=                          |
-| `/settings/sessions`         | GET    | page load         | GET /sessions                                             |
-| `/settings/sessions?/revoke` | POST   | named form action | DELETE /sessions/{sessionId}                              |
-| `/uploads/[key]`             | GET    | +server.ts        | GET /uploads/{key} (proxied)                              |
-| `/health`                    | GET    | +server.ts        | returns `ok` text                                         |
+| Path                         | Method | Handler           | Backend call                                                                                                |
+| ---------------------------- | ------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| `/feed`                      | GET    | page load         | GET /feed                                                                                                   |
+| `/feed`                      | GET    | +server.ts        | GET /feed?cursor=                                                                                           |
+| `/notifications`             | GET    | page load         | GET /notifications + PUT /notifications/{id}/read                                                           |
+| `/notifications`             | GET    | +server.ts        | GET /notifications?cursor= + PUT /notifications/{id}/read                                                   |
+| `/search`                    | GET    | page load         | GET /search?type=posts (limit=5); @ prefix stripped, # prefix kept for hashtag filter                       |
+| `/search`                    | GET    | +server.ts        | GET /search?type=posts&cursor= ("Load more" continuation)                                                   |
+| `/suggest`                   | GET    | +server.ts        | GET /users/search or /hashtags/search (dropdown users/hashtags preview; posts are not part of the dropdown) |
+| `/@{username}`               | GET    | page load         | GET /users/{u} + GET /users/{u}/posts                                                                       |
+| `/@{username}`               | GET    | +server.ts        | GET /users/{u}/posts?cursor=                                                                                |
+| `/@{username}/likes`         | GET    | page load         | GET /users/{u}/likes                                                                                        |
+| `/@{username}/likes`         | GET    | +server.ts        | GET /users/{u}/likes?cursor=                                                                                |
+| `/@{username}/{mode}`        | GET    | page load         | GET /users/{u}/followers or /following                                                                      |
+| `/@{username}/{mode}`        | GET    | +server.ts        | GET /users/{u}/followers or /following?cursor=                                                              |
+| `/posts/{id}/comments`       | GET    | +server.ts        | GET /posts/{id}/comments?cursor=                                                                            |
+| `/settings/sessions`         | GET    | page load         | GET /sessions                                                                                               |
+| `/settings/sessions?/revoke` | POST   | named form action | DELETE /sessions/{sessionId}                                                                                |
+| `/uploads/[key]`             | GET    | +server.ts        | GET /uploads/{key} (proxied)                                                                                |
+| `/health`                    | GET    | +server.ts        | returns `ok` text                                                                                           |
 
 ## Pagination Helpers
 

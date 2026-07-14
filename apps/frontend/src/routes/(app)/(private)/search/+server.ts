@@ -1,6 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { search, type SearchAllItem, type SearchItem, type SearchType } from '$lib/server/api/search';
+import {
+	search,
+	type SearchAllItem,
+	type SearchItem,
+	type SearchType
+} from '$lib/server/api/search';
 import { apiClient } from '$lib/server/api/client';
 
 const VALID_TYPES = new Set<string>(['users', 'posts', 'hashtags', 'all']);
@@ -23,9 +28,8 @@ export const GET: RequestHandler = async (event) => {
 		return json(await search<SearchAllItem>(apiClient(event), { q, type, cursor, limit }));
 	}
 
-	// A "Load more" continuation for a single-type page (the dropdown's posts
-	// preview, or a @/# prefix-narrowed search) still wraps items so the
-	// browser only ever renders one shape of blended item.
+	// Wraps a single-type "Load more" page so the browser only ever renders
+	// one shape of blended item.
 	const page = await search<SearchItem>(apiClient(event), { q, type, cursor, limit });
 	return json({
 		items: page.items.map((item) => ({ type, item }) as SearchAllItem),

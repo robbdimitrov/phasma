@@ -28,15 +28,19 @@
   accepting the new hash.
 - All sessions other than the current one are deleted atomically in the same
   transaction.
+- The change is recorded in `audit_log`.
 
 ## Image Upload
 
-- One pending upload per user per call. Expired uploads (rows older than 1 hour)
-  are deleted before a new one is created.
+- Up to 20 pending uploads per user (`maxPendingUploads`); the 21st is rejected
+  with 429 until an existing one is consumed or expires. Expired uploads (rows
+  older than 1 hour) are deleted before a new one is created.
 - Backend enforces 1 MB multipart limit via `io.LimitReader`.
 - Frontend targets < 900 KB by resizing (canvas JPEG re-encode, quality steps
   from 0.88 to 0.60, scale steps of 0.85×, min dimension 320 px).
 - Accepted formats: JPEG, PNG, GIF, WEBP (magic byte validation).
+- Backend rejects images over 25 megapixels (`image.DecodeConfig` check before
+  full decode) to guard against decompression bombs.
 
 ## Post Creation
 
@@ -44,7 +48,8 @@
   user. The upload row is deleted atomically in the same transaction.
 - Description: optional, max 1000 Unicode code points.
 - Hashtags are extracted with `#([A-Za-z0-9_]{1,50})`, lowercased, de-duplicated
-  in first-occurrence order, and stored in `hashtags` and `post_hashtags`.
+  in first-occurrence order, capped at 20 per post (`maxHashtags`; any beyond
+  the 20th are silently dropped), and stored in `hashtags` and `post_hashtags`.
 - Hashtag search-sync events are emitted after the `post_hashtags` row is
   written and carry the resulting visible `post_count`.
 
@@ -127,6 +132,22 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
 - Post deleted: delete all `like` and `comment` notifications where
   `entity_id=post_public_id`.
 
+**Read state**:
+
+- Notifications are created with `read = false`.
+- `PUT /notifications/{id}/read` marks one notification read; ownership is
+  enforced in the UPDATE query.
+- `GET /notifications/unread-count` returns the count of the caller's
+  notifications with `read = false`.
+
+## Suggested Users
+
+- `GET /users/suggested` ranks users the caller does not already follow and
+  who are not the caller themselves, ordered by `follower_count DESC` then
+  `post_count DESC`.
+- Only users with at least one follower or one post are eligible.
+- Limited to 5 results.
+
 ## Search Query Rules
 
 - Query length: 1–50 UTF-8 rune count (validated before hitting Meilisearch or
@@ -162,6 +183,7 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
 - Absolute TTL: 720 hours (30 days) from creation, configurable via
   `SESSION_ABSOLUTE_TTL_HOURS`.
 - Sessions outside either window are rejected and the cookie is cleared.
+- `GET /sessions` lists the current session first, then the rest newest first.
 
 ## Pagination Rules
 
