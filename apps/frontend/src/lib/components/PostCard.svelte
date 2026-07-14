@@ -17,12 +17,14 @@
 	let {
 		post: initialPost,
 		currentUsername,
+		currentAvatar = null,
 		singleView = false,
 		comments: initialComments = [],
 		nextCommentsCursor: initialNextCommentsCursor = null
 	}: {
 		post: Post;
 		currentUsername: string | null;
+		currentAvatar?: string | null;
 		singleView?: boolean;
 		comments?: Comment[];
 		nextCommentsCursor?: string | null;
@@ -243,6 +245,7 @@
 								};
 							}}
 						>
+							<Avatar username={currentUsername} avatar={currentAvatar} size="h-8 w-8" />
 							<div class="min-w-0 flex-1">
 								<input
 									type="text"

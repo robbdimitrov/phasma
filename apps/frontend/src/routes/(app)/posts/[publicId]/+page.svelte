@@ -13,6 +13,7 @@
 	<PostCard
 		post={data.post}
 		currentUsername={data.currentUser?.username ?? null}
+		currentAvatar={data.currentUser?.avatar ?? null}
 		singleView={true}
 		comments={data.comments}
 		nextCommentsCursor={data.nextCommentsCursor}
