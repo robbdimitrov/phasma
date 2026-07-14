@@ -426,38 +426,31 @@ select_manifest_documents() {
   ' "${K8S_DIR}/${manifest}"
 }
 
-append_rendered_app_manifest() {
-  local rendered="$1"
-  local manifest="$2"
-  local name="$3"
+apply_app_manifest() {
+  local manifest="$1"
+  local name="$2"
   local deployment
   deployment="$(mktemp)"
-  shift 3
+  shift 2
 
-  select_manifest_documents "${manifest}" only Service "${name}" >> "${rendered}"
+  select_manifest_documents "${manifest}" only Service "${name}" |
+    kubectl apply -f - -n "${NS}" >/dev/null
   select_manifest_documents "${manifest}" only Deployment "${name}" > "${deployment}"
-  if ! kubectl set image --local -o yaml -f "${deployment}" "$@" >> "${rendered}"; then
+  if ! kubectl set image --local -o yaml -f "${deployment}" "$@" |
+    kubectl apply -f - -n "${NS}" >/dev/null; then
     rm -f "${deployment}"
     return 1
   fi
   rm -f "${deployment}"
 }
 
-apply_rendered_app_manifests() {
-  local rendered
-  rendered="$(mktemp)"
-  trap 'rm -f "${rendered}"' RETURN
-
-  append_rendered_app_manifest "${rendered}" "backend.yaml" backend \
+apply_app_manifests() {
+  apply_app_manifest "backend.yaml" backend \
     migration="${REGISTRY}/database:${DATABASE_IMAGE_TAG}" \
     backend="${REGISTRY}/backend:${BACKEND_IMAGE_TAG}"
 
-  append_rendered_app_manifest "${rendered}" "frontend.yaml" frontend \
+  apply_app_manifest "frontend.yaml" frontend \
     frontend="${REGISTRY}/frontend:${FRONTEND_IMAGE_TAG}"
-
-  kubectl apply -f "${rendered}" -n "${NS}" >/dev/null
-  trap - RETURN
-  rm -f "${rendered}"
 }
 
 apply_broker_infra_manifest() {
@@ -594,7 +587,7 @@ roll_out_stack() {
   wait_for_rollouts "${ROLL_OUT_DATABASE[@]}"
 
   log "applying application services"
-  apply_rendered_app_manifests
+  apply_app_manifests
   kubectl -n "${NS}" set env deployment/frontend ORIGIN="${LOCAL_ORIGIN}" >/dev/null
   annotate_secret_checksums deployment/backend \
     database-secret app-db-secret storage-secret cache-secret backend-secret search-secret
