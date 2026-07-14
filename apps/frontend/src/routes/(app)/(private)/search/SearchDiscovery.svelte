@@ -133,7 +133,12 @@
 		mask-image: linear-gradient(to right, transparent 0, black 32px, black 100%);
 	}
 	.mask-fade-end {
-		-webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
+		-webkit-mask-image: linear-gradient(
+			to right,
+			black 0,
+			black calc(100% - 32px),
+			transparent 100%
+		);
 		mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
 	}
 	.mask-fade-both {
