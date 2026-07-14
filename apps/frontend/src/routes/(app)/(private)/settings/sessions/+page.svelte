@@ -75,7 +75,7 @@
 			<ul class="grid gap-3" aria-label="Active browser sessions">
 				{#each sessions as session (session.id)}
 					<li class="relative rounded-2xl border border-base-300 bg-base-200 p-4">
-						<div class="flex items-start gap-3" class:pr-12={!session.current}>
+						<div class="flex items-start gap-3 pr-12">
 							<div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-100">
 								<Monitor class="h-5 w-5 text-base-content/60" />
 							</div>
