@@ -59,6 +59,20 @@ func Chain(handler http.Handler, middleware ...func(http.Handler) http.Handler) 
 	return handler
 }
 
+// Recover must be the outermost middleware so a panic returns JSON instead of
+// an aborted connection.
+func Recover(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				slog.Error("panic recovered", "method", r.Method, "path", r.URL.Path, "panic", rec)
+				WriteMessage(w, http.StatusInternalServerError, "Internal Server Error")
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-ID")

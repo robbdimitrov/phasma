@@ -83,6 +83,7 @@ func New(cfg Config, repositories Repositories) http.Handler {
 
 	return httpx.Chain(
 		public,
+		httpx.Recover,
 		httpx.RequestID,
 		httpx.Logger,
 		httpx.SecurityHeaders,

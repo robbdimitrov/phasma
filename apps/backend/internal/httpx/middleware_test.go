@@ -105,6 +105,37 @@ func TestOptionalSessionProceedsAnonymouslyOnStoreError(t *testing.T) {
 	}
 }
 
+func TestRecoverReturnsInternalServerErrorOnPanic(t *testing.T) {
+	handler := Recover(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("boom")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/popular", nil)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusInternalServerError)
+	}
+	if ct := res.Header().Get("Content-Type"); ct != "application/json; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want application/json; charset=utf-8", ct)
+	}
+}
+
+func TestRecoverPassesThroughWithoutPanic(t *testing.T) {
+	handler := Recover(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+}
+
 func TestSecurityHeadersSetsHSTSForSecureRequests(t *testing.T) {
 	tests := []struct {
 		name       string
