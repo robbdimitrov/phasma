@@ -1,3 +1,4 @@
+import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	search,
@@ -89,16 +90,24 @@ export const actions: Actions = {
 		const api = apiClient(event);
 		const data = await event.request.formData();
 		const username = (data.get('username') as string) ?? '';
-		if (!username) return { success: false };
-		await followUser(api, username);
+		if (!username) return fail(400, { error: 'Missing username.' });
+		try {
+			await followUser(api, username);
+		} catch {
+			return fail(503, { error: 'Could not update follow status.' });
+		}
 		return { success: true };
 	},
 	unfollow: async (event) => {
 		const api = apiClient(event);
 		const data = await event.request.formData();
 		const username = (data.get('username') as string) ?? '';
-		if (!username) return { success: false };
-		await unfollowUser(api, username);
+		if (!username) return fail(400, { error: 'Missing username.' });
+		try {
+			await unfollowUser(api, username);
+		} catch {
+			return fail(503, { error: 'Could not update follow status.' });
+		}
 		return { success: true };
 	}
 };
