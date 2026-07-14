@@ -2,8 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { Hash } from '@lucide/svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import { imageUrl } from '$lib/utils/imageUrl';
-	import type { SearchAllItem } from '$lib/server/api/search';
+	import type { SuggestionItem } from '$lib/utils/interleaveSuggestions';
 
 	let {
 		row,
@@ -11,7 +10,7 @@
 		onmouseenter,
 		onclick
 	}: {
-		row: SearchAllItem;
+		row: SuggestionItem;
 		active?: boolean;
 		onmouseenter?: () => void;
 		onclick?: () => void;
@@ -32,28 +31,6 @@
 		<span class="min-w-0 flex-1">
 			<span class="block truncate font-bold">{row.item.name || row.item.username}</span>
 			<span class="block truncate text-sm text-base-content/60">@{row.item.username}</span>
-		</span>
-	</a>
-{:else if row.type === 'posts'}
-	<a
-		href={resolve(`/posts/${row.item.id}`)}
-		{onclick}
-		{onmouseenter}
-		class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 p-3 transition-colors hover:bg-base-200 {active
-			? 'bg-base-200'
-			: ''}"
-	>
-		<img
-			class="h-10 w-10 shrink-0 rounded-md object-cover"
-			src={imageUrl(row.item.filename)}
-			alt=""
-			loading="lazy"
-		/>
-		<span class="min-w-0 flex-1">
-			<span class="block truncate font-bold">@{row.item.username}</span>
-			{#if row.item.description}
-				<span class="block truncate text-sm text-base-content/60">{row.item.description}</span>
-			{/if}
 		</span>
 	</a>
 {:else}

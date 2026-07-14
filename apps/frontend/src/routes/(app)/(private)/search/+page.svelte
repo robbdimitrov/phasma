@@ -15,7 +15,7 @@
 		UserSuggestion,
 		HashtagSuggestion
 	} from '$lib/server/api/search';
-	import { SEARCH_PREVIEW_LIMIT, searchQueryPrefix, stripSearchQueryPrefix } from '$lib/utils/searchQuery';
+	import { searchQueryPrefix, stripSearchQueryPrefix } from '$lib/utils/searchQuery';
 
 	type InternalPath = `/${string}`;
 
@@ -25,17 +25,19 @@
 
 	let inputEl = $state<HTMLInputElement | null>(null);
 	let suggestUsers = $state<UserSuggestion[]>([]);
-	let suggestPosts = $state<SearchPostItem[]>([]);
 	let suggestHashtags = $state<HashtagSuggestion[]>([]);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let requestToken = 0;
+
+	// Hide discovery/results content while the dropdown is open — it's
+	// absolutely positioned and would otherwise overlap the content below it.
+	let suggestionsOpen = $derived(suggestUsers.length > 0 || suggestHashtags.length > 0);
 
 	function closeSuggestions() {
 		// Bump the token so any fetch already in flight is discarded on arrival
 		// instead of repopulating the dropdown after it was dismissed.
 		requestToken++;
 		suggestUsers = [];
-		suggestPosts = [];
 		suggestHashtags = [];
 	}
 
@@ -54,31 +56,21 @@
 
 		const wantUsers = prefix !== '#';
 		const wantHashtags = prefix !== '@';
-		const wantPosts = prefix === null;
 
 		try {
-			const [usersRes, postsRes, hashtagsRes] = await Promise.all([
+			const [usersRes, hashtagsRes] = await Promise.all([
 				wantUsers ? fetch(`/suggest?type=users&q=${encodeURIComponent(query)}`) : null,
-				wantPosts
-					? fetch(`/search?type=posts&limit=${SEARCH_PREVIEW_LIMIT}&q=${encodeURIComponent(query)}`)
-					: null,
 				wantHashtags ? fetch(`/suggest?type=hashtags&q=${encodeURIComponent(query)}`) : null
 			]);
 
 			const users = usersRes?.ok ? ((await usersRes.json()) as UserSuggestion[]) : [];
 			const hashtags = hashtagsRes?.ok ? ((await hashtagsRes.json()) as HashtagSuggestion[]) : [];
-			// The posts preview goes through the shared /search endpoint, so its
-			// items arrive wrapped in the same {type, item} shape as a blended page.
-			const postsPage = postsRes?.ok ? ((await postsRes.json()) as { items: SearchAllItem[] }) : null;
 
 			// Only stale-check once, after every await point, so an out-of-order
 			// response can never partially overwrite fresher suggestions.
 			if (token !== requestToken) return;
 			suggestUsers = users;
 			suggestHashtags = hashtags;
-			suggestPosts = (postsPage?.items ?? [])
-				.filter((row): row is Extract<SearchAllItem, { type: 'posts' }> => row.type === 'posts')
-				.map((row) => row.item);
 		} catch {
 			if (token === requestToken) closeSuggestions();
 		}
@@ -144,37 +136,34 @@
 			oninput={onInput}
 			aria-label="Search"
 		/>
-		<SearchSuggestions
-			users={suggestUsers}
-			posts={suggestPosts}
-			hashtags={suggestHashtags}
-			onclose={closeSuggestions}
-		/>
+		<SearchSuggestions users={suggestUsers} hashtags={suggestHashtags} onclose={closeSuggestions} />
 	</form>
 
-	{#if !data.q}
-		<SearchDiscovery suggested={data.suggested} popular={data.popular} />
-	{:else if resultsPagination.items.length === 0}
-		<EmptyState
-			icon="triangle-alert"
-			title="No results"
-			description="Nothing matched &ldquo;{data.q}&rdquo;. Try a different query."
-		/>
-	{:else}
-		<section class="flex flex-col gap-3">
-			<div class="grid grid-cols-3 gap-2">
-				{#each resultsPagination.items as post (post.id)}
-					<SearchPostThumbnail {post} />
-				{/each}
-			</div>
-			{#if !resultsPagination.done}
-				<div class="flex flex-col items-center gap-2">
-					{#if resultsPagination.error}
-						<p class="text-sm text-error">{resultsPagination.error}</p>
-					{/if}
-					<LoadMoreButton loading={resultsPagination.loading} onclick={resultsPagination.more} />
+	{#if !suggestionsOpen}
+		{#if !data.q}
+			<SearchDiscovery suggested={data.suggested} popular={data.popular} />
+		{:else if resultsPagination.items.length === 0}
+			<EmptyState
+				icon="triangle-alert"
+				title="No results"
+				description="Nothing matched &ldquo;{data.q}&rdquo;. Try a different query."
+			/>
+		{:else}
+			<section class="flex flex-col gap-3">
+				<div class="grid grid-cols-3 gap-2">
+					{#each resultsPagination.items as post (post.id)}
+						<SearchPostThumbnail {post} />
+					{/each}
 				</div>
-			{/if}
-		</section>
+				{#if !resultsPagination.done}
+					<div class="flex flex-col items-center gap-2">
+						{#if resultsPagination.error}
+							<p class="text-sm text-error">{resultsPagination.error}</p>
+						{/if}
+						<LoadMoreButton loading={resultsPagination.loading} onclick={resultsPagination.more} />
+					</div>
+				{/if}
+			</section>
+		{/if}
 	{/if}
 </div>

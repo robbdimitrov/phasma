@@ -40,7 +40,7 @@ function pressKey(key: string) {
 
 describe('SearchSuggestions keyboard handling', () => {
 	it('does not intercept Enter before the user has navigated with arrow keys', () => {
-		render({ users, posts: [], hashtags: [], onclose: vi.fn() });
+		render({ users, hashtags: [], onclose: vi.fn() });
 
 		pressKey('Enter');
 
@@ -48,7 +48,7 @@ describe('SearchSuggestions keyboard handling', () => {
 	});
 
 	it('selects the highlighted suggestion on Enter after ArrowDown navigation', () => {
-		render({ users, posts: [], hashtags: [], onclose: vi.fn() });
+		render({ users, hashtags: [], onclose: vi.fn() });
 
 		pressKey('ArrowDown');
 		pressKey('Enter');
@@ -58,7 +58,7 @@ describe('SearchSuggestions keyboard handling', () => {
 
 	it('calls onclose before navigating so a stale in-flight fetch is discarded', () => {
 		const onclose = vi.fn();
-		render({ users, posts: [], hashtags: [], onclose });
+		render({ users, hashtags: [], onclose });
 
 		pressKey('ArrowDown');
 		pressKey('Enter');

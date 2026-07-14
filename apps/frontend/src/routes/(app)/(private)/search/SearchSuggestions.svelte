@@ -2,27 +2,24 @@
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { typeaheadNav } from '$lib/utils/typeaheadNav';
-	import { interleaveSuggestions } from '$lib/utils/interleaveSuggestions';
+	import { interleaveSuggestions, type SuggestionItem } from '$lib/utils/interleaveSuggestions';
 	import SearchResultRow from './SearchResultRow.svelte';
-	import type { UserSuggestion, HashtagSuggestion, SearchPostItem, SearchAllItem } from '$lib/server/api/search';
+	import type { UserSuggestion, HashtagSuggestion } from '$lib/server/api/search';
 
 	let {
 		users,
-		posts,
 		hashtags,
 		onclose
 	}: {
 		users: UserSuggestion[];
-		posts: SearchPostItem[];
 		hashtags: HashtagSuggestion[];
 		onclose: () => void;
 	} = $props();
 
-	let flat = $derived(interleaveSuggestions(users, posts, hashtags));
+	let flat = $derived(interleaveSuggestions(users, hashtags));
 
-	function rowKey(row: SearchAllItem): string {
+	function rowKey(row: SuggestionItem): string {
 		if (row.type === 'users') return `users-${row.item.username}`;
-		if (row.type === 'posts') return `posts-${row.item.id}`;
 		return `hashtags-${row.item.name}`;
 	}
 
@@ -40,13 +37,11 @@
 		}
 	});
 
-	function activate(row: SearchAllItem | undefined) {
+	function activate(row: SuggestionItem | undefined) {
 		if (!row) return;
 		onclose();
 		if (row.type === 'users') {
 			goto(resolve(`/@${row.item.username}`));
-		} else if (row.type === 'posts') {
-			goto(resolve(`/posts/${row.item.id}`));
 		} else {
 			goto(resolve(`/search?q=%23${encodeURIComponent(row.item.name)}`));
 		}

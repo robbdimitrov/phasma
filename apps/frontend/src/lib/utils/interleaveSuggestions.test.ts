@@ -1,18 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { interleaveSuggestions, SUGGEST_DISPLAY_LIMIT } from './interleaveSuggestions';
-import type { HashtagSuggestion, SearchPostItem, UserSuggestion } from '$lib/server/api/search';
+import type { HashtagSuggestion, UserSuggestion } from '$lib/server/api/search';
 
 function makeUsers(n: number): UserSuggestion[] {
 	return Array.from({ length: n }, (_, i) => ({ username: `user${i}`, name: '', avatar: null }));
-}
-
-function makePosts(n: number): SearchPostItem[] {
-	return Array.from({ length: n }, (_, i) => ({
-		id: `post${i}`,
-		username: 'u',
-		description: '',
-		filename: 'f.jpg'
-	}));
 }
 
 function makeHashtags(n: number): HashtagSuggestion[] {
@@ -20,26 +11,39 @@ function makeHashtags(n: number): HashtagSuggestion[] {
 }
 
 describe('interleaveSuggestions', () => {
-	it('follows the users/posts/posts/posts/hashtags pattern when all three have enough items', () => {
-		const items = interleaveSuggestions(makeUsers(5), makePosts(5), makeHashtags(5));
+	it('alternates users and hashtags when both have enough items', () => {
+		const items = interleaveSuggestions(makeUsers(5), makeHashtags(5));
 
-		expect(items.map((i) => i.type)).toEqual(['users', 'posts', 'posts', 'posts', 'hashtags', 'users', 'posts', 'posts']);
+		expect(items.map((i) => i.type)).toEqual([
+			'users',
+			'hashtags',
+			'users',
+			'hashtags',
+			'users',
+			'hashtags',
+			'users',
+			'hashtags'
+		]);
 	});
 
 	it('caps the result at SUGGEST_DISPLAY_LIMIT', () => {
-		const items = interleaveSuggestions(makeUsers(20), makePosts(20), makeHashtags(20));
+		const items = interleaveSuggestions(makeUsers(20), makeHashtags(20));
 
 		expect(items).toHaveLength(SUGGEST_DISPLAY_LIMIT);
 	});
 
-	it('skips exhausted queues without losing or duplicating items', () => {
-		const items = interleaveSuggestions([], makePosts(3), []);
+	it('skips an exhausted queue without losing or duplicating items', () => {
+		const items = interleaveSuggestions([], makeHashtags(3));
 
-		expect(items.map((i) => i.type)).toEqual(['posts', 'posts', 'posts']);
-		expect(items.map((i) => (i.type === 'posts' ? i.item.id : null))).toEqual(['post0', 'post1', 'post2']);
+		expect(items.map((i) => i.type)).toEqual(['hashtags', 'hashtags', 'hashtags']);
+		expect(items.map((i) => (i.type === 'hashtags' ? i.item.name : null))).toEqual([
+			'tag0',
+			'tag1',
+			'tag2'
+		]);
 	});
 
-	it('returns an empty list when all three inputs are empty', () => {
-		expect(interleaveSuggestions([], [], [])).toEqual([]);
+	it('returns an empty list when both inputs are empty', () => {
+		expect(interleaveSuggestions([], [])).toEqual([]);
 	});
 });
