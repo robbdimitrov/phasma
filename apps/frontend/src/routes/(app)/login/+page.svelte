@@ -14,7 +14,7 @@
 </svelte:head>
 
 <section
-	class="mx-auto grid w-full max-w-xl gap-6 rounded-2xl border border-base-300 bg-base-100/90 p-6 text-base-content shadow-2xl shadow-slate-900/10 backdrop-blur-xl dark:shadow-black/35 sm:px-8"
+	class="mx-auto grid w-full max-w-xl gap-6 rounded-2xl border border-base-300 bg-base-100/90 p-6 text-base-content shadow-2xl shadow-slate-900/10 backdrop-blur-xl sm:px-8"
 >
 	<div class="grid gap-3">
 		<span class="text-xs font-extrabold uppercase tracking-[0.16em] text-base-content/60"

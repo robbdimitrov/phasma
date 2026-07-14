@@ -123,7 +123,7 @@
 					<div class="absolute bottom-0 right-0 rounded-full bg-base-100 shadow-sm">
 						<button
 							type="button"
-							class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-base-300 text-base-content/50 transition-all duration-150 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 active:scale-95 dark:hover:border-rose-900/50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
+							class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-base-300 text-base-content/50 transition-all duration-150 hover:border-error/30 hover:bg-error/10 hover:text-error active:scale-95"
 							title="Remove avatar"
 							onclick={handleRemoveAvatar}
 						>

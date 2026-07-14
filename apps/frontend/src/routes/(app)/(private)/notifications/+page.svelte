@@ -40,7 +40,7 @@
 	};
 
 	const typeBadge: Record<NotificationType, string> = {
-		like: 'bg-rose-500/10 text-rose-500 dark:text-rose-400',
+		like: 'bg-rose-500/10 text-rose-500',
 		comment: 'bg-primary/10 text-primary',
 		follow: 'bg-primary/10 text-primary'
 	};

@@ -52,7 +52,7 @@
 			{#each pagination.items as user (user.id)}
 				{@const isFollowing = followingOverrides.get(user.id) ?? user.isFollowing}
 				<div
-					class="flex items-start gap-3 rounded-lg border border-base-300 bg-base-100 p-4 shadow-sm shadow-slate-900/5"
+					class="flex items-start gap-3 rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm shadow-slate-900/5"
 				>
 					<UserLink
 						username={user.username}
