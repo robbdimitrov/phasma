@@ -26,7 +26,6 @@ make frontend            # frontend image
 make format              # format backend Go code
 make lint                # backend formatting check and frontend lint
 make test                # backend and frontend unit tests
-make test-integration    # PostgreSQL integration tests
 ./scripts/deploy.sh      # preferred local kind deployment
 ```
 

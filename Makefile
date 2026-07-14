@@ -16,7 +16,6 @@ help:
 	@printf '  make format       Format backend Go code\n'
 	@printf '  make lint         Run backend and frontend lint checks\n'
 	@printf '  make test         Run backend and frontend unit tests\n'
-	@printf '  make test-integration  Run PostgreSQL integration tests\n'
 
 .PHONY: backend
 backend:
@@ -42,12 +41,9 @@ lint:
 	@test -z "$$(gofmt -l $$(find apps/backend -name '*.go'))"
 	@cd apps/frontend && npm run lint
 
-.PHONY: test test-integration
+.PHONY: test
 test:
 	@echo "Testing backend..."
 	@cd apps/backend && go test ./...
 	@echo "Testing frontend..."
 	@cd apps/frontend && npm test
-
-test-integration:
-	@./scripts/test-backend-integration.sh

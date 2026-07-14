@@ -31,9 +31,6 @@ go test ./...
 go build ./cmd/api
 ```
 
-Run `make test-integration` from the repository root for PostgreSQL repository
-tests.
-
 Missing or unreachable PostgreSQL fails startup.
 
 ## Go and API Conventions
