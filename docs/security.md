@@ -133,8 +133,13 @@
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains` for HTTPS
   requests
 - SvelteKit nonce-based `Content-Security-Policy`:
-  `default-src 'self'; script-src 'self'` plus nonce; `style-src 'self'` plus
-  nonce;
+  `default-src 'self'; script-src 'self'` plus per-request nonce;
+  `style-src 'self'`;
+  `style-src-attr 'unsafe-hashes' 'sha256-S8qMpvofolR8Mpjy4kQvEm7m1q8clzU4dfDH0AmvZjo='`
+  (SvelteKit's route announcer mounts with a fixed inline style attribute a nonce
+  cannot cover; scoping the hash to `style-src-attr` keeps `style-src` strict, and
+  `unsafe-hashes` — required for hashes to apply to attributes — permits only that
+  exact string);
   `img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'`
 
 The uploads proxy route (`/uploads/[key]`) also sets
