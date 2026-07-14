@@ -66,7 +66,6 @@ describe('search page load', () => {
 		expect(result).toEqual({
 			q: '',
 			resultsQuery: '',
-			resultsType: 'all',
 			results: { items: [], nextCursor: null },
 			suggested: [{ username: 'alice' }],
 			popular: [{ publicId: 'post-1' }]
@@ -84,9 +83,9 @@ describe('search page load', () => {
 		expect(search).not.toHaveBeenCalled();
 	});
 
-	it('fetches one blended page for a bare query', async () => {
+	it('fetches a posts-only page for a bare query', async () => {
 		search.mockResolvedValue({
-			items: [{ type: 'users', item: {} }],
+			items: [{ id: 'p1' }],
 			nextCursor: null
 		});
 
@@ -95,40 +94,38 @@ describe('search page load', () => {
 		expect(search).toHaveBeenCalledTimes(1);
 		expect(search).toHaveBeenCalledWith(expect.anything(), {
 			q: 'alice',
-			type: 'all',
+			type: 'posts',
 			limit: 5
 		});
 		expect(result).toEqual({
 			q: 'alice',
 			resultsQuery: 'alice',
-			resultsType: 'all',
-			results: { items: [{ type: 'users', item: {} }], nextCursor: null },
+			results: { items: [{ type: 'posts', item: { id: 'p1' } }], nextCursor: null },
 			suggested: [],
 			popular: []
 		});
 	});
 
-	it('an @ prefix narrows the search to users only, tagged as type users', async () => {
-		search.mockResolvedValue({ items: [{ username: 'alice' }], nextCursor: null });
+	it('an @ prefix is stripped before searching posts, since users are handled by the typeahead', async () => {
+		search.mockResolvedValue({ items: [{ id: 'p1' }], nextCursor: null });
 
 		const result = await load(loadEvent('http://localhost/search?q=%40alice'));
 
 		expect(search).toHaveBeenCalledTimes(1);
 		expect(search).toHaveBeenCalledWith(expect.anything(), {
 			q: 'alice',
-			type: 'users',
+			type: 'posts',
 			limit: 5
 		});
 		expect(result).toEqual(
 			expect.objectContaining({
 				resultsQuery: 'alice',
-				resultsType: 'users',
-				results: { items: [{ type: 'users', item: { username: 'alice' } }], nextCursor: null }
+				results: { items: [{ type: 'posts', item: { id: 'p1' } }], nextCursor: null }
 			})
 		);
 	});
 
-	it('a # prefix narrows the search to posts only, tagged as type posts', async () => {
+	it('a # prefix stays intact so the backend applies its exact-hashtag filter', async () => {
 		search.mockResolvedValue({ items: [{ id: 'p1' }], nextCursor: null });
 
 		const result = await load(loadEvent('http://localhost/search?q=%23vacation'));
@@ -142,13 +139,12 @@ describe('search page load', () => {
 		expect(result).toEqual(
 			expect.objectContaining({
 				resultsQuery: '#vacation',
-				resultsType: 'posts',
 				results: { items: [{ type: 'posts', item: { id: 'p1' } }], nextCursor: null }
 			})
 		);
 	});
 
-	it('degrades a failing blended search to empty results instead of failing the page', async () => {
+	it('degrades a failing search to empty results instead of failing the page', async () => {
 		search.mockRejectedValue(new Error('backend down'));
 
 		const result = await load(loadEvent('http://localhost/search?q=alice'));
@@ -156,7 +152,6 @@ describe('search page load', () => {
 		expect(result).toEqual({
 			q: 'alice',
 			resultsQuery: 'alice',
-			resultsType: 'all',
 			results: { items: [], nextCursor: null },
 			suggested: [],
 			popular: []

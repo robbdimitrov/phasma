@@ -1,13 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import {
-	search,
-	type SearchUserItem,
-	type SearchPostItem,
-	type SearchAllItem,
-	type SearchPage,
-	type SearchType
-} from '$lib/server/api/search';
+import { search, type SearchPostItem, type SearchAllItem, type SearchPage } from '$lib/server/api/search';
 import { getSuggestedUsers, followUser, unfollowUser } from '$lib/server/api/users';
 import { getPopularPosts } from '$lib/server/api/posts';
 import { apiClient } from '$lib/server/api/client';
@@ -17,15 +10,11 @@ const MAX_Q_LENGTH = 50;
 
 const EMPTY_RESULTS: SearchPage<SearchAllItem> = { items: [], nextCursor: null };
 
-// Tags each item of a single-type page with its entity type, so a @/#
-// prefix-narrowed search still produces the same blended-item shape the full
-// page renders — it just happens to contain one type.
-function wrapItems<T extends SearchUserItem | SearchPostItem>(
-	type: 'users' | 'posts',
-	page: SearchPage<T>
-): SearchPage<SearchAllItem> {
+// Tags each post with its entity type, so the results page and its "Load
+// more" continuation share the same blended-item shape the typeahead uses.
+function wrapPosts(page: SearchPage<SearchPostItem>): SearchPage<SearchAllItem> {
 	return {
-		items: page.items.map((item) => ({ type, item }) as SearchAllItem),
+		items: page.items.map((item) => ({ type: 'posts', item }) as SearchAllItem),
 		nextCursor: page.nextCursor
 	};
 }
@@ -45,7 +34,6 @@ export const load: PageServerLoad = async (event) => {
 		return {
 			q,
 			resultsQuery: q,
-			resultsType: 'all' as SearchType,
 			results: EMPTY_RESULTS,
 			suggested: suggested.items,
 			popular: popular.items
@@ -54,35 +42,16 @@ export const load: PageServerLoad = async (event) => {
 
 	const api = apiClient(event);
 	const prefix = searchQueryPrefix(q);
-	// An explicit @/# prefix means the user picked a specific entity, so
-	// narrow to just that type instead of blending. @ needs stripping since
-	// it's only meaningful client-side; # stays in the query so the backend's
-	// posts search can apply its exact-hashtag filter. resultsQuery/resultsType
-	// are echoed back so the client's "Load more" continuation queries the
-	// same type with the same (possibly stripped) query text.
-	let results: Promise<SearchPage<SearchAllItem>>;
-	let resultsQuery = q;
-	let resultsType: SearchType = 'all';
-	if (prefix === '@') {
-		resultsQuery = stripSearchQueryPrefix(q, prefix);
-		resultsType = 'users';
-		results = searchResults(
-			search<SearchUserItem>(api, { q: resultsQuery, type: 'users', limit: SEARCH_PREVIEW_LIMIT }).then(
-				(page) => wrapItems('users', page)
-			)
-		);
-	} else if (prefix === '#') {
-		resultsType = 'posts';
-		results = searchResults(
-			search<SearchPostItem>(api, { q, type: 'posts', limit: SEARCH_PREVIEW_LIMIT }).then((page) =>
-				wrapItems('posts', page)
-			)
-		);
-	} else {
-		results = searchResults(search<SearchAllItem>(api, { q, type: 'all', limit: SEARCH_PREVIEW_LIMIT }));
-	}
+	// Results are always a posts search — users and hashtags are handled by
+	// the typeahead dropdown instead. @ has no meaning for the posts index, so
+	// it's stripped before searching; # stays in the query so the backend's
+	// posts search can apply its exact-hashtag filter.
+	const resultsQuery = prefix === '@' ? stripSearchQueryPrefix(q, prefix) : q;
+	const results = searchResults(
+		search<SearchPostItem>(api, { q: resultsQuery, type: 'posts', limit: SEARCH_PREVIEW_LIMIT }).then(wrapPosts)
+	);
 
-	return { q, resultsQuery, resultsType, results: await results, suggested: [], popular: [] };
+	return { q, resultsQuery, results: await results, suggested: [], popular: [] };
 };
 
 export const actions: Actions = {

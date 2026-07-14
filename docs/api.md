@@ -238,10 +238,12 @@ enforced in the UPDATE query.
 - `type=users`: full-text search on username and name. Items include `name` and
   `avatar` (nullable) alongside `username`.
 - `type=hashtags`: full-text search on name. Items are `{name, postCount}`.
-- `type=all`: a single blended, ranked page mixing all three entity types —
-  the results page's default mode (Instagram/Twitter-style, replacing three
-  separate per-type sections). Roughly a 20/60/20 users/posts/hashtags split
-  per page (`computeBlendTargets`, min 1 user/1 hashtag once `limit >= 3`).
+- `type=all`: a single blended, ranked page mixing all three entity types. Not
+  currently called by the frontend (the search page's typeahead makes
+  separate per-type requests and its results page is posts-only — see
+  `docs/frontend.md`); kept as a general-purpose blended search mode. Roughly
+  a 20/60/20 users/posts/hashtags split per page (`computeBlendTargets`, min 1
+  user/1 hashtag once `limit >= 3`).
   Items are `{"type": "users"|"posts"|"hashtags", "item": <the type's normal
   item shape>}`. Users the viewer follows are boosted to the front of the
   page's user results (never across pages). Cursor encodes independent

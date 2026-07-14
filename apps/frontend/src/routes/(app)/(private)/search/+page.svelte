@@ -6,7 +6,7 @@
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import SearchDiscovery from './SearchDiscovery.svelte';
-	import SearchResultRow from './SearchResultRow.svelte';
+	import SearchPostThumbnail from './SearchPostThumbnail.svelte';
 	import SearchSuggestions from './SearchSuggestions.svelte';
 	import type { PageData } from './$types';
 	import type {
@@ -87,6 +87,13 @@
 	function onInput(e: Event) {
 		const value = (e.currentTarget as HTMLInputElement).value;
 		clearTimeout(debounceTimer);
+		if (!value) {
+			closeSuggestions();
+			// Clearing the field (backspace or the native search-input "x")
+			// reverts to the discovery view, matching Instagram/Twitter/YouTube.
+			if (data.q) goto(resolve('/search'));
+			return;
+		}
 		debounceTimer = setTimeout(() => fetchSuggestions(value), SUGGEST_DEBOUNCE_MS);
 	}
 
@@ -99,21 +106,27 @@
 		goto(resolve(buildSearchUrl(value)));
 	}
 
+	// Results are always posts (see +page.server.ts); items still arrive
+	// wrapped in the shared blended-item shape, so unwrap to plain posts here.
+	function toPostsPage(page: { items: SearchAllItem[]; nextCursor: string | null }): {
+		items: SearchPostItem[];
+		nextCursor: string | null;
+	} {
+		return {
+			items: page.items
+				.filter((row): row is Extract<SearchAllItem, { type: 'posts' }> => row.type === 'posts')
+				.map((row) => row.item),
+			nextCursor: page.nextCursor
+		};
+	}
+
 	const resultsPagination = createPagination(
-		() => data.results,
+		() => toPostsPage(data.results),
 		(cursor) =>
-			fetchCursorPage<SearchAllItem>(
-				fetch,
-				`/search?q=${encodeURIComponent(data.resultsQuery)}&type=${data.resultsType}`,
-				cursor
+			fetchCursorPage<SearchAllItem>(fetch, `/search?q=${encodeURIComponent(data.resultsQuery)}&type=posts`, cursor).then(
+				toPostsPage
 			)
 	);
-
-	function resultKey(row: SearchAllItem): string {
-		if (row.type === 'users') return `users-${row.item.username}`;
-		if (row.type === 'posts') return `posts-${row.item.id}`;
-		return `hashtags-${row.item.name}`;
-	}
 </script>
 
 <svelte:head>
@@ -149,13 +162,11 @@
 		/>
 	{:else}
 		<section class="flex flex-col gap-3">
-			<ul class="flex flex-col gap-2">
-				{#each resultsPagination.items as row (resultKey(row))}
-					<li>
-						<SearchResultRow {row} />
-					</li>
+			<div class="grid grid-cols-3 gap-2">
+				{#each resultsPagination.items as post (post.id)}
+					<SearchPostThumbnail {post} />
 				{/each}
-			</ul>
+			</div>
 			{#if !resultsPagination.done}
 				<div class="flex flex-col items-center gap-2">
 					{#if resultsPagination.error}

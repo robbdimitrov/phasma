@@ -75,10 +75,16 @@ Full-width card (`rounded-2xl`, `border-base-300`, `bg-base-100`). Two modes:
 - Double-clicking the image likes the post (no-op if already liked or logged
   out) and plays a large heart `animate-like-burst` overlay on the image.
 
+### `ImageTile`
+
+Square aspect-ratio image link to a post detail page (`/posts/{postId}`).
+Renders an optional `children` snippet as an absolutely-positioned overlay.
+Base primitive for post grid tiles.
+
 ### `Thumbnail`
 
-Square aspect-ratio image link to the post detail page. Shows like count overlay
-on hover. Used in profile grid layouts.
+Wraps `ImageTile`, adding a like-count overlay on hover. Used in profile and
+search grid layouts.
 
 ### `ProfileHeader`
 

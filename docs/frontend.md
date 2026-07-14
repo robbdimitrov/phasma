@@ -19,7 +19,7 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
     │   └── [mode=connections]/ load: followers or following list; public read, follow gated to login
     └── (private)/          +layout.server.ts: redirect /login if currentUser absent
         ├── notifications/      load: GET /notifications + PUT /notifications/{id}/read (mark all unread as read)
-        ├── search/             load: GET /search?q=&type=all (small preview limit) → one blended, ranked list (Instagram/Twitter-style), no tabs/sections; a `@name`/`#tag` prefix narrows to just users/posts instead of blending; empty query shows discovery content: suggested users via GET /users/suggested + popular posts grid via GET /posts/popular; live dropdown-as-you-type calls GET /suggest (users, hashtags) + GET /search?type=posts&limit= (posts preview), blended client-side into one ordered list via `interleaveSuggestions()`
+        ├── search/             load: GET /search?q=&type=posts (small preview limit) → results are always a posts-only image grid; `@name` prefix is stripped before searching (users are handled by the typeahead, not by results), `#tag` prefix stays intact for the backend's exact-hashtag filter; clearing the query navigates back to /search, reverting to discovery; empty query shows discovery content: suggested users via GET /users/suggested + popular posts grid via GET /posts/popular; live dropdown-as-you-type calls GET /suggest (users, hashtags) + GET /search?type=posts&limit= (posts preview), blended client-side into one ordered list via `interleaveSuggestions()`
         ├── upload/             form action: POST /uploads → POST /posts
         ├── suggest/            GET +server.ts — typeahead proxy: GET /users/search or /hashtags/search
         ├── logout/             form action: DELETE /sessions → delete session cookie → redirect /login (cookie deleted even if backend call fails)
@@ -113,8 +113,8 @@ for explicit validation.
 | `/feed`                      | GET    | +server.ts        | GET /feed?cursor=                                         |
 | `/notifications`             | GET    | page load         | GET /notifications + PUT /notifications/{id}/read         |
 | `/notifications`             | GET    | +server.ts        | GET /notifications?cursor= + PUT /notifications/{id}/read |
-| `/search`                    | GET    | page load         | GET /search?type=all (limit=5), blended; @/# prefix narrows to type=users/posts |
-| `/search`                    | GET    | +server.ts        | GET /search?cursor= (blended "Load more"), or ?limit= (dropdown posts preview) |
+| `/search`                    | GET    | page load         | GET /search?type=posts (limit=5); @ prefix stripped, # prefix kept for hashtag filter |
+| `/search`                    | GET    | +server.ts        | GET /search?type=posts&cursor= ("Load more"), or ?limit= (dropdown posts preview) |
 | `/suggest`                   | GET    | +server.ts        | GET /users/search or /hashtags/search (dropdown users/hashtags preview) |
 | `/@{username}`               | GET    | page load         | GET /users/{u} + GET /users/{u}/posts                     |
 | `/@{username}`               | GET    | +server.ts        | GET /users/{u}/posts?cursor=                              |
