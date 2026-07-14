@@ -18,6 +18,12 @@ const (
 
 var searchScopedIndexes = []string{"users", "posts", "hashtags"}
 
+var searchPrimaryKeys = map[string]string{
+	"users":    "id",
+	"posts":    "post_id",
+	"hashtags": "name",
+}
+
 // SearchClient uses a startup-provisioned scoped key for all document and
 // search operations; the master key is not retained.
 type SearchClient struct {
@@ -115,7 +121,12 @@ func (c *SearchClient) applyIndexSettings(ctx context.Context, key, index string
 
 // UpsertDocuments adds or replaces documents in the given index.
 func (c *SearchClient) UpsertDocuments(ctx context.Context, index string, documents any) error {
-	return c.doJSON(ctx, http.MethodPost, "/indexes/"+index+"/documents", c.scopedKey, documents, nil)
+	primaryKey, ok := searchPrimaryKeys[index]
+	if !ok {
+		return fmt.Errorf("search: unknown index %q", index)
+	}
+	path := "/indexes/" + index + "/documents?primaryKey=" + primaryKey
+	return c.doJSON(ctx, http.MethodPost, path, c.scopedKey, documents, nil)
 }
 
 // DeleteDocument removes a single document by its ID from the given index.

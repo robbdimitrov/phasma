@@ -21,7 +21,7 @@ data:
               root = if this.table == "users" && this.op == "upsert" { this } else { deleted() }
             processors:
               - http:
-                  url: "${MEILI_URL}/indexes/users/documents"
+                  url: "${MEILI_URL}/indexes/users/documents?primaryKey=id"
                   verb: POST
                   headers:
                     Authorization: "Bearer ${SEARCH_CONNECT_KEY}"

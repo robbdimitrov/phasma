@@ -67,9 +67,11 @@ The broker-backfill Job runs one init container:
 
 `deploy.sh` provisions a Meilisearch scoped key (`documents.add` and
 `documents.delete` on `users`, `posts`, `hashtags` indexes only) after
-Meilisearch is ready and stores it in `connect-secret`. The connect Deployment
-uses a `checksum/connect-secret` pod-template annotation so it rolls out only
-when that key or another connect secret value changes.
+Meilisearch is ready and stores it in `connect-secret`. Search document writers
+pass the primary key explicitly for each indexed document type because user
+payloads carry both `id` and `user_id`. The connect Deployment uses a
+`checksum/connect-secret` pod-template annotation so it rolls out only when that
+key or another connect secret value changes.
 
 ## Service Accounts
 

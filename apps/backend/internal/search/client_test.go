@@ -152,26 +152,61 @@ func TestSearchClientProvisionScopedKeyLimitsScopeAndExpiry(t *testing.T) {
 	}
 }
 
-func TestSearchClientUpsertDocumentsSendsCorrectPath(t *testing.T) {
-	var gotPath string
-	var gotMethod string
+func TestSearchClientUpsertDocumentsSendsPrimaryKey(t *testing.T) {
+	tests := []struct {
+		index      string
+		primaryKey string
+	}{
+		{index: "users", primaryKey: "id"},
+		{index: "posts", primaryKey: "post_id"},
+		{index: "hashtags", primaryKey: "name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.index, func(t *testing.T) {
+			var gotPath string
+			var gotPrimaryKey string
+			var gotMethod string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				gotPrimaryKey = r.URL.Query().Get("primaryKey")
+				gotMethod = r.Method
+				w.WriteHeader(http.StatusAccepted)
+			}))
+			defer srv.Close()
+
+			c := newTestSearchClient(srv.URL)
+			docs := []map[string]string{{tt.primaryKey: "1"}}
+			if err := c.UpsertDocuments(context.Background(), tt.index, docs); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if gotPath != "/indexes/"+tt.index+"/documents" {
+				t.Fatalf("path = %q, want /indexes/%s/documents", gotPath, tt.index)
+			}
+			if gotPrimaryKey != tt.primaryKey {
+				t.Fatalf("primaryKey = %q, want %s", gotPrimaryKey, tt.primaryKey)
+			}
+			if gotMethod != http.MethodPost {
+				t.Fatalf("method = %q, want POST", gotMethod)
+			}
+		})
+	}
+}
+
+func TestSearchClientUpsertDocumentsRejectsUnknownIndex(t *testing.T) {
+	var called bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		gotMethod = r.Method
+		called = true
 		w.WriteHeader(http.StatusAccepted)
 	}))
 	defer srv.Close()
 
 	c := newTestSearchClient(srv.URL)
-	docs := []map[string]string{{"id": "1", "username": "alice"}}
-	if err := c.UpsertDocuments(context.Background(), "users", docs); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if err := c.UpsertDocuments(context.Background(), "comments", []map[string]string{{"id": "1"}}); err == nil {
+		t.Fatal("expected error for unknown index")
 	}
-	if gotPath != "/indexes/users/documents" {
-		t.Fatalf("path = %q, want /indexes/users/documents", gotPath)
-	}
-	if gotMethod != http.MethodPost {
-		t.Fatalf("method = %q, want POST", gotMethod)
+	if called {
+		t.Fatal("server was called for unknown index")
 	}
 }
 
