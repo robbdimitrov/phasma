@@ -5,11 +5,11 @@ namespace="${NAMESPACE:-phasma}"
 timeout="${TIMEOUT:-180s}"
 
 restart() {
-  kind="$1"
+  resource_kind="$1"
   name="$2"
-  if kubectl -n "$namespace" get "$kind" "$name" >/dev/null 2>&1; then
-    kubectl -n "$namespace" rollout restart "$kind/$name"
-    kubectl -n "$namespace" rollout status "$kind/$name" --timeout="$timeout"
+  if kubectl -n "$namespace" get "$resource_kind" "$name" >/dev/null 2>&1; then
+    kubectl -n "$namespace" rollout restart "$resource_kind/$name"
+    kubectl -n "$namespace" rollout status "$resource_kind/$name" --timeout="$timeout"
   fi
 }
 

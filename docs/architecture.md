@@ -4,9 +4,9 @@
 
 | Service    | Role                                                      | Image                                                     |
 | ---------- | --------------------------------------------------------- | --------------------------------------------------------- |
-| `frontend` | SvelteKit SSR BFF — sole public entry point               | `localhost:5000/phasma/frontend`                          |
-| `backend`  | Go HTTP API — all business logic                          | `localhost:5000/phasma/backend`                           |
-| `database` | PostgreSQL — primary data store; migration init container | `postgres:18.4-alpine` / `localhost:5000/phasma/database` |
+| `frontend` | SvelteKit SSR BFF — sole public entry point               | `${REGISTRY}/frontend`                                    |
+| `backend`  | Go HTTP API — all business logic                          | `${REGISTRY}/backend`                                     |
+| `database` | PostgreSQL — primary data store; migration init container | `postgres:18.4-alpine` / `${REGISTRY}/database`           |
 | `storage`  | SeaweedFS — S3-compatible object storage                  | `chrislusf/seaweedfs:3.76`                                |
 | `cache`    | Dragonfly — rate limiting and login throttle              | `docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0`     |
 | `search`   | Meilisearch — full-text search                            | `getmeili/meilisearch:v1.11.3`                            |

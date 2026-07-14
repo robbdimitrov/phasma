@@ -3,7 +3,6 @@ set -euo pipefail
 
 # Bring up the local Phasma stack idempotently on a Kubernetes cluster.
 
-CLUSTER="${CLUSTER:-phasma}"
 NS="${NS:-phasma}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S_DIR="$ROOT/deploy"
@@ -14,15 +13,11 @@ REMOTE_PORT="${REMOTE_PORT:-8080}"
 LOCAL_ORIGIN="${LOCAL_ORIGIN:-http://${APP_HOST}:${LOCAL_PORT}}"
 PORT_FORWARD_LOG="${PORT_FORWARD_LOG:-/tmp/phasma-port-forward-${LOCAL_PORT}.log}"
 PORT_FORWARD_PID_FILE="${PORT_FORWARD_PID_FILE:-/tmp/phasma-port-forward-${LOCAL_PORT}.pid}"
-STORAGE_IMAGE="chrislusf/seaweedfs:3.76"
-CACHE_IMAGE="docker.dragonflydb.io/dragonflydb/dragonfly:v1.25.0"
-SEARCH_IMAGE="getmeili/meilisearch:v1.11.3"
 BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG:-}"
 DATABASE_IMAGE_TAG="${DATABASE_IMAGE_TAG:-}"
 FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG:-}"
 FORCE_BACKFILL="${FORCE_BACKFILL:-0}"
 
-SERVICES=(backend database frontend)
 # storage/database are hard startup deps for backend; stage+wait avoids
 # racing an unhealthy one, and unchanged stages stay no-ops.
 ROLL_OUT_INFRA=(
@@ -356,18 +351,6 @@ build_images() {
   make -C "${ROOT}" backend IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${BACKEND_IMAGE_TAG}"
   make -C "${ROOT}" database IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${DATABASE_IMAGE_TAG}"
   make -C "${ROOT}" frontend IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${FRONTEND_IMAGE_TAG}"
-  if docker container inspect --format '{{.State.Running}}' phasma-control-plane 2>/dev/null | grep -qx true; then
-    log "loading images into kind node"
-    docker pull "${STORAGE_IMAGE}"
-    docker pull "${CACHE_IMAGE}"
-    docker pull "${SEARCH_IMAGE}"
-    docker save "${REGISTRY}/backend:${BACKEND_IMAGE_TAG}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-    docker save "${REGISTRY}/database:${DATABASE_IMAGE_TAG}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-    docker save "${REGISTRY}/frontend:${FRONTEND_IMAGE_TAG}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-    docker save "${STORAGE_IMAGE}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-    docker save "${CACHE_IMAGE}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-    docker save "${SEARCH_IMAGE}" | docker exec -i phasma-control-plane ctr --namespace k8s.io images import -
-  fi
 }
 
 apply_manifest_files() {
@@ -381,9 +364,9 @@ apply_manifest_files() {
 select_manifest_documents() {
   local manifest="$1"
   local mode="$2"
-  local kind="$3"
+  local resource_kind="$3"
   local name="$4"
-  awk -v mode="${mode}" -v want_kind="${kind}" -v want_name="${name}" '
+  awk -v mode="${mode}" -v want_kind="${resource_kind}" -v want_name="${name}" '
     function reset() {
       doc = ""
       doc_kind = ""
@@ -464,20 +447,21 @@ apply_broker_infra_manifest() {
 }
 
 data_resource_checksum() {
-  local kind="$1"
+  local resource_kind="$1"
   local name="$2"
-  kubectl -n "${NS}" get "${kind}" "${name}" -o go-template='{{ range $k, $v := .data }}{{ printf "%s=%s\n" $k $v }}{{ end }}' \
+  # shellcheck disable=SC2016 # go-template variables must reach kubectl literally.
+  kubectl -n "${NS}" get "${resource_kind}" "${name}" -o go-template='{{ range $k, $v := .data }}{{ printf "%s=%s\n" $k $v }}{{ end }}' \
     | LC_ALL=C sort \
     | openssl dgst -sha256 -r | awk '{print $1}'
 }
 
 annotate_data_resource_checksums() {
-  local kind="$1"
+  local resource_kind="$1"
   local resource="$2"
   shift 2
   local name pairs=()
   for name in "$@"; do
-    pairs+=("\"checksum/${name}\":\"$(data_resource_checksum "${kind}" "${name}")\"")
+    pairs+=("\"checksum/${name}\":\"$(data_resource_checksum "${resource_kind}" "${name}")\"")
   done
   local joined
   joined="$(IFS=,; echo "${pairs[*]}")"
@@ -624,8 +608,8 @@ start_port_forward_background() {
   fi
 
   log "starting frontend port-forward in the background"
-  LOCAL_PORT="${LOCAL_PORT}" REMOTE_PORT="${REMOTE_PORT}" NS="${NS}" \
-    nohup bash -c '
+  # shellcheck disable=SC2016 # The child shell expands env passed through env.
+  env LOCAL_PORT="${LOCAL_PORT}" REMOTE_PORT="${REMOTE_PORT}" NS="${NS}" nohup bash -c '
     set -u
     while true; do
       kubectl -n "${NS}" port-forward service/frontend "${LOCAL_PORT}:${REMOTE_PORT}"

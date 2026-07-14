@@ -26,10 +26,11 @@ make frontend            # frontend image
 make format              # format backend Go code
 make lint                # backend formatting check and frontend lint
 make test                # backend and frontend unit tests
-./scripts/deploy.sh      # preferred local kind deployment
+./scripts/deploy.sh      # preferred local Kubernetes deployment
 ```
 
-Images are tagged `localhost:5000/phasma/<service>`.
+Images default to `localhost:5000/phasma/<service>` and can be redirected with
+`REGISTRY` in `scripts/deploy.sh` or `IMAGE_PREFIX` in `make`.
 
 ### Manual Kubernetes workflow
 

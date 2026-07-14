@@ -57,7 +57,7 @@ spec:
       containers:
       - name: frontend
         image: localhost:5000/phasma/frontend
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         env:
         - name: PORT
           value: "8080"

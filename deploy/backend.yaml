@@ -57,7 +57,7 @@ spec:
       initContainers:
       - name: migration
         image: localhost:5000/phasma/database
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         securityContext:
           runAsNonRoot: true
           runAsUser: 65532
@@ -124,7 +124,7 @@ spec:
       containers:
       - name: backend
         image: localhost:5000/phasma/backend
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

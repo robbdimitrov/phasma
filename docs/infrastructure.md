@@ -3,7 +3,7 @@
 ## Kubernetes Deployment Model
 
 All services are deployed to the `phasma` namespace via manifests in `deploy/`.
-Local deployment targets a `kind` cluster.
+Local deployment targets the current Kubernetes context.
 
 | Workload   | Kind        | Replicas | Storage                                  |
 | ---------- | ----------- | -------- | ---------------------------------------- |
@@ -36,12 +36,15 @@ with `FORCE_BACKFILL=1 scripts/deploy.sh`.
 
 ## Image Registry
 
-All custom images are pushed to `localhost:5000/phasma/<service>:<tag>`.
-The top-level `Makefile` defaults to the short Git commit SHA for manual
-builds. `scripts/deploy.sh` overrides that per target with a 12-character
-SHA-256 checksum of the service build context, renders those tags into the
-applied manifests, and rolls out only workloads whose resolved image tag
-changed. Override
+All custom images are pushed to `${REGISTRY}/<service>:<tag>`, defaulting to
+`localhost:5000/phasma/<service>:<tag>`. The top-level `Makefile` defaults to
+the short Git commit SHA for manual builds. `scripts/deploy.sh` overrides that
+per target with a 12-character SHA-256 checksum of the service build context,
+renders those tags into the applied manifests, and rolls out only workloads
+whose resolved image tag changed. The configured Kubernetes context must be
+able to pull from `REGISTRY`; deploy does not import images into cluster nodes.
+Custom image containers use `imagePullPolicy: Always` so reused override tags
+are resolved through the registry instead of a node-local cache. Override
 `BACKEND_IMAGE_TAG`, `DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only when
 you deliberately need a fixed tag. Third-party images in Kubernetes manifests
 are pinned to explicit version tags; do not use implicit `latest`.
