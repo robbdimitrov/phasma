@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
+	import { X } from '@lucide/svelte';
 	import { createPagination } from '$lib/createPagination.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
@@ -24,14 +25,13 @@
 	let { data }: { data: PageData } = $props();
 
 	let inputEl = $state<HTMLInputElement | null>(null);
+	// Writable derived: typing overrides this value locally, and the override
+	// is discarded in favor of the new data.q once navigation changes it.
+	let inputValue = $derived(data.q);
 	let suggestUsers = $state<UserSuggestion[]>([]);
 	let suggestHashtags = $state<HashtagSuggestion[]>([]);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let requestToken = 0;
-
-	// Hide discovery/results content while the dropdown is open — it's
-	// absolutely positioned and would otherwise overlap the content below it.
-	let suggestionsOpen = $derived(suggestUsers.length > 0 || suggestHashtags.length > 0);
 
 	function closeSuggestions() {
 		// Bump the token so any fetch already in flight is discarded on arrival
@@ -81,12 +81,20 @@
 		clearTimeout(debounceTimer);
 		if (!value) {
 			closeSuggestions();
-			// Clearing the field (backspace or the native search-input "x")
-			// reverts to the discovery view, matching Instagram/Twitter/YouTube.
+			// Clearing the field (backspace or the clear button) reverts to the
+			// discovery view, matching Instagram/Twitter/YouTube.
 			if (data.q) goto(resolve('/search'));
 			return;
 		}
 		debounceTimer = setTimeout(() => fetchSuggestions(value), SUGGEST_DEBOUNCE_MS);
+	}
+
+	function clearInput() {
+		clearTimeout(debounceTimer);
+		closeSuggestions();
+		inputValue = '';
+		inputEl?.focus();
+		if (data.q) goto(resolve('/search'));
 	}
 
 	function onSubmit(e: SubmitEvent) {
@@ -132,40 +140,48 @@
 		<input
 			bind:this={inputEl}
 			type="search"
-			class="input input-bordered w-full rounded-full"
+			class="input input-bordered w-full rounded-full pr-10 [&::-webkit-search-cancel-button]:hidden"
 			placeholder="Search users, posts, hashtags…"
-			value={data.q}
+			bind:value={inputValue}
 			oninput={onInput}
 			aria-label="Search"
 		/>
+		{#if inputValue}
+			<button
+				type="button"
+				onclick={clearInput}
+				class="absolute top-1/2 right-4 -translate-y-1/2 text-base-content/50 hover:text-base-content"
+				aria-label="Clear search"
+			>
+				<X class="h-4 w-4" />
+			</button>
+		{/if}
 		<SearchSuggestions users={suggestUsers} hashtags={suggestHashtags} onclose={closeSuggestions} />
 	</form>
 
-	{#if !suggestionsOpen}
-		{#if !data.q}
-			<SearchDiscovery suggested={data.suggested} popular={data.popular} />
-		{:else if resultsPagination.items.length === 0}
-			<EmptyState
-				icon="triangle-alert"
-				title="No results"
-				description="Nothing matched &ldquo;{data.q}&rdquo;. Try a different query."
-			/>
-		{:else}
-			<section class="flex flex-col gap-3">
-				<div class="grid grid-cols-3 gap-2">
-					{#each resultsPagination.items as post (post.id)}
-						<SearchPostThumbnail {post} />
-					{/each}
+	{#if !data.q}
+		<SearchDiscovery suggested={data.suggested} popular={data.popular} />
+	{:else if resultsPagination.items.length === 0}
+		<EmptyState
+			icon="triangle-alert"
+			title="No results"
+			description="Nothing matched &ldquo;{data.q}&rdquo;. Try a different query."
+		/>
+	{:else}
+		<section class="flex flex-col gap-3">
+			<div class="grid grid-cols-3 gap-2">
+				{#each resultsPagination.items as post (post.id)}
+					<SearchPostThumbnail {post} />
+				{/each}
+			</div>
+			{#if !resultsPagination.done}
+				<div class="flex flex-col items-center gap-2">
+					{#if resultsPagination.error}
+						<p class="text-sm text-error">{resultsPagination.error}</p>
+					{/if}
+					<LoadMoreButton loading={resultsPagination.loading} onclick={resultsPagination.more} />
 				</div>
-				{#if !resultsPagination.done}
-					<div class="flex flex-col items-center gap-2">
-						{#if resultsPagination.error}
-							<p class="text-sm text-error">{resultsPagination.error}</p>
-						{/if}
-						<LoadMoreButton loading={resultsPagination.loading} onclick={resultsPagination.more} />
-					</div>
-				{/if}
-			</section>
-		{/if}
+			{/if}
+		</section>
 	{/if}
 </div>

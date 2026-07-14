@@ -34,9 +34,10 @@ images.
 - **Production-ready**: Stateless Go API, bounded concurrency, absolute session
   lifetimes, dependency-aware readiness probe, structured JSON logging, circuit
   breaker and retry-with-backoff on every database call.
-- **HA-ready**: Ships at `replicas: 1` but correct at `replicas: N`. No shared
-  in-process state; outbox delivery is at least once and all consumers use
-  idempotent inserts with `ON CONFLICT DO NOTHING`.
+- **HA-ready app tier**: Backend and frontend run with multiple replicas and
+  no request-critical shared in-process state. Outbox delivery is at least
+  once; feed and notification consumers use idempotent PostgreSQL writes, while
+  Meilisearch sync applies replay-safe document upserts/deletes.
 
 ## Architecture
 
