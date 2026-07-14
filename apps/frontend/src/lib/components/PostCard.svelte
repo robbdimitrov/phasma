@@ -168,7 +168,7 @@
 				>
 					<button
 						type="submit"
-						class="group inline-flex items-center gap-1.5 text-sm font-semibold transition-colors active:scale-95 {liked
+						class="group inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold transition-colors active:scale-95 {liked
 							? 'text-rose-500'
 							: 'text-base-content/60'}"
 						aria-label={liked ? 'Unlike post' : 'Like post'}
