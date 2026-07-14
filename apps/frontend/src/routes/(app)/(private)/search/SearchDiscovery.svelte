@@ -22,22 +22,19 @@
 		atEnd = scrollEl.scrollLeft + scrollEl.clientWidth >= scrollEl.scrollWidth - 1;
 	}
 
-	// Only fade an edge once there's actually more to scroll toward, so the
-	// row never looks cut off before the user has scrolled.
-	function edgeMask(start: boolean, end: boolean): string {
-		if (start && end) return 'none';
-		const stops = [
-			start ? 'black 0' : 'transparent 0, black 32px',
-			end ? 'black 100%' : 'black calc(100% - 32px), transparent 100%'
-		].join(', ');
-		return `linear-gradient(to right, ${stops})`;
-	}
-
 	$effect(() => {
 		if (scrollEl) updateEdges();
 	});
 
-	let mask = $derived(edgeMask(atStart, atEnd));
+	// static class, not style:, since CSP blocks inline style attributes
+	function edgeMaskClass(start: boolean, end: boolean): string {
+		if (start && end) return '';
+		if (start) return 'mask-fade-end';
+		if (end) return 'mask-fade-start';
+		return 'mask-fade-both';
+	}
+
+	let maskClass = $derived(edgeMaskClass(atStart, atEnd));
 </script>
 
 {#if suggested.length > 0}
@@ -46,9 +43,7 @@
 		<div
 			bind:this={scrollEl}
 			onscroll={updateEdges}
-			class="scrollbar-hide flex snap-x gap-3 overflow-x-auto"
-			style:mask-image={mask}
-			style:-webkit-mask-image={mask}
+			class="scrollbar-hide flex snap-x gap-3 overflow-x-auto {maskClass}"
 		>
 			{#each suggested as user (user.id)}
 				{@const isFollowing = followingOverrides.get(user.id) ?? user.isFollowing}
@@ -132,5 +127,29 @@
 	}
 	.scrollbar-hide::-webkit-scrollbar {
 		display: none;
+	}
+	.mask-fade-start {
+		-webkit-mask-image: linear-gradient(to right, transparent 0, black 32px, black 100%);
+		mask-image: linear-gradient(to right, transparent 0, black 32px, black 100%);
+	}
+	.mask-fade-end {
+		-webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
+		mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
+	}
+	.mask-fade-both {
+		-webkit-mask-image: linear-gradient(
+			to right,
+			transparent 0,
+			black 32px,
+			black calc(100% - 32px),
+			transparent 100%
+		);
+		mask-image: linear-gradient(
+			to right,
+			transparent 0,
+			black 32px,
+			black calc(100% - 32px),
+			transparent 100%
+		);
 	}
 </style>
