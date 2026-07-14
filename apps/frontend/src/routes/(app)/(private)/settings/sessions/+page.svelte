@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
-	import { ArrowLeft, Monitor } from '@lucide/svelte';
+	import { ArrowLeft, Monitor, Trash2 } from '@lucide/svelte';
 	import type { Session } from '$lib/types';
 	import type { ActionData, PageData } from './$types';
 
@@ -74,8 +74,8 @@
 		{:else}
 			<ul class="grid gap-3" aria-label="Active browser sessions">
 				{#each sessions as session (session.id)}
-					<li class="rounded-2xl border border-base-300 bg-base-200 p-4">
-						<div class="flex items-start gap-3">
+					<li class="relative rounded-2xl border border-base-300 bg-base-200 p-4">
+						<div class="flex items-start gap-3" class:pr-12={!session.current}>
 							<div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-100">
 								<Monitor class="h-5 w-5 text-base-content/60" />
 							</div>
@@ -104,41 +104,47 @@
 										</dd>
 									</div>
 								</dl>
-								{#if !session.current}
-									<form
-										method="POST"
-										action="?/revoke"
-										class="mt-4"
-										use:enhance={() => {
-											revoking[session.id] = true;
-											actionError = '';
-											return async ({ result, update }) => {
-												delete revoking[session.id];
-												if (result.type === 'success') {
-													revoked[session.id] = true;
-												} else if (result.type === 'failure') {
-													actionError =
-														(result.data as { error?: string })?.error ??
-														'Could not revoke the session. Please try again.';
-												} else if (result.type === 'error') {
-													actionError = 'Could not revoke the session. Please try again.';
-												}
-												await update({ reset: false, invalidateAll: false });
-											};
-										}}
-									>
-										<input type="hidden" name="sessionId" value={session.id} />
-										<button
-											type="submit"
-											disabled={revoking[session.id]}
-											class="btn btn-error btn-outline h-10 min-h-10 rounded-full px-5 text-sm font-bold"
-										>
-											{revoking[session.id] ? 'Revoking...' : 'Revoke Session'}
-										</button>
-									</form>
-								{/if}
 							</div>
 						</div>
+						{#if !session.current}
+							<form
+								method="POST"
+								action="?/revoke"
+								class="absolute right-3 top-3"
+								use:enhance={() => {
+									revoking[session.id] = true;
+									actionError = '';
+									return async ({ result, update }) => {
+										delete revoking[session.id];
+										if (result.type === 'success') {
+											revoked[session.id] = true;
+										} else if (result.type === 'failure') {
+											actionError =
+												(result.data as { error?: string })?.error ??
+												'Could not revoke the session. Please try again.';
+										} else if (result.type === 'error') {
+											actionError = 'Could not revoke the session. Please try again.';
+										}
+										await update({ reset: false, invalidateAll: false });
+									};
+								}}
+							>
+								<input type="hidden" name="sessionId" value={session.id} />
+								<button
+									type="submit"
+									disabled={revoking[session.id]}
+									class="inline-flex h-10 w-10 items-center justify-center rounded-full text-base-content/50 transition-all duration-150 hover:bg-error/10 hover:text-error active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:pointer-events-none disabled:opacity-50"
+									title="Revoke session"
+									aria-label="Revoke session"
+								>
+									{#if revoking[session.id]}
+										<span class="loading loading-spinner loading-sm"></span>
+									{:else}
+										<Trash2 class="h-5 w-5" />
+									{/if}
+								</button>
+							</form>
+						{/if}
 					</li>
 				{/each}
 			</ul>

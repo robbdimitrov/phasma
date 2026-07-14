@@ -149,7 +149,7 @@ func (r *SessionRepository) ListActiveSessions(ctx context.Context, userID, curr
 			WHERE user_id = $1
 			  AND expires_at > now()
 			  AND created >= now() - ($3 * interval '1 hour')
-			ORDER BY created DESC, public_id DESC
+			ORDER BY id = $2 DESC, created DESC, public_id DESC
 			LIMIT $4`,
 			userID, r.db.HashSession(currentSessionToken), sessionAbsoluteTTLHours(), maxSessionsPerUser)
 		if err != nil {

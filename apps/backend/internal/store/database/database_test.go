@@ -797,9 +797,11 @@ func TestDatabaseRepositoryListsAndRevokesActiveSessions(t *testing.T) {
 	}
 	seeded := []seededSession{
 		{
+			// Older than the other active sessions below, to prove ordering pins
+			// the current session first rather than falling out of created DESC.
 			token:    "current-token",
 			publicID: "10000000-0000-0000-0000-000000000002",
-			created:  now.Add(-time.Hour),
+			created:  now.Add(-150 * time.Minute),
 			expires:  now.Add(24 * time.Hour),
 			userID:   userID,
 		},

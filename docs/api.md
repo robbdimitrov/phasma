@@ -79,7 +79,8 @@ succeeds and degrades gracefully.
 | DELETE | /sessions             | Logout — clears session cookie                |
 | DELETE | /sessions/{sessionId} | Revoke one remote session by public UUID      |
 
-`GET /sessions` returns active sessions newest first:
+`GET /sessions` returns active sessions with the current session first, then
+the rest newest first:
 
 ```json
 {
