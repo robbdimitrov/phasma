@@ -17,10 +17,8 @@
 	class="mx-auto grid w-full max-w-xl gap-6 rounded-2xl border border-base-300 bg-base-100/90 p-6 text-base-content shadow-2xl shadow-slate-900/10 backdrop-blur-xl sm:px-8"
 >
 	<div class="grid gap-3">
-		<span class="text-xs font-extrabold uppercase tracking-[0.16em] text-base-content/60"
-			>Join Phasma</span
-		>
-		<h1 class="text-3xl font-extrabold leading-tight tracking-normal text-base-content sm:text-4xl">
+		<span class="text-xs font-extrabold uppercase text-base-content/60">Join Phasma</span>
+		<h1 class="text-3xl font-extrabold leading-tight text-base-content sm:text-4xl">
 			Create your account
 		</h1>
 		<p class="text-base leading-7 text-base-content/70">
@@ -49,8 +47,7 @@
 
 		<div class="form-control grid gap-2">
 			<label for="name" class="label p-0">
-				<span
-					class="label-text text-xs font-extrabold uppercase tracking-widest text-base-content/80"
+				<span class="label-text text-xs font-bold uppercase tracking-wider text-base-content/80"
 					>Full Name</span
 				>
 			</label>
@@ -68,8 +65,7 @@
 
 		<div class="form-control grid gap-2">
 			<label for="username" class="label p-0">
-				<span
-					class="label-text text-xs font-extrabold uppercase tracking-widest text-base-content/80"
+				<span class="label-text text-xs font-bold uppercase tracking-wider text-base-content/80"
 					>Username</span
 				>
 			</label>
@@ -89,8 +85,7 @@
 
 		<div class="form-control grid gap-2">
 			<label for="email" class="label p-0">
-				<span
-					class="label-text text-xs font-extrabold uppercase tracking-widest text-base-content/80"
+				<span class="label-text text-xs font-bold uppercase tracking-wider text-base-content/80"
 					>Email Address</span
 				>
 			</label>
@@ -108,8 +103,7 @@
 
 		<div class="form-control grid gap-2">
 			<label for="password" class="label p-0">
-				<span
-					class="label-text text-xs font-extrabold uppercase tracking-widest text-base-content/80"
+				<span class="label-text text-xs font-bold uppercase tracking-wider text-base-content/80"
 					>Password</span
 				>
 			</label>
@@ -120,7 +114,7 @@
 					name="password"
 					placeholder="Password"
 					minlength="8"
-					maxlength="30"
+					maxlength="1024"
 					autocomplete="new-password"
 					required
 					class="input w-full rounded-xl pr-20"
@@ -140,14 +134,11 @@
 			disabled={submitting}
 			class="btn btn-neutral h-12 min-h-12 w-full rounded-full text-base font-extrabold shadow-lg shadow-slate-900/15"
 		>
-			{submitting ? 'Creating Account...' : 'Create Account'}
+			{submitting ? 'Creating account...' : 'Create account'}
 		</button>
 	</form>
 
 	<div class="grid gap-3 border-t border-base-300 pt-6 text-center">
-		<span class="text-xs font-extrabold uppercase tracking-[0.16em] text-base-content/60"
-			>Already registered?</span
-		>
 		<p class="text-sm text-base-content/70">
 			Already have an account?
 			<a href={resolve('/login')} class="ml-1 font-extrabold text-base-content hover:text-primary"

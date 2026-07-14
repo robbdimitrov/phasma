@@ -17,14 +17,12 @@
 	class="mx-auto grid w-full max-w-xl gap-6 rounded-2xl border border-base-300 bg-base-100/90 p-6 text-base-content shadow-2xl shadow-slate-900/10 backdrop-blur-xl sm:px-8"
 >
 	<div class="grid gap-3">
-		<span class="text-xs font-extrabold uppercase tracking-[0.16em] text-base-content/60"
-			>Welcome back</span
-		>
-		<h1 class="text-3xl font-extrabold leading-tight tracking-normal text-base-content sm:text-4xl">
+		<span class="text-xs font-extrabold uppercase text-base-content/60">Welcome back</span>
+		<h1 class="text-3xl font-extrabold leading-tight text-base-content sm:text-4xl">
 			Log in to Phasma
 		</h1>
 		<p class="text-base leading-7 text-base-content/70">
-			Share photos, follow the feed, and keep your creative journal moving.
+			Share photos, follow the feed, and keep your profile moving.
 		</p>
 	</div>
 
@@ -49,8 +47,7 @@
 
 		<div class="form-control grid gap-2">
 			<label for="email" class="label p-0">
-				<span
-					class="label-text text-xs font-extrabold uppercase tracking-widest text-base-content/80"
+				<span class="label-text text-xs font-bold uppercase tracking-wider text-base-content/80"
 					>Email Address</span
 				>
 			</label>
@@ -67,8 +64,7 @@
 
 		<div class="form-control grid gap-2">
 			<label for="password" class="label p-0">
-				<span
-					class="label-text text-xs font-extrabold uppercase tracking-widest text-base-content/80"
+				<span class="label-text text-xs font-bold uppercase tracking-wider text-base-content/80"
 					>Password</span
 				>
 			</label>
@@ -78,7 +74,7 @@
 					id="password"
 					name="password"
 					placeholder="Password"
-					maxlength="30"
+					maxlength="1024"
 					autocomplete="current-password"
 					required
 					class="input w-full rounded-xl pr-20"
@@ -98,14 +94,11 @@
 			disabled={submitting}
 			class="btn btn-neutral h-12 min-h-12 w-full rounded-full text-base font-extrabold shadow-lg shadow-slate-900/15"
 		>
-			{submitting ? 'Logging In...' : 'Log In'}
+			{submitting ? 'Logging in...' : 'Log in'}
 		</button>
 	</form>
 
 	<div class="grid gap-3 border-t border-base-300 pt-6 text-center">
-		<span class="text-xs font-extrabold uppercase tracking-[0.16em] text-base-content/60"
-			>New to Phasma?</span
-		>
 		<p class="text-sm text-base-content/70">
 			Don't have an account?
 			<a
