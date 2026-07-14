@@ -1,6 +1,7 @@
 package posts
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -33,5 +34,22 @@ func TestExtractHashtags(t *testing.T) {
 				t.Errorf("ExtractHashtags(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestExtractHashtagsCapsAtMaxHashtags(t *testing.T) {
+	var input strings.Builder
+	want := make([]string, 0, maxHashtags)
+	for i := range maxHashtags + 5 {
+		tag := fmt.Sprintf("tag%d", i)
+		fmt.Fprintf(&input, "#%s ", tag)
+		if i < maxHashtags {
+			want = append(want, tag)
+		}
+	}
+
+	got := ExtractHashtags(input.String())
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ExtractHashtags() returned %d tags, want the first %d: got %v", len(got), maxHashtags, got)
 	}
 }

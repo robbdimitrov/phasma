@@ -15,7 +15,9 @@ import (
 
 	"phasma/backend/internal/auth"
 	"phasma/backend/internal/comments"
+	"phasma/backend/internal/feed"
 	"phasma/backend/internal/httpx"
+	"phasma/backend/internal/notifications"
 	"phasma/backend/internal/pagination"
 	"phasma/backend/internal/posts"
 	"phasma/backend/internal/search"
@@ -1456,6 +1458,345 @@ func TestDatabaseRepositoryDeletePostCascadesLikesCommentsAndClearsAvatar(t *tes
 	}
 	if avatar != "" {
 		t.Fatalf("avatar = %q, want cleared", avatar)
+	}
+}
+
+func notificationPublicID(t *testing.T, client *testClient, externalID string) string {
+	t.Helper()
+	var publicID string
+	if err := client.DB().Pool().QueryRow(context.Background(),
+		`SELECT public_id::text FROM notifications WHERE external_id = $1`, externalID,
+	).Scan(&publicID); err != nil {
+		t.Fatalf("lookup notification public_id error = %v", err)
+	}
+	return publicID
+}
+
+func TestNotificationRepositoryCreateIsIdempotentAndListsNewestFirst(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	actorID := createTestUser(t, client, "notif_actor")
+	recipientID := createTestUser(t, client, "notif_recipient")
+	repository := notifications.NewNotificationRepository(client.Client)
+
+	like := notifications.Notification{
+		ExternalID: "ext-like-1", UserID: int64(recipientID), ActorID: int64(actorID),
+		Type: "like", EntityID: "post-1",
+	}
+	if err := repository.CreateNotification(ctx, like); err != nil {
+		t.Fatalf("CreateNotification(like) error = %v", err)
+	}
+	if err := repository.CreateNotification(ctx, like); err != nil {
+		t.Fatalf("CreateNotification(like) duplicate error = %v", err)
+	}
+	comment := notifications.Notification{
+		ExternalID: "ext-comment-1", UserID: int64(recipientID), ActorID: int64(actorID),
+		Type: "comment", EntityID: "comment-1",
+	}
+	if err := repository.CreateNotification(ctx, comment); err != nil {
+		t.Fatalf("CreateNotification(comment) error = %v", err)
+	}
+
+	items, err := repository.ListNotifications(ctx, int64(recipientID), nil, 10)
+	if err != nil {
+		t.Fatalf("ListNotifications() error = %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("len(items) = %d, want 2 (duplicate external_id must be a no-op)", len(items))
+	}
+	if items[0].Type != "comment" || items[1].Type != "like" {
+		t.Fatalf("items = %+v, want comment before like (newest first)", items)
+	}
+	if items[0].ActorUsername == "" || items[0].Read {
+		t.Fatalf("items[0] = %+v, want actor username joined and unread", items[0])
+	}
+}
+
+func TestNotificationRepositoryMarkReadEnforcesOwnership(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	actorID := createTestUser(t, client, "notif_mark_actor")
+	recipientID := createTestUser(t, client, "notif_mark_recipient")
+	otherID := createTestUser(t, client, "notif_mark_other")
+	repository := notifications.NewNotificationRepository(client.Client)
+
+	if err := repository.CreateNotification(ctx, notifications.Notification{
+		ExternalID: "ext-mark-1", UserID: int64(recipientID), ActorID: int64(actorID),
+		Type: "follow", EntityID: stringID(actorID),
+	}); err != nil {
+		t.Fatalf("CreateNotification() error = %v", err)
+	}
+	publicID := notificationPublicID(t, client, "ext-mark-1")
+
+	if err := repository.MarkRead(ctx, "00000000-0000-0000-0000-000000000000", int64(recipientID)); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("MarkRead(missing) error = %v, want not found", err)
+	}
+	if err := repository.MarkRead(ctx, publicID, int64(otherID)); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("MarkRead(non-owner) error = %v, want not found", err)
+	}
+	if err := repository.MarkRead(ctx, publicID, int64(recipientID)); err != nil {
+		t.Fatalf("MarkRead(owner) error = %v", err)
+	}
+
+	count, err := repository.UnreadCount(ctx, int64(recipientID))
+	if err != nil {
+		t.Fatalf("UnreadCount() error = %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("UnreadCount() = %d, want 0", count)
+	}
+}
+
+func TestNotificationRepositoryDeleteByEntityAndByActorAndType(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	actorID := createTestUser(t, client, "notif_del_actor")
+	recipientID := createTestUser(t, client, "notif_del_recipient")
+	repository := notifications.NewNotificationRepository(client.Client)
+
+	like := notifications.Notification{
+		ExternalID: "ext-del-like", UserID: int64(recipientID), ActorID: int64(actorID),
+		Type: "like", EntityID: "post-9",
+	}
+	follow := notifications.Notification{
+		ExternalID: "ext-del-follow", UserID: int64(recipientID), ActorID: int64(actorID),
+		Type: "follow", EntityID: stringID(actorID),
+	}
+	for _, n := range []notifications.Notification{like, follow} {
+		if err := repository.CreateNotification(ctx, n); err != nil {
+			t.Fatalf("CreateNotification(%q) error = %v", n.Type, err)
+		}
+	}
+
+	if err := repository.DeleteByEntity(ctx, "like", "post-9"); err != nil {
+		t.Fatalf("DeleteByEntity() error = %v", err)
+	}
+	items, err := repository.ListNotifications(ctx, int64(recipientID), nil, 10)
+	if err != nil {
+		t.Fatalf("ListNotifications() error = %v", err)
+	}
+	if len(items) != 1 || items[0].Type != "follow" {
+		t.Fatalf("items after DeleteByEntity = %+v, want only the follow notification", items)
+	}
+
+	if err := repository.DeleteByActorAndType(ctx, int64(actorID), int64(recipientID), "follow", stringID(actorID)); err != nil {
+		t.Fatalf("DeleteByActorAndType() error = %v", err)
+	}
+	items, err = repository.ListNotifications(ctx, int64(recipientID), nil, 10)
+	if err != nil {
+		t.Fatalf("ListNotifications() error = %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("items after DeleteByActorAndType = %+v, want none", items)
+	}
+}
+
+func TestFeedRepositoryInsertEntriesIsIdempotentAndListsNewestFirst(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	authorID := createTestUser(t, client, "feed_author")
+	viewerID := createTestUser(t, client, "feed_viewer")
+	older := insertTestPost(t, client, authorID, "feed-older", time.Now().Add(-time.Hour))
+	newer := insertTestPost(t, client, authorID, "feed-newer", time.Now())
+	repository := feed.NewFeedRepository(client.Client, feed.CelebThreshold)
+
+	entries := []feed.Entry{
+		{UserID: int64(viewerID), PostID: int64(older.ID), Created: time.Now().Add(-time.Hour)},
+		{UserID: int64(viewerID), PostID: int64(newer.ID), Created: time.Now()},
+	}
+	if err := repository.InsertEntries(ctx, entries); err != nil {
+		t.Fatalf("InsertEntries() error = %v", err)
+	}
+	if err := repository.InsertEntries(ctx, entries); err != nil {
+		t.Fatalf("InsertEntries() duplicate error = %v", err)
+	}
+
+	var rowCount int
+	if err := client.DB().Pool().QueryRow(ctx,
+		`SELECT count(*) FROM feed WHERE user_id = $1`, viewerID,
+	).Scan(&rowCount); err != nil {
+		t.Fatalf("feed count query error = %v", err)
+	}
+	if rowCount != 2 {
+		t.Fatalf("feed row count = %d, want 2 (re-insert must be a no-op)", rowCount)
+	}
+
+	items, cursor, err := repository.ListFeed(ctx, stringID(viewerID), nil, 10)
+	if err != nil {
+		t.Fatalf("ListFeed() error = %v", err)
+	}
+	if cursor != nil {
+		t.Fatalf("cursor = %+v, want nil", cursor)
+	}
+	if got := postIDs(items); len(got) != 2 || got[0] != newer.ID || got[1] != older.ID {
+		t.Fatalf("postIDs(items) = %v, want [%d, %d] (newest first)", got, newer.ID, older.ID)
+	}
+}
+
+func TestFeedRepositoryPruneByFollowee(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	followeeID := createTestUser(t, client, "feed_prune_followee")
+	viewerID := createTestUser(t, client, "feed_prune_viewer")
+	post := insertTestPost(t, client, followeeID, "feed-prune-post", time.Now())
+	repository := feed.NewFeedRepository(client.Client, feed.CelebThreshold)
+
+	if err := repository.InsertEntries(ctx, []feed.Entry{
+		{UserID: int64(viewerID), PostID: int64(post.ID), Created: time.Now()},
+	}); err != nil {
+		t.Fatalf("InsertEntries() error = %v", err)
+	}
+	if err := repository.PruneByFollowee(ctx, int64(viewerID), int64(followeeID)); err != nil {
+		t.Fatalf("PruneByFollowee() error = %v", err)
+	}
+
+	items, _, err := repository.ListFeed(ctx, stringID(viewerID), nil, 10)
+	if err != nil {
+		t.Fatalf("ListFeed() error = %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("items after PruneByFollowee = %+v, want none", items)
+	}
+}
+
+func TestFeedRepositoryHybridReadIncludesCelebrityAndOwnPostsWithoutDuplicates(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	viewerID := createTestUser(t, client, "feed_hybrid_viewer")
+	celebrityID := createTestUser(t, client, "feed_hybrid_celeb")
+	repository := feed.NewFeedRepository(client.Client, feed.CelebThreshold)
+
+	if _, err := client.DB().Pool().Exec(ctx,
+		`UPDATE users SET is_celebrity = true WHERE id = $1`, celebrityID,
+	); err != nil {
+		t.Fatalf("set celebrity error = %v", err)
+	}
+	if _, err := client.DB().Pool().Exec(ctx,
+		`INSERT INTO follows (follower_id, followee_id) VALUES ($1, $2)`, viewerID, celebrityID,
+	); err != nil {
+		t.Fatalf("insert follow error = %v", err)
+	}
+
+	// Fan-out is skipped for celebrities, so this post has no materialized feed row.
+	celebPostLive := insertTestPost(t, client, celebrityID, "feed-hybrid-celeb-live", time.Now())
+	// A celebrity post that a backfill or earlier fan-out already materialized
+	// must not also surface through the live branch (no duplicate).
+	celebPostMaterialized := insertTestPost(t, client, celebrityID, "feed-hybrid-celeb-materialized", time.Now().Add(-time.Minute))
+	if err := repository.InsertEntries(ctx, []feed.Entry{
+		{UserID: int64(viewerID), PostID: int64(celebPostMaterialized.ID), Created: time.Now().Add(-time.Minute)},
+	}); err != nil {
+		t.Fatalf("InsertEntries() error = %v", err)
+	}
+	ownPost := insertTestPost(t, client, viewerID, "feed-hybrid-own", time.Now().Add(-2*time.Minute))
+
+	items, _, err := repository.ListFeed(ctx, stringID(viewerID), nil, 10)
+	if err != nil {
+		t.Fatalf("ListFeed() error = %v", err)
+	}
+	got := postIDs(items)
+	want := []int{celebPostLive.ID, celebPostMaterialized.ID, ownPost.ID}
+	if len(got) != len(want) {
+		t.Fatalf("postIDs(items) = %v, want exactly %v (no duplicates)", got, want)
+	}
+	for _, id := range want {
+		found := false
+		for _, g := range got {
+			if g == id {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("postIDs(items) = %v, missing post %d", got, id)
+		}
+	}
+}
+
+func TestFeedRepositoryListFeedPaginatesAcrossHybridSources(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	viewerID := createTestUser(t, client, "feed_page_viewer")
+	celebrityID := createTestUser(t, client, "feed_page_celeb")
+	repository := feed.NewFeedRepository(client.Client, feed.CelebThreshold)
+
+	if _, err := client.DB().Pool().Exec(ctx,
+		`UPDATE users SET is_celebrity = true WHERE id = $1`, celebrityID,
+	); err != nil {
+		t.Fatalf("set celebrity error = %v", err)
+	}
+	if _, err := client.DB().Pool().Exec(ctx,
+		`INSERT INTO follows (follower_id, followee_id) VALUES ($1, $2)`, viewerID, celebrityID,
+	); err != nil {
+		t.Fatalf("insert follow error = %v", err)
+	}
+
+	// One post reaches the viewer through the materialized `feed` table, the
+	// other two only through the live celebrity/own-post branch — a real
+	// pagination round-trip must still order and split all three correctly.
+	newest := insertTestPost(t, client, viewerID, "feed-page-own", time.Now())
+	middle := insertTestPost(t, client, celebrityID, "feed-page-celeb-live", time.Now().Add(-time.Minute))
+	oldest := insertTestPost(t, client, celebrityID, "feed-page-celeb-materialized", time.Now().Add(-2*time.Minute))
+	if err := repository.InsertEntries(ctx, []feed.Entry{
+		{UserID: int64(viewerID), PostID: int64(oldest.ID), Created: time.Now().Add(-2 * time.Minute)},
+	}); err != nil {
+		t.Fatalf("InsertEntries() error = %v", err)
+	}
+
+	firstPage, cursor, err := repository.ListFeed(ctx, stringID(viewerID), nil, 2)
+	if err != nil {
+		t.Fatalf("ListFeed() first page error = %v", err)
+	}
+	if got := postIDs(firstPage); len(got) != 2 || got[0] != newest.ID || got[1] != middle.ID {
+		t.Fatalf("first page = %v, want [%d, %d]", got, newest.ID, middle.ID)
+	}
+	if cursor == nil {
+		t.Fatal("cursor = nil, want a cursor for the remaining page")
+	}
+
+	secondPage, cursor, err := repository.ListFeed(ctx, stringID(viewerID), cursor, 2)
+	if err != nil {
+		t.Fatalf("ListFeed() second page error = %v", err)
+	}
+	if got := postIDs(secondPage); len(got) != 1 || got[0] != oldest.ID {
+		t.Fatalf("second page = %v, want [%d]", got, oldest.ID)
+	}
+	if cursor != nil {
+		t.Fatalf("cursor = %+v, want nil at the end of the feed", cursor)
+	}
+}
+
+func TestFeedRepositoryConsumerHelperQueries(t *testing.T) {
+	client := openTestClient(t)
+	ctx := context.Background()
+	authorID := createTestUser(t, client, "feed_helper_author")
+	followerID := createTestUser(t, client, "feed_helper_follower")
+	repository := feed.NewFeedRepository(client.Client, feed.CelebThreshold)
+
+	if _, err := client.DB().Pool().Exec(ctx,
+		`INSERT INTO follows (follower_id, followee_id) VALUES ($1, $2)`, followerID, authorID,
+	); err != nil {
+		t.Fatalf("insert follow error = %v", err)
+	}
+	post := insertTestPost(t, client, authorID, "feed-helper-post", time.Now())
+
+	isCelebrity, err := repository.GetUserIsCelebrity(ctx, int64(authorID))
+	if err != nil || isCelebrity {
+		t.Fatalf("GetUserIsCelebrity() = %v, %v; want false, nil", isCelebrity, err)
+	}
+
+	followers, err := repository.GetFollowers(ctx, int64(authorID))
+	if err != nil {
+		t.Fatalf("GetFollowers() error = %v", err)
+	}
+	if len(followers) != 1 || followers[0] != int64(followerID) {
+		t.Fatalf("GetFollowers() = %v, want [%d]", followers, followerID)
+	}
+
+	entries, err := repository.GetRecentPostEntries(ctx, int64(authorID), 10)
+	if err != nil {
+		t.Fatalf("GetRecentPostEntries() error = %v", err)
+	}
+	if len(entries) != 1 || entries[0].PostID != int64(post.ID) {
+		t.Fatalf("GetRecentPostEntries() = %+v, want one entry for post %d", entries, post.ID)
 	}
 }
 

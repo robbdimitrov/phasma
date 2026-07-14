@@ -20,6 +20,7 @@
   user's posts. Any other value rolls back the transaction.
 - Old avatar blob is deleted from object storage if no post or user still
   references it.
+- A successful update is recorded in `audit_log`.
 
 ## Password Change
 
@@ -129,8 +130,10 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
 - Comment deleted: delete the matching comment notification by
   `entity_id=comment_id`.
 - Unfollow: delete the matching follow notification for the actor and recipient.
-- Post deleted: delete all `like` and `comment` notifications where
-  `entity_id=post_public_id`.
+- Post deleted: delete `like` notifications in one query by
+  `entity_id=post_public_id`; delete each `comment` notification individually
+  by `entity_id=comment_id` (comment public IDs are carried in the
+  entity-changes payload, captured before cascade delete removes the rows).
 
 **Read state**:
 
