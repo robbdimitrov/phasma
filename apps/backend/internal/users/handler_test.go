@@ -314,6 +314,24 @@ func TestUpdateUserProfile(t *testing.T) {
 	}
 }
 
+func TestUpdateUserProfileTrimsBio(t *testing.T) {
+	service := &fakeService{}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/users/me", strings.NewReader(`{
+		"name":"Test User","username":"test","email":"test@example.com","bio":"  hello there  "
+	}`))
+	req = httpx.WithUserID(req, "1")
+
+	NewHandler(service).UpdateUser(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("response = %d %q", res.Code, res.Body.String())
+	}
+	if service.profileCommand.Bio == nil || *service.profileCommand.Bio != "hello there" {
+		t.Fatalf("bio = %v, want \"hello there\"", service.profileCommand.Bio)
+	}
+}
+
 func TestUpdateUserProfileOutcomes(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -46,6 +46,12 @@ Missing or unreachable PostgreSQL fails startup.
   trusted extensions or MIME headers.
 - Validate identifiers with established validators such as
   `validation.ValidUUID` and `ValidUsername`.
+- Trim free-text string input (`strings.TrimSpace`) once, immediately after
+  decoding the request body and before validating or storing it, so a
+  whitespace-only value is correctly rejected as empty and two values
+  differing only by incidental whitespace dedupe/compare as equal. Applies to
+  names, usernames, emails, bios, post descriptions, comment bodies, and
+  search queries. Do not trim passwords — their whitespace is significant.
 - Use typed fakes and `httptest` for behavior-oriented tests.
 
 ## Authentication and Authorization

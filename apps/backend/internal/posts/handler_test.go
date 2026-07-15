@@ -20,25 +20,27 @@ import (
 const testPublicID = "550e8400-e29b-41d4-a716-446655440000"
 
 type fakeStore struct {
-	post            Post
-	posts           []Post
-	found           bool
-	err             error
-	createdID       string
-	created         bool
-	deleted         bool
-	deletedFile     string
-	exists          bool
-	liked           bool
-	unliked         bool
-	requestedUser   string
-	requestedViewer string
-	requestedCursor *pagination.Cursor
-	requestedLimit  int
-	nextCursor      *pagination.Cursor
+	post               Post
+	posts              []Post
+	found              bool
+	err                error
+	createdID          string
+	created            bool
+	deleted            bool
+	deletedFile        string
+	exists             bool
+	liked              bool
+	unliked            bool
+	requestedUser      string
+	requestedViewer    string
+	requestedCursor    *pagination.Cursor
+	requestedLimit     int
+	nextCursor         *pagination.Cursor
+	createdDescription *string
 }
 
-func (s *fakeStore) CreatePost(_ context.Context, _ string, _ string, _ *string, _ []string) (string, bool, error) {
+func (s *fakeStore) CreatePost(_ context.Context, _ string, _ string, description *string, _ []string) (string, bool, error) {
+	s.createdDescription = description
 	return s.createdID, s.created, s.err
 }
 
@@ -137,6 +139,40 @@ func TestCreatePostSuccess(t *testing.T) {
 	}
 	if strings.TrimSpace(res.Body.String()) != `{"publicId":"`+testPublicID+`"}` {
 		t.Fatalf("body = %q", res.Body.String())
+	}
+}
+
+func TestCreatePostTrimsDescription(t *testing.T) {
+	store := &fakeStore{createdID: testPublicID, created: true}
+	handler := Handler{Service: NewService(store, nil)}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(`{"filename":"upload","description":"  hi  "}`))
+	req = httpx.WithUserID(req, "1")
+
+	handler.CreatePost(res, req)
+
+	if res.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusCreated)
+	}
+	if store.createdDescription == nil || *store.createdDescription != "hi" {
+		t.Fatalf("createdDescription = %v, want \"hi\"", store.createdDescription)
+	}
+}
+
+func TestCreatePostWhitespaceOnlyDescriptionBecomesNoDescription(t *testing.T) {
+	store := &fakeStore{createdID: testPublicID, created: true}
+	handler := Handler{Service: NewService(store, nil)}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(`{"filename":"upload","description":"   "}`))
+	req = httpx.WithUserID(req, "1")
+
+	handler.CreatePost(res, req)
+
+	if res.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusCreated)
+	}
+	if store.createdDescription != nil {
+		t.Fatalf("createdDescription = %v, want nil", store.createdDescription)
 	}
 }
 

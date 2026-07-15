@@ -55,6 +55,7 @@ func (h Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteMessage(w, http.StatusBadRequest, "Post filename is required.")
 		return
 	}
+	body.Description = strings.TrimSpace(body.Description)
 	if len([]rune(body.Description)) > 1000 {
 		httpx.WriteMessage(w, http.StatusBadRequest, "Description must be 1000 characters or fewer.")
 		return

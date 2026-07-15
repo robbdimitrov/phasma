@@ -217,6 +217,10 @@ func (h Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if body.Avatar != nil {
 		avatar = *body.Avatar
 	}
+	if body.Bio != nil {
+		trimmedBio := strings.TrimSpace(*body.Bio)
+		body.Bio = &trimmedBio
+	}
 	if body.Bio != nil && len([]rune(*body.Bio)) > 300 {
 		httpx.WriteMessage(w, http.StatusBadRequest, "Bio must be 300 characters or fewer.")
 		return
