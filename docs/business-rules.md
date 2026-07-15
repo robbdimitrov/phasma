@@ -161,7 +161,9 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
   username.
 - Typeahead endpoints (`/users/search`, `/hashtags/search`) use PostgreSQL
   trigram similarity (`%` operator) when Meilisearch is absent; Meilisearch when
-  present (up to 8 results).
+  present (up to 10 results per type, `typeaheadLen`). The frontend dropdown
+  interleaves both types into one combined list capped at 10
+  (`SUGGEST_DISPLAY_LIMIT`, in `interleaveSuggestions.ts`).
 - `GET /search?type=all` blends users, posts, and hashtags into one ranked
   page instead of three separate result sets (`computeBlendTargets`: roughly
   20/60/20 users/posts/hashtags per page, minimum 1 user and 1 hashtag once
@@ -175,9 +177,10 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
 
 ## Recent Searches Rules
 
-- Capped at 10 entries per authenticated user, kept independent of the
-  typeahead's 8-result cap (a live relevance list and a persisted recall list
-  solve different problems, so there's no reason to size them the same).
+- Capped at 10 entries per authenticated user. Currently the same number as
+  the typeahead's cap, but tracked as a separate constant (`recentSearchLimit`)
+  since a live relevance list and a persisted recall list solve different
+  problems and are free to diverge again without a design change.
 - Three entity types: `users`, `hashtags`, `posts`. A dropdown suggestion
   click is recorded as `users`/`hashtags` with the username/hashtag name as
   `reference`; a plain form submission is always recorded as `posts` with the

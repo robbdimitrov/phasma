@@ -12,18 +12,15 @@ function makeHashtags(n: number): HashtagSuggestion[] {
 
 describe('interleaveSuggestions', () => {
 	it('alternates users and hashtags when both have enough items', () => {
-		const items = interleaveSuggestions(makeUsers(5), makeHashtags(5));
+		const items = interleaveSuggestions(
+			makeUsers(SUGGEST_DISPLAY_LIMIT),
+			makeHashtags(SUGGEST_DISPLAY_LIMIT)
+		);
 
-		expect(items.map((i) => i.type)).toEqual([
-			'users',
-			'hashtags',
-			'users',
-			'hashtags',
-			'users',
-			'hashtags',
-			'users',
-			'hashtags'
-		]);
+		const expectedTypes = Array.from({ length: SUGGEST_DISPLAY_LIMIT }, (_, i) =>
+			i % 2 === 0 ? 'users' : 'hashtags'
+		);
+		expect(items.map((i) => i.type)).toEqual(expectedTypes);
 	});
 
 	it('caps the result at SUGGEST_DISPLAY_LIMIT', () => {

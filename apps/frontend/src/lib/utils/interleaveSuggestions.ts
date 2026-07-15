@@ -1,7 +1,7 @@
 import type { UserSuggestion, HashtagSuggestion } from '$lib/server/api/search';
 
 // Keeps the combined dropdown short enough to scan while typing.
-export const SUGGEST_DISPLAY_LIMIT = 8;
+export const SUGGEST_DISPLAY_LIMIT = 10;
 
 export type SuggestionItem =
 	| { type: 'users'; item: UserSuggestion }

@@ -24,7 +24,7 @@ var hashtagNameRe = regexp.MustCompile(`^[A-Za-z0-9_]{1,50}$`)
 
 const (
 	maxQueryLen  = 50
-	typeaheadLen = 8
+	typeaheadLen = 10
 )
 
 type Application interface {

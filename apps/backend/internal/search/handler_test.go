@@ -183,6 +183,36 @@ func newFakeMeiliClient(t *testing.T, body string) *SearchClient {
 	return &SearchClient{baseURL: server.URL, scopedKey: "test-key", httpClient: server.Client()}
 }
 
+// Regression test: typeaheadLen previously moved from 8 to 10 while the
+// PostgreSQL-fallback path in database.go stayed hardcoded at LIMIT 8. That
+// path has no dedicated test (this package has no Postgres integration
+// tests), so this at least locks down the Meilisearch-backed value.
+func TestTypeaheadSendsTypeaheadLenAsMeilisearchLimit(t *testing.T) {
+	var sentBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sentBody, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"hits":[]}`))
+	}))
+	t.Cleanup(server.Close)
+	client := &SearchClient{baseURL: server.URL, scopedKey: "test-key", httpClient: server.Client()}
+
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/users/search?q=ali", nil)
+
+	Handler{Client: client}.SearchUsers(res, req)
+
+	var sent struct {
+		Limit int `json:"limit"`
+	}
+	if err := json.Unmarshal(sentBody, &sent); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if sent.Limit != typeaheadLen {
+		t.Fatalf("limit sent to Meilisearch = %d, want typeaheadLen (%d)", sent.Limit, typeaheadLen)
+	}
+}
+
 func TestSearchUsersFullSearchIncludesNameAndAvatar(t *testing.T) {
 	client := newFakeMeiliClient(t, `{"hits":[{"username":"alice","name":"Alice","avatar":"avatar.jpg"}]}`)
 	res := httptest.NewRecorder()

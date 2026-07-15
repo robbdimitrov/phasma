@@ -23,7 +23,7 @@ func (r *SearchRepository) SearchUsers(ctx context.Context, q string) ([]UserRes
 			`SELECT username, name, avatar FROM users
 			WHERE username % $1
 			ORDER BY similarity(username, $1) DESC, username
-			LIMIT 8`, q)
+			LIMIT $2`, q, typeaheadLen)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func (r *SearchRepository) SearchHashtags(ctx context.Context, q string) ([]Hash
 			FROM hashtags h
 			WHERE h.name % $1
 			ORDER BY similarity(h.name, $1) DESC, h.name
-			LIMIT 8`, q)
+			LIMIT $2`, q, typeaheadLen)
 		if err != nil {
 			return err
 		}
@@ -109,8 +109,9 @@ func (r *SearchRepository) FollowingUsernames(ctx context.Context, viewerID stri
 }
 
 // recentSearchLimit caps how many recent-search rows are retained per user.
-// Independent of typeaheadLen: this bounds a persisted recall list, not a
-// live relevance list, so there's no reason to tie the two together.
+// A separate constant from typeaheadLen even though both are currently 10:
+// this bounds a persisted recall list, not a live relevance list, so the two
+// are free to diverge again without a design change.
 const recentSearchLimit = 10
 
 // RecordRecentSearch upserts the entry (bumping created on a repeat search

@@ -181,8 +181,8 @@ lists, creation, and deletion require a session.
 
 | Method | Path                     | Purpose                                                                                    |
 | ------ | ------------------------ | ------------------------------------------------------------------------------------------ |
-| GET    | /users/search?q=         | Typeahead user search (up to 8 results)                                                    |
-| GET    | /hashtags/search?q=      | Typeahead hashtag search (up to 8 results)                                                 |
+| GET    | /users/search?q=         | Typeahead user search (up to 10 results)                                                   |
+| GET    | /hashtags/search?q=      | Typeahead hashtag search (up to 10 results)                                                |
 | GET    | /search?q=&type=&cursor= | Full search — type: `users`, `posts`, `hashtags`, or `all` (blended); requires Meilisearch |
 | GET    | /search/recent           | List the authenticated user's recent searches (newest first, capped at 10)                 |
 | POST   | /search/recent           | Record a recent search: `{type: "users"\|"hashtags"\|"posts", reference}`                  |
