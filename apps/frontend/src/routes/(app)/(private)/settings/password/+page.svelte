@@ -65,7 +65,7 @@
 					id="old-password"
 					name="oldPassword"
 					placeholder="Current password"
-					maxlength="1024"
+					maxlength="128"
 					autocomplete="current-password"
 					required
 					class="input w-full rounded-xl pr-20"
@@ -93,7 +93,7 @@
 					name="password"
 					placeholder="New password"
 					minlength="8"
-					maxlength="1024"
+					maxlength="128"
 					autocomplete="new-password"
 					required
 					class="input w-full rounded-xl pr-20"

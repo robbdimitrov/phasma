@@ -74,7 +74,7 @@
 					id="password"
 					name="password"
 					placeholder="Password"
-					maxlength="1024"
+					maxlength="128"
 					autocomplete="current-password"
 					required
 					class="input w-full rounded-xl pr-20"

@@ -33,7 +33,7 @@
 
 ## Password Policy
 
-- Minimum 8 characters, maximum 1024 characters.
+- Minimum 8 characters, maximum 128 characters.
 - Hashed with Argon2id PHC format: `memory=19456 KiB`, `iterations=2`,
   `parallelism=1`, `saltSize=16 bytes`, `hashSize=32 bytes`.
 - Concurrent hash operations are bounded by a semaphore (default 4, configurable

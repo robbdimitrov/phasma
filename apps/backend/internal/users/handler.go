@@ -62,7 +62,7 @@ func (h Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validation.ValidPassword(body.Password) {
-		httpx.WriteMessage(w, http.StatusBadRequest, "Password must be between 8 and 1024 characters long.")
+		httpx.WriteMessage(w, http.StatusBadRequest, "Password must be between 8 and 128 characters long.")
 		return
 	}
 	if !validation.ValidEmail(email) {
@@ -247,7 +247,7 @@ func (h Handler) updatePassword(w http.ResponseWriter, r *http.Request, userID, 
 		return
 	}
 	if !validation.ValidPassword(password) {
-		httpx.WriteMessage(w, http.StatusBadRequest, "Password must be between 8 and 1024 characters long.")
+		httpx.WriteMessage(w, http.StatusBadRequest, "Password must be between 8 and 128 characters long.")
 		return
 	}
 

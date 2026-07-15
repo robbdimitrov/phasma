@@ -19,5 +19,5 @@ func ValidUUID(value string) bool {
 }
 
 func ValidPassword(p string) bool {
-	return len(p) >= 8 && len(p) <= 1024
+	return len(p) >= 8 && len(p) <= 128
 }

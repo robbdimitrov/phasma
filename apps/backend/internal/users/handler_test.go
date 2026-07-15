@@ -97,8 +97,8 @@ func TestCreateUserValidation(t *testing.T) {
 	}{
 		{"missing field", `{"name":"Test","username":"test","email":"test@example.com"}`, "Name, username, email and password are required."},
 		{"invalid username", `{"name":"Test","username":"bad-name","email":"test@example.com","password":"password123"}`, "Username must be 3-30 characters"},
-		{"short password", `{"name":"Test","username":"test","email":"test@example.com","password":"short"}`, "Password must be between 8 and 1024 characters long."},
-		{"long password", `{"name":"Test","username":"test","email":"test@example.com","password":"` + strings.Repeat("a", 1025) + `"}`, "Password must be between 8 and 1024 characters long."},
+		{"short password", `{"name":"Test","username":"test","email":"test@example.com","password":"short"}`, "Password must be between 8 and 128 characters long."},
+		{"long password", `{"name":"Test","username":"test","email":"test@example.com","password":"` + strings.Repeat("a", 129) + `"}`, "Password must be between 8 and 128 characters long."},
 		{"invalid email", `{"name":"Test","username":"test","email":"invalid","password":"password123"}`, "Invalid email address."},
 	}
 

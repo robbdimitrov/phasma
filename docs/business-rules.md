@@ -7,7 +7,7 @@
   all users.
 - Email: matches `^[^@\s]+@[^@\s]+\.[^@\s]+$`, normalized to lowercase. Unique
   across all users.
-- Password: 8–1024 bytes.
+- Password: 8–128 bytes.
 - Duplicate username or email returns 409 Conflict.
 
 ## Profile Updates

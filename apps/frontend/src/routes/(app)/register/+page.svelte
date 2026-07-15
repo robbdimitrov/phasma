@@ -114,7 +114,7 @@
 					name="password"
 					placeholder="Password"
 					minlength="8"
-					maxlength="1024"
+					maxlength="128"
 					autocomplete="new-password"
 					required
 					class="input w-full rounded-xl pr-20"
