@@ -44,7 +44,6 @@ STATIC_MANIFESTS=(
   "serviceaccounts.yaml"
   "networkpolicy.yaml"
   "pdb.yaml"
-  "ingress.yaml"
 )
 
 log() {

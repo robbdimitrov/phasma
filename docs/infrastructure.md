@@ -86,11 +86,12 @@ these accounts.
 
 ## Services and Networking
 
-All services are cluster-internal only. The nginx Ingress exposes only the
-`frontend` service on port 8080. NetworkPolicies default-deny both ingress and
-egress in the namespace. Egress is re-opened only for kube-dns (all pods), and
-for the specific pod-to-pod paths required by the service graph:
-frontend→backend, backend→database/cache/search/storage/broker,
+All services are cluster-internal only. No Ingress controller runs in this
+local cluster; `scripts/deploy.sh` exposes `frontend` via `kubectl
+port-forward` instead. NetworkPolicies default-deny both ingress and egress in
+the namespace. Egress is re-opened only for kube-dns (all pods), and for the
+specific pod-to-pod paths required by the service graph: frontend→backend,
+backend→database/cache/search/storage/broker,
 broker→database/search/storage/broker. Ingress is re-opened symmetrically.
 
 | Service name | Port | Protocol         |
@@ -110,12 +111,6 @@ broker→database/search/storage/broker. Ingress is re-opened symmetrically.
 `broker-backfill` Job so NetworkPolicies can group them; the `broker` Service
 and `broker-pdb` additionally require `component: broker` so they only ever
 select the StatefulSet's own pod.
-
-## Ingress
-
-nginx Ingress at `phasma.localhost`. Routes plain HTTP traffic to
-`frontend:8080`; this deployment has no TLS termination (local k3s only).
-`proxy-body-size: 2m` accommodates 1 MB image uploads plus multipart overhead.
 
 ## Database TLS
 
@@ -282,7 +277,7 @@ rolled out. Override the namespace and wait budget with `NAMESPACE=...` and
 | `CACHE_PASSWORD`                    | secret                           | Cache auth                                                                                                   |
 | `CACHE_CONN_LIFETIME_MINUTES`       | optional                         | Dragonfly client connection lifetime; defaults to 30                                                         |
 | `CACHE_CONN_WRITE_TIMEOUT_MS`       | optional                         | Dragonfly connection write deadline; defaults to 3000                                                        |
-| `TRUST_PROXY`                       | literal `"true"`                 | Honor valid X-Forwarded-\* headers from the ingress, which must overwrite client-supplied forwarding headers |
+| `TRUST_PROXY`                       | literal `"true"`                 | Honor `X-Forwarded-For` from the frontend BFF, which overwrites it with the real client address before proxying |
 | `MEILI_URL`                         | literal                          | Meilisearch endpoint                                                                                         |
 | `MEILI_MASTER_KEY`                  | secret                           | Meilisearch key provisioning                                                                                 |
 | `REDPANDA_BROKERS`                  | literal                          | Kafka broker address for consumers                                                                           |
@@ -302,7 +297,7 @@ rolled out. Override the namespace and wait budget with `NAMESPACE=...` and
 | `HOST_HEADER`     | literal                | Proxy host header                                                             |
 | `ADDRESS_HEADER`  | literal                | Proxy client IP header                                                        |
 
-The frontend production manifest does not hardcode `ORIGIN`; adapter-node
-derives the request origin from `X-Forwarded-Proto` and `X-Forwarded-Host` set
-by the ingress. `scripts/deploy.sh` sets a local `ORIGIN` override only for
-direct service port-forwarding.
+`PROTOCOL_HEADER`/`HOST_HEADER`/`ADDRESS_HEADER` configure adapter-node to
+derive the request origin and client address from a trusted reverse proxy's
+forwarded headers, if one is ever placed in front. Locally, no such proxy
+exists, so `scripts/deploy.sh` sets `ORIGIN` directly instead.
