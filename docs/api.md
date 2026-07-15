@@ -184,6 +184,10 @@ lists, creation, and deletion require a session.
 | GET    | /users/search?q=         | Typeahead user search (up to 8 results)                                                    |
 | GET    | /hashtags/search?q=      | Typeahead hashtag search (up to 8 results)                                                 |
 | GET    | /search?q=&type=&cursor= | Full search — type: `users`, `posts`, `hashtags`, or `all` (blended); requires Meilisearch |
+| GET    | /search/recent           | List the authenticated user's recent searches (newest first, capped at 10)                 |
+| POST   | /search/recent           | Record a recent search: `{type: "users"\|"hashtags"\|"posts", reference}`                  |
+| DELETE | /search/recent/{id}      | Remove one recent search                                                                    |
+| DELETE | /search/recent           | Clear all of the authenticated user's recent searches                                       |
 
 #### Notifications
 
@@ -268,6 +272,39 @@ item shape>}`. Users the viewer follows are boosted to the front of the
 `GET /users/search` and `GET /hashtags/search` typeahead results share the
 same `avatar`/`name`/`postCount` fields as the corresponding `/search` item
 shapes.
+
+## Recent Searches (`/search/recent`)
+
+`GET /search/recent` returns the authenticated user's search history, newest
+first, capped at 10 entries, in the same `{"type", "item"}` shape as
+`GET /search?type=all`'s blended items (plus an `id`):
+
+```json
+[
+  { "id": "01904d2e-...", "type": "users", "item": { "username": "alice", "name": "Alice", "avatar": null } },
+  { "id": "01904d2e-...", "type": "hashtags", "item": { "name": "cats", "postCount": 12 } },
+  { "id": "01904d2e-...", "type": "posts", "item": "sunset beach" }
+]
+```
+
+For `type: "posts"`, `item` is the raw, verbatim query text the user
+submitted (including any `@`/`#` prefix) rather than a post — see
+`docs/business-rules.md` for why suggestion clicks and free-text submissions
+are recorded differently.
+
+`POST /search/recent` records `{type: "users"|"hashtags"|"posts", reference}`.
+`reference` is validated the same way the corresponding value is validated
+everywhere else it's accepted (username shape for `users`, hashtag name shape
+for `hashtags`, 1–50 UTF-8 runes for `posts`); an invalid `type` or `reference`
+returns 400. Recording the same `(type, reference)` again bumps it to the top
+instead of duplicating it; the list is silently trimmed back to 10 entries.
+
+`DELETE /search/recent/{id}` requires `id` to be a valid UUID, returns 400
+otherwise. Returns 204 on success, 404 when the entry does not exist or
+belongs to another user (ownership is enforced in the `DELETE` query).
+
+`DELETE /search/recent` clears all of the authenticated user's recent
+searches and returns 204.
 
 ## User Object Shape
 

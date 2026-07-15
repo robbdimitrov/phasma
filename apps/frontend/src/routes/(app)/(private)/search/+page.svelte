@@ -6,6 +6,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
+	import { recordRecentSearch } from '$lib/utils/recentSearch';
 	import SearchDiscovery from './SearchDiscovery.svelte';
 	import SearchPostThumbnail from './SearchPostThumbnail.svelte';
 	import SearchSuggestions from './SearchSuggestions.svelte';
@@ -100,8 +101,16 @@
 		e.preventDefault();
 		clearTimeout(debounceTimer);
 		closeSuggestions();
-		const value = inputEl?.value ?? '';
+		// Trimmed once, up front: a whitespace-only submission should behave
+		// like an empty one, and the trimmed value is what gets recorded,
+		// searched, and shown in the URL/title (matching the backend, which
+		// trims before validating).
+		const value = (inputEl?.value ?? '').trim();
 		if (!value) return;
+		// Recorded as-is (prefix included): this always lands on
+		// /search?q=<value>, never a profile/hashtag page directly, so it must
+		// replay to the same posts-results page it originally produced.
+		recordRecentSearch('posts', value);
 		goto(resolve(buildSearchUrl(value)));
 	}
 
@@ -158,7 +167,7 @@
 	</form>
 
 	{#if !data.q}
-		<SearchDiscovery suggested={data.suggested} popular={data.popular} />
+		<SearchDiscovery recent={data.recent} suggested={data.suggested} popular={data.popular} />
 	{:else if resultsPagination.items.length === 0}
 		<EmptyState
 			icon="triangle-alert"

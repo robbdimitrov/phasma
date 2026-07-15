@@ -12,6 +12,12 @@ type fakeRepository struct {
 	hashtagsContext context.Context
 	usersQuery      string
 	hashtagsQuery   string
+
+	recentItems []RecentSearchItem
+	recordCall  recordRecentSearchCall
+	listUserID  string
+	deleteCall  [2]string // userID, publicID
+	clearUserID string
 }
 
 func (r *fakeRepository) SearchUsers(ctx context.Context, q string) ([]UserResult, error) {
@@ -28,6 +34,26 @@ func (r *fakeRepository) SearchHashtags(ctx context.Context, q string) ([]Hashta
 
 func (r *fakeRepository) FollowingUsernames(_ context.Context, _ string, _ []string) (map[string]bool, error) {
 	return map[string]bool{}, nil
+}
+
+func (r *fakeRepository) RecordRecentSearch(_ context.Context, userID, entityType, reference string) error {
+	r.recordCall = recordRecentSearchCall{userID, entityType, reference}
+	return nil
+}
+
+func (r *fakeRepository) ListRecentSearches(_ context.Context, userID string) ([]RecentSearchItem, error) {
+	r.listUserID = userID
+	return r.recentItems, nil
+}
+
+func (r *fakeRepository) DeleteRecentSearch(_ context.Context, userID, publicID string) error {
+	r.deleteCall = [2]string{userID, publicID}
+	return nil
+}
+
+func (r *fakeRepository) ClearRecentSearches(_ context.Context, userID string) error {
+	r.clearUserID = userID
+	return nil
 }
 
 func TestServiceDelegatesSearchesWithoutChangingResults(t *testing.T) {
@@ -61,5 +87,41 @@ func TestServiceDelegatesSearchesWithoutChangingResults(t *testing.T) {
 	}
 	if repository.usersContext != ctx || repository.hashtagsContext != ctx {
 		t.Fatal("service did not pass request context to repository")
+	}
+}
+
+func TestServiceDelegatesRecentSearches(t *testing.T) {
+	want := []RecentSearchItem{{ID: "id-1", Type: "posts", Item: "cats"}}
+	repository := &fakeRepository{recentItems: want}
+	service := NewService(repository)
+	ctx := context.Background()
+
+	if err := service.RecordRecentSearch(ctx, "42", "users", "alice"); err != nil {
+		t.Fatal(err)
+	}
+	if repository.recordCall != (recordRecentSearchCall{"42", "users", "alice"}) {
+		t.Fatalf("recordCall = %+v", repository.recordCall)
+	}
+
+	got, err := service.ListRecentSearches(ctx, "42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].ID != want[0].ID || repository.listUserID != "42" {
+		t.Fatalf("ListRecentSearches = %+v, userID = %q", got, repository.listUserID)
+	}
+
+	if err := service.DeleteRecentSearch(ctx, "42", "public-1"); err != nil {
+		t.Fatal(err)
+	}
+	if repository.deleteCall != [2]string{"42", "public-1"} {
+		t.Fatalf("deleteCall = %v", repository.deleteCall)
+	}
+
+	if err := service.ClearRecentSearches(ctx, "42"); err != nil {
+		t.Fatal(err)
+	}
+	if repository.clearUserID != "42" {
+		t.Fatalf("clearUserID = %q, want %q", repository.clearUserID, "42")
 	}
 }

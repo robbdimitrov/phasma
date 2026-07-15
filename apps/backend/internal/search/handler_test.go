@@ -10,7 +10,12 @@ import (
 	"testing"
 
 	"phasma/backend/internal/httpx"
+	"phasma/backend/internal/store"
 )
+
+type recordRecentSearchCall struct {
+	userID, entityType, reference string
+}
 
 type fakeApplication struct {
 	users          []UserResult
@@ -21,6 +26,14 @@ type fakeApplication struct {
 	hashtagsCalled bool
 	following      map[string]bool
 	followingCalls [][]string
+
+	recentItems    []RecentSearchItem
+	recentErr      error
+	recordCalls    []recordRecentSearchCall
+	listCalls      []string
+	deleteCalls    []string
+	deletePublicID string
+	clearCalls     []string
 }
 
 func (a *fakeApplication) SearchUsers(_ context.Context, q string) ([]UserResult, error) {
@@ -41,6 +54,30 @@ func (a *fakeApplication) FollowingUsernames(_ context.Context, _ string, userna
 		return map[string]bool{}, nil
 	}
 	return a.following, nil
+}
+
+func (a *fakeApplication) RecordRecentSearch(_ context.Context, userID, entityType, reference string) error {
+	a.recordCalls = append(a.recordCalls, recordRecentSearchCall{userID, entityType, reference})
+	return a.recentErr
+}
+
+func (a *fakeApplication) ListRecentSearches(_ context.Context, userID string) ([]RecentSearchItem, error) {
+	a.listCalls = append(a.listCalls, userID)
+	if a.recentErr != nil {
+		return nil, a.recentErr
+	}
+	return a.recentItems, nil
+}
+
+func (a *fakeApplication) DeleteRecentSearch(_ context.Context, userID, publicID string) error {
+	a.deleteCalls = append(a.deleteCalls, userID)
+	a.deletePublicID = publicID
+	return a.recentErr
+}
+
+func (a *fakeApplication) ClearRecentSearches(_ context.Context, userID string) error {
+	a.clearCalls = append(a.clearCalls, userID)
+	return a.recentErr
 }
 
 func TestSearchQueryValidation(t *testing.T) {
@@ -374,6 +411,239 @@ func TestSearchAllRejectsInvalidHashtag(t *testing.T) {
 
 	if res.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusBadRequest)
+	}
+}
+
+func TestRecordRecentSearchRequiresSession(t *testing.T) {
+	application := &fakeApplication{}
+	res := httptest.NewRecorder()
+	body := strings.NewReader(`{"type":"users","reference":"alice"}`)
+	req := httptest.NewRequest(http.MethodPost, "/search/recent", body)
+
+	Handler{Service: application}.RecordRecentSearch(res, req)
+
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+	}
+	if len(application.recordCalls) != 0 {
+		t.Fatal("unauthenticated request reached service")
+	}
+}
+
+func TestRecordRecentSearchValidatesTypeAndReference(t *testing.T) {
+	tests := []struct {
+		name      string
+		entType   string
+		reference string
+	}{
+		{name: "unknown type", entType: "posts_of_users", reference: "alice"},
+		{name: "users invalid username", entType: "users", reference: "not a username!"},
+		{name: "hashtags invalid name", entType: "hashtags", reference: "not valid!"},
+		{name: "posts empty", entType: "posts", reference: ""},
+		{name: "posts whitespace-only", entType: "posts", reference: "   "},
+		{name: "posts too long", entType: "posts", reference: strings.Repeat("界", 51)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			application := &fakeApplication{}
+			res := httptest.NewRecorder()
+			payload, _ := json.Marshal(recordRecentSearchRequest{Type: tt.entType, Reference: tt.reference})
+			req := httptest.NewRequest(http.MethodPost, "/search/recent", strings.NewReader(string(payload)))
+			req = httpx.WithUserID(req, "42")
+
+			Handler{Service: application}.RecordRecentSearch(res, req)
+
+			if res.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", res.Code, http.StatusBadRequest)
+			}
+			if len(application.recordCalls) != 0 {
+				t.Fatal("invalid input reached service")
+			}
+		})
+	}
+}
+
+func TestRecordRecentSearchDelegatesValidInput(t *testing.T) {
+	tests := []struct {
+		name      string
+		entType   string
+		reference string
+	}{
+		{name: "users", entType: "users", reference: "alice"},
+		{name: "hashtags", entType: "hashtags", reference: "cats"},
+		{name: "posts", entType: "posts", reference: "sunset beach"},
+		{name: "posts with hashtag prefix", entType: "posts", reference: "#vacation"},
+		{name: "posts with user prefix", entType: "posts", reference: "@bob"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			application := &fakeApplication{}
+			res := httptest.NewRecorder()
+			payload, _ := json.Marshal(recordRecentSearchRequest{Type: tt.entType, Reference: tt.reference})
+			req := httptest.NewRequest(http.MethodPost, "/search/recent", strings.NewReader(string(payload)))
+			req = httpx.WithUserID(req, "42")
+
+			Handler{Service: application}.RecordRecentSearch(res, req)
+
+			if res.Code != http.StatusNoContent {
+				t.Fatalf("status = %d, want %d, body = %s", res.Code, http.StatusNoContent, res.Body.String())
+			}
+			if len(application.recordCalls) != 1 {
+				t.Fatalf("recordCalls = %d, want 1", len(application.recordCalls))
+			}
+			got := application.recordCalls[0]
+			if got.userID != "42" || got.entityType != tt.entType || got.reference != tt.reference {
+				t.Fatalf("call = %+v, want {42 %s %s}", got, tt.entType, tt.reference)
+			}
+		})
+	}
+}
+
+func TestRecordRecentSearchTrimsWhitespaceBeforeValidatingAndStoring(t *testing.T) {
+	application := &fakeApplication{}
+	res := httptest.NewRecorder()
+	payload, _ := json.Marshal(recordRecentSearchRequest{Type: "  posts  ", Reference: "  cats  "})
+	req := httptest.NewRequest(http.MethodPost, "/search/recent", strings.NewReader(string(payload)))
+	req = httpx.WithUserID(req, "42")
+
+	Handler{Service: application}.RecordRecentSearch(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d, body = %s", res.Code, http.StatusNoContent, res.Body.String())
+	}
+	if len(application.recordCalls) != 1 {
+		t.Fatalf("recordCalls = %d, want 1", len(application.recordCalls))
+	}
+	got := application.recordCalls[0]
+	if got.entityType != "posts" || got.reference != "cats" {
+		t.Fatalf("call = %+v, want entityType \"posts\" reference \"cats\"", got)
+	}
+}
+
+func TestListRecentSearchesRequiresSession(t *testing.T) {
+	application := &fakeApplication{}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/search/recent", nil)
+
+	Handler{Service: application}.ListRecentSearches(res, req)
+
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestListRecentSearchesReturnsBlendedItemShape(t *testing.T) {
+	application := &fakeApplication{recentItems: []RecentSearchItem{
+		{ID: "id-1", Type: "users", Item: UserResult{Username: "alice", Name: "Alice"}},
+		{ID: "id-2", Type: "hashtags", Item: HashtagResult{Name: "cats", PostCount: 4}},
+		{ID: "id-3", Type: "posts", Item: "sunset beach"},
+	}}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/search/recent", nil)
+	req = httpx.WithUserID(req, "42")
+
+	Handler{Service: application}.ListRecentSearches(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	var items []struct {
+		ID   string          `json:"id"`
+		Type string          `json:"type"`
+		Item json.RawMessage `json:"item"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &items); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("items = %d, want 3", len(items))
+	}
+	if items[2].Type != "posts" || string(items[2].Item) != `"sunset beach"` {
+		t.Fatalf("posts item = %+v", items[2])
+	}
+	if application.listCalls[0] != "42" {
+		t.Fatalf("listCalls = %v, want [42]", application.listCalls)
+	}
+}
+
+func TestDeleteRecentSearchValidatesID(t *testing.T) {
+	application := &fakeApplication{}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/search/recent/not-a-uuid", nil)
+	req.SetPathValue("id", "not-a-uuid")
+	req = httpx.WithUserID(req, "42")
+
+	Handler{Service: application}.DeleteRecentSearch(res, req)
+
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusBadRequest)
+	}
+	if len(application.deleteCalls) != 0 {
+		t.Fatal("invalid id reached service")
+	}
+}
+
+func TestDeleteRecentSearchEnforcesOwnership(t *testing.T) {
+	const otherUsersID = "01904d2e-7f4d-7c33-ae21-2f94737eaa10"
+	application := &fakeApplication{recentErr: store.ErrNotFound}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/search/recent/"+otherUsersID, nil)
+	req.SetPathValue("id", otherUsersID)
+	req = httpx.WithUserID(req, "42")
+
+	Handler{Service: application}.DeleteRecentSearch(res, req)
+
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNotFound)
+	}
+	if application.deletePublicID != otherUsersID {
+		t.Fatalf("deletePublicID = %q, want %q", application.deletePublicID, otherUsersID)
+	}
+}
+
+func TestDeleteRecentSearchSucceeds(t *testing.T) {
+	const id = "01904d2e-7f4d-7c33-ae21-2f94737eaa10"
+	application := &fakeApplication{}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/search/recent/"+id, nil)
+	req.SetPathValue("id", id)
+	req = httpx.WithUserID(req, "42")
+
+	Handler{Service: application}.DeleteRecentSearch(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+	if len(application.deleteCalls) != 1 || application.deleteCalls[0] != "42" {
+		t.Fatalf("deleteCalls = %v, want [42]", application.deleteCalls)
+	}
+}
+
+func TestClearRecentSearchesRequiresSession(t *testing.T) {
+	application := &fakeApplication{}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/search/recent", nil)
+
+	Handler{Service: application}.ClearRecentSearches(res, req)
+
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestClearRecentSearchesSucceeds(t *testing.T) {
+	application := &fakeApplication{}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/search/recent", nil)
+	req = httpx.WithUserID(req, "42")
+
+	Handler{Service: application}.ClearRecentSearches(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+	if len(application.clearCalls) != 1 || application.clearCalls[0] != "42" {
+		t.Fatalf("clearCalls = %v, want [42]", application.clearCalls)
 	}
 }
 

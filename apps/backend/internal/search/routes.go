@@ -12,4 +12,8 @@ type routeRegistrar interface {
 func RegisterRoutes(mux routeRegistrar, handler Handler) {
 	mux.HandleFunc("GET /hashtags/search", handler.SearchHashtags)
 	mux.HandleFunc("GET /search", handler.Search)
+	mux.HandleFunc("GET /search/recent", handler.ListRecentSearches)
+	mux.HandleFunc("POST /search/recent", handler.RecordRecentSearch)
+	mux.HandleFunc("DELETE /search/recent/{id}", handler.DeleteRecentSearch)
+	mux.HandleFunc("DELETE /search/recent", handler.ClearRecentSearches)
 }

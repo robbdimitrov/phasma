@@ -2,9 +2,13 @@ import { fail, isHttpError, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	search,
+	listRecentSearches,
+	deleteRecentSearch,
+	clearRecentSearches,
 	type SearchPostItem,
 	type SearchAllItem,
-	type SearchPage
+	type SearchPage,
+	type RecentSearchItem
 } from '$lib/server/api/search';
 import { getSuggestedUsers, followUser, unfollowUser } from '$lib/server/api/users';
 import { getPopularPosts } from '$lib/server/api/posts';
@@ -41,11 +45,16 @@ export const load: PageServerLoad = async (event) => {
 
 	if (!q || q.length > MAX_Q_LENGTH) {
 		const api = apiClient(event);
-		const [suggested, popular] = await Promise.all([getSuggestedUsers(api), getPopularPosts(api)]);
+		const [recent, suggested, popular] = await Promise.all([
+			listRecentSearches(api).catch((): RecentSearchItem[] => []),
+			getSuggestedUsers(api),
+			getPopularPosts(api)
+		]);
 		return {
 			q,
 			resultsQuery: q,
 			results: EMPTY_RESULTS,
+			recent,
 			suggested: suggested.items,
 			popular: popular.items
 		};
@@ -64,10 +73,35 @@ export const load: PageServerLoad = async (event) => {
 		}).then(wrapPosts)
 	);
 
-	return { q, resultsQuery, results: await results, suggested: [], popular: [] };
+	return { q, resultsQuery, results: await results, recent: [], suggested: [], popular: [] };
 };
 
 export const actions: Actions = {
+	removeRecent: async (event) => {
+		if (!event.cookies.get('session')) throw redirect(303, '/login');
+		const api = apiClient(event);
+		const data = await event.request.formData();
+		const id = (data.get('id') as string) ?? '';
+		if (!id) return fail(400, { error: 'Missing id.' });
+		try {
+			await deleteRecentSearch(api, id);
+		} catch (cause) {
+			if (isHttpError(cause) && cause.status === 401) throw redirect(303, '/login');
+			return fail(503, { error: 'Could not remove recent search.' });
+		}
+		return { success: true };
+	},
+	clearRecent: async (event) => {
+		if (!event.cookies.get('session')) throw redirect(303, '/login');
+		const api = apiClient(event);
+		try {
+			await clearRecentSearches(api);
+		} catch (cause) {
+			if (isHttpError(cause) && cause.status === 401) throw redirect(303, '/login');
+			return fail(503, { error: 'Could not clear recent searches.' });
+		}
+		return { success: true };
+	},
 	follow: async (event) => {
 		if (!event.cookies.get('session')) throw redirect(303, '/login');
 		const api = apiClient(event);

@@ -1,18 +1,35 @@
 import { error, isRedirect } from '@sveltejs/kit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiClient, search, getSuggestedUsers, getPopularPosts, followUser, unfollowUser } =
-	vi.hoisted(() => ({
-		apiClient: vi.fn(() => vi.fn()),
-		search: vi.fn(),
-		getSuggestedUsers: vi.fn(),
-		getPopularPosts: vi.fn(),
-		followUser: vi.fn(),
-		unfollowUser: vi.fn()
-	}));
+const {
+	apiClient,
+	search,
+	listRecentSearches,
+	deleteRecentSearch,
+	clearRecentSearches,
+	getSuggestedUsers,
+	getPopularPosts,
+	followUser,
+	unfollowUser
+} = vi.hoisted(() => ({
+	apiClient: vi.fn(() => vi.fn()),
+	search: vi.fn(),
+	listRecentSearches: vi.fn(),
+	deleteRecentSearch: vi.fn(),
+	clearRecentSearches: vi.fn(),
+	getSuggestedUsers: vi.fn(),
+	getPopularPosts: vi.fn(),
+	followUser: vi.fn(),
+	unfollowUser: vi.fn()
+}));
 
 vi.mock('$lib/server/api/client', () => ({ apiClient }));
-vi.mock('$lib/server/api/search', () => ({ search }));
+vi.mock('$lib/server/api/search', () => ({
+	search,
+	listRecentSearches,
+	deleteRecentSearch,
+	clearRecentSearches
+}));
 vi.mock('$lib/server/api/users', () => ({ getSuggestedUsers, followUser, unfollowUser }));
 vi.mock('$lib/server/api/posts', () => ({ getPopularPosts }));
 
@@ -45,6 +62,24 @@ function usernameFormData(username?: string) {
 	return data;
 }
 
+function removeRecentAction() {
+	const action = actions.removeRecent;
+	if (!action) throw new Error('removeRecent action is not defined');
+	return action;
+}
+
+function clearRecentAction() {
+	const action = actions.clearRecent;
+	if (!action) throw new Error('clearRecent action is not defined');
+	return action;
+}
+
+function idFormData(id?: string) {
+	const data = new FormData();
+	if (id !== undefined) data.set('id', id);
+	return data;
+}
+
 function loadEvent(url: string): Parameters<typeof load>[0] {
 	return {
 		url: new URL(url),
@@ -55,6 +90,7 @@ function loadEvent(url: string): Parameters<typeof load>[0] {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	listRecentSearches.mockResolvedValue([]);
 });
 
 function backendError(status: number): unknown {
@@ -82,6 +118,7 @@ describe('search page load', () => {
 	it('shows discovery content for an empty query', async () => {
 		getSuggestedUsers.mockResolvedValue({ items: [{ username: 'alice' }] });
 		getPopularPosts.mockResolvedValue({ items: [{ publicId: 'post-1' }] });
+		listRecentSearches.mockResolvedValue([{ id: 'r1', type: 'posts', item: 'sunset' }]);
 
 		const result = await load(loadEvent('http://localhost/search'));
 
@@ -89,10 +126,21 @@ describe('search page load', () => {
 			q: '',
 			resultsQuery: '',
 			results: { items: [], nextCursor: null },
+			recent: [{ id: 'r1', type: 'posts', item: 'sunset' }],
 			suggested: [{ username: 'alice' }],
 			popular: [{ publicId: 'post-1' }]
 		});
 		expect(search).not.toHaveBeenCalled();
+	});
+
+	it('degrades a failing recent-searches fetch to an empty list instead of failing the page', async () => {
+		getSuggestedUsers.mockResolvedValue({ items: [] });
+		getPopularPosts.mockResolvedValue({ items: [] });
+		listRecentSearches.mockRejectedValue(new Error('backend down'));
+
+		const result = await load(loadEvent('http://localhost/search'));
+
+		expect(result).toMatchObject({ recent: [] });
 	});
 
 	it('shows discovery content when the query exceeds the length limit', async () => {
@@ -123,6 +171,7 @@ describe('search page load', () => {
 			q: 'alice',
 			resultsQuery: 'alice',
 			results: { items: [{ type: 'posts', item: { id: 'p1' } }], nextCursor: null },
+			recent: [],
 			suggested: [],
 			popular: []
 		});
@@ -175,6 +224,7 @@ describe('search page load', () => {
 			q: 'alice',
 			resultsQuery: 'alice',
 			results: { items: [], nextCursor: null },
+			recent: [],
 			suggested: [],
 			popular: []
 		});
@@ -260,6 +310,94 @@ describe('search page unfollow action', () => {
 		const result = await unfollowAction()(actionEvent(usernameFormData('alice')));
 
 		expect(unfollowUser).toHaveBeenCalledWith(expect.anything(), 'alice');
+		expect(result).toEqual({ success: true });
+	});
+});
+
+describe('search page removeRecent action', () => {
+	it('redirects anonymous submissions to /login', async () => {
+		try {
+			await removeRecentAction()(actionEvent(idFormData('r1'), null));
+			expect.unreachable('expected a redirect to be thrown');
+		} catch (err) {
+			if (!isRedirect(err)) throw err;
+			expect(err.status).toBe(303);
+			expect(err.location).toBe('/login');
+		}
+		expect(deleteRecentSearch).not.toHaveBeenCalled();
+	});
+
+	it('rejects a submission missing id before calling the backend', async () => {
+		const result = await removeRecentAction()(actionEvent(idFormData()));
+
+		expect(result).toMatchObject({ status: 400 });
+		expect(deleteRecentSearch).not.toHaveBeenCalled();
+	});
+
+	it('reports a backend failure instead of silently succeeding', async () => {
+		deleteRecentSearch.mockRejectedValue(new Error('backend down'));
+
+		const result = await removeRecentAction()(actionEvent(idFormData('r1')));
+
+		expect(result).toMatchObject({
+			status: 503,
+			data: { error: 'Could not remove recent search.' }
+		});
+	});
+
+	it('redirects expired sessions to /login', async () => {
+		deleteRecentSearch.mockRejectedValue(backendError(401));
+
+		try {
+			await removeRecentAction()(actionEvent(idFormData('r1')));
+			expect.unreachable('expected a redirect to be thrown');
+		} catch (err) {
+			if (!isRedirect(err)) throw err;
+			expect(err.status).toBe(303);
+			expect(err.location).toBe('/login');
+		}
+	});
+
+	it('succeeds when the backend call succeeds', async () => {
+		deleteRecentSearch.mockResolvedValue(null);
+
+		const result = await removeRecentAction()(actionEvent(idFormData('r1')));
+
+		expect(deleteRecentSearch).toHaveBeenCalledWith(expect.anything(), 'r1');
+		expect(result).toEqual({ success: true });
+	});
+});
+
+describe('search page clearRecent action', () => {
+	it('redirects anonymous submissions to /login', async () => {
+		try {
+			await clearRecentAction()(actionEvent(new FormData(), null));
+			expect.unreachable('expected a redirect to be thrown');
+		} catch (err) {
+			if (!isRedirect(err)) throw err;
+			expect(err.status).toBe(303);
+			expect(err.location).toBe('/login');
+		}
+		expect(clearRecentSearches).not.toHaveBeenCalled();
+	});
+
+	it('reports a backend failure instead of silently succeeding', async () => {
+		clearRecentSearches.mockRejectedValue(new Error('backend down'));
+
+		const result = await clearRecentAction()(actionEvent(new FormData()));
+
+		expect(result).toMatchObject({
+			status: 503,
+			data: { error: 'Could not clear recent searches.' }
+		});
+	});
+
+	it('succeeds when the backend call succeeds', async () => {
+		clearRecentSearches.mockResolvedValue(null);
+
+		const result = await clearRecentAction()(actionEvent(new FormData()));
+
+		expect(clearRecentSearches).toHaveBeenCalledWith(expect.anything());
 		expect(result).toEqual({ success: true });
 	});
 });

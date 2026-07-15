@@ -67,3 +67,38 @@ export async function search<T = SearchItem>(
 	const page = await unwrap<SearchPage<T>>(res);
 	return { items: page?.items ?? [], nextCursor: page?.nextCursor ?? null };
 }
+
+// Mirrors SearchAllItem's {type, item} discriminated union, but the `posts`
+// variant here is the raw submitted query text, not a real post.
+export type RecentSearchItem =
+	| { id: string; type: 'users'; item: SearchUserItem }
+	| { id: string; type: 'hashtags'; item: SearchHashtagItem }
+	| { id: string; type: 'posts'; item: string };
+
+export async function listRecentSearches(fetch: ApiClient): Promise<RecentSearchItem[]> {
+	const res = await fetch('/search/recent');
+	return (await unwrap<RecentSearchItem[]>(res)) ?? [];
+}
+
+export async function recordRecentSearch(
+	fetch: ApiClient,
+	type: string,
+	reference: string
+): Promise<null> {
+	const res = await fetch('/search/recent', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ type, reference })
+	});
+	return unwrap<null>(res);
+}
+
+export async function deleteRecentSearch(fetch: ApiClient, id: string): Promise<null> {
+	const res = await fetch(`/search/recent/${encodeURIComponent(id)}`, { method: 'DELETE' });
+	return unwrap<null>(res);
+}
+
+export async function clearRecentSearches(fetch: ApiClient): Promise<null> {
+	const res = await fetch('/search/recent', { method: 'DELETE' });
+	return unwrap<null>(res);
+}

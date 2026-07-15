@@ -13,6 +13,7 @@ import (
 
 	"phasma/backend/internal/httpx"
 	"phasma/backend/internal/pagination"
+	"phasma/backend/internal/validation"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -30,6 +31,11 @@ type Application interface {
 	SearchUsers(ctx context.Context, q string) ([]UserResult, error)
 	SearchHashtags(ctx context.Context, q string) ([]HashtagResult, error)
 	FollowingUsernames(ctx context.Context, viewerID string, usernames []string) (map[string]bool, error)
+
+	RecordRecentSearch(ctx context.Context, userID, entityType, reference string) error
+	ListRecentSearches(ctx context.Context, userID string) ([]RecentSearchItem, error)
+	DeleteRecentSearch(ctx context.Context, userID, publicID string) error
+	ClearRecentSearches(ctx context.Context, userID string) error
 }
 
 type Handler struct {
@@ -246,6 +252,99 @@ func (h Handler) searchAll(w http.ResponseWriter, r *http.Request, q string, lim
 		"items":      interleaveBlended(users, posts, hashtags),
 		"nextCursor": nextCursor,
 	})
+}
+
+func (h Handler) ListRecentSearches(w http.ResponseWriter, r *http.Request) {
+	userID, ok := httpx.UserID(r)
+	if !ok {
+		httpx.WriteMessage(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	items, err := h.Service.ListRecentSearches(r.Context(), userID)
+	if err != nil {
+		httpx.WriteStoreError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, items)
+}
+
+type recordRecentSearchRequest struct {
+	Type      string `json:"type"`
+	Reference string `json:"reference"`
+}
+
+// RecordRecentSearch persists an arbitrary client-supplied {type, reference}
+// pair, not a mirror of a server-computed search result, so it validates
+// reference against the same shape rules used everywhere else that type of
+// value is accepted.
+func (h Handler) RecordRecentSearch(w http.ResponseWriter, r *http.Request) {
+	userID, ok := httpx.UserID(r)
+	if !ok {
+		httpx.WriteMessage(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	var req recordRecentSearchRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	entityType := strings.TrimSpace(req.Type)
+	reference := strings.TrimSpace(req.Reference)
+	if !validRecentSearchReference(entityType, reference) {
+		httpx.WriteMessage(w, http.StatusBadRequest, "Invalid type or reference.")
+		return
+	}
+	if err := h.Service.RecordRecentSearch(r.Context(), userID, entityType, reference); err != nil {
+		httpx.WriteStoreError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) DeleteRecentSearch(w http.ResponseWriter, r *http.Request) {
+	userID, ok := httpx.UserID(r)
+	if !ok {
+		httpx.WriteMessage(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	publicID := r.PathValue("id")
+	if !validation.ValidUUID(publicID) {
+		httpx.WriteMessage(w, http.StatusBadRequest, "Invalid recent search ID.")
+		return
+	}
+	if err := h.Service.DeleteRecentSearch(r.Context(), userID, publicID); err != nil {
+		httpx.WriteStoreError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) ClearRecentSearches(w http.ResponseWriter, r *http.Request) {
+	userID, ok := httpx.UserID(r)
+	if !ok {
+		httpx.WriteMessage(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if err := h.Service.ClearRecentSearches(r.Context(), userID); err != nil {
+		httpx.WriteStoreError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// validRecentSearchReference applies the same shape checks already used
+// elsewhere for each entity type, since this endpoint takes raw client input
+// rather than a value the server itself produced.
+func validRecentSearchReference(entityType, reference string) bool {
+	switch entityType {
+	case "users":
+		return validation.ValidUsername(reference)
+	case "hashtags":
+		return hashtagNameRe.MatchString(reference)
+	case "posts":
+		return validQuery(reference)
+	default:
+		return false
+	}
 }
 
 func searchUsersWithClient(ctx context.Context, mc *SearchClient, q string) ([]UserResult, error) {

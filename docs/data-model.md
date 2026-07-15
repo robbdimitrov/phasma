@@ -159,6 +159,24 @@ cleanup automatically when a post or user is deleted.
 | created | timestamptz                    | NOT NULL                    |
 | —       | PRIMARY KEY (user_id, post_id) |                             |
 
+### recent_searches
+
+Per-user search history shown on the search page's discovery view. `reference`
+holds a username, hashtag name, or raw query text depending on `entity_type`
+— not an FK by id, since one text column can't reference two different
+tables (usernames are immutable and hashtag rows are never deleted, so this
+is safe). Capped at 10 rows per user; re-recording an existing
+`(user_id, entity_type, reference)` bumps `created` instead of duplicating.
+
+| Field       | Type              | Constraints                                                          |
+| ----------- | ----------------- | --------------------------------------------------------------------- |
+| id          | bigserial PK       | auto-increment                                                        |
+| public_id   | uuid               | UNIQUE, NOT NULL, DEFAULT gen_random_uuid() — external identifier, exposed as `id` in API responses |
+| user_id     | bigint FK → users  | NOT NULL, ON DELETE CASCADE                                            |
+| entity_type | varchar(10)        | NOT NULL — CHECK `entity_type IN ('users', 'hashtags', 'posts')`      |
+| reference   | varchar(50)        | NOT NULL — username, hashtag name, or raw query text                  |
+| created     | timestamptz        | NOT NULL DEFAULT now()                                                 |
+
 ### audit_log
 
 Append-only record of security-relevant account actions (e.g. password
@@ -205,6 +223,9 @@ change).
 | posts         | posts_filename_idx (partial, WHERE filename != '')             | orphan-upload checks                 |
 | feed          | feed_user_id_created_idx                                       | keyset pagination per user           |
 | audit_log     | audit_log_user_id_idx                                          | audit lookup by user                 |
+| recent_searches | recent_searches_public_id_idx (UNIQUE)                       | public recent-search lookup and deletion |
+| recent_searches | recent_searches_user_entity_reference_idx (UNIQUE)           | dedup / bump-to-top on re-search     |
+| recent_searches | recent_searches_user_created_idx                             | list per user, newest first          |
 
 ## Meilisearch Indexes
 
@@ -243,3 +264,9 @@ not backfilled for already-indexed rows.
 - `notifications` inserts use `ON CONFLICT (external_id) DO NOTHING`;
   `external_id` is the outbox row id relayed through Kafka, ensuring idempotent
   replay.
+- `recent_searches` inserts use `ON CONFLICT (user_id, entity_type, reference)
+  DO UPDATE SET created = now()`, so a repeat search bumps to the top instead
+  of duplicating; each insert is followed by a trim back to the 10 newest rows
+  for that user in the same transaction. A `users`/`hashtags` reference that no
+  longer resolves (e.g. a deleted account) is silently excluded on read rather
+  than actively cleaned up — it naturally falls off the cap on the next write.

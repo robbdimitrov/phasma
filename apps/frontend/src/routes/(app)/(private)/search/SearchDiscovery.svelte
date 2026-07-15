@@ -5,9 +5,15 @@
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Thumbnail from '$lib/components/Thumbnail.svelte';
+	import RecentSearches from './RecentSearches.svelte';
 	import type { Post, User } from '$lib/types';
+	import type { RecentSearchItem } from '$lib/server/api/search';
 
-	let { suggested, popular }: { suggested: User[]; popular: Post[] } = $props();
+	let {
+		recent,
+		suggested,
+		popular
+	}: { recent: RecentSearchItem[]; suggested: User[]; popular: Post[] } = $props();
 
 	let pendingFollowIds = new SvelteSet<string>();
 	let followingOverrides = new SvelteMap<string, boolean>();
@@ -36,6 +42,8 @@
 
 	let maskClass = $derived(edgeMaskClass(atStart, atEnd));
 </script>
+
+<RecentSearches {recent} />
 
 {#if suggested.length > 0}
 	<div class="flex flex-col gap-3">
@@ -109,7 +117,7 @@
 	</div>
 {/if}
 
-{#if suggested.length === 0 && popular.length === 0}
+{#if suggested.length === 0 && popular.length === 0 && recent.length === 0}
 	<div class="flex flex-col items-center gap-3 py-12 text-base-content/40">
 		<Users class="h-12 w-12" />
 		<p class="text-sm">Search for users, posts, or hashtags</p>

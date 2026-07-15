@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { typeaheadNav } from '$lib/utils/typeaheadNav';
 	import { interleaveSuggestions, type SuggestionItem } from '$lib/utils/interleaveSuggestions';
+	import { recordRecentSearch } from '$lib/utils/recentSearch';
 	import SearchResultRow from './SearchResultRow.svelte';
 	import type { UserSuggestion, HashtagSuggestion } from '$lib/server/api/search';
 
@@ -41,8 +42,10 @@
 		if (!row) return;
 		onclose();
 		if (row.type === 'users') {
+			recordRecentSearch('users', row.item.username);
 			goto(resolve(`/@${row.item.username}`));
 		} else {
+			recordRecentSearch('hashtags', row.item.name);
 			goto(resolve(`/search?q=%23${encodeURIComponent(row.item.name)}`));
 		}
 	}
