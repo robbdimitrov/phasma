@@ -81,8 +81,7 @@
 		clearTimeout(debounceTimer);
 		if (!value) {
 			closeSuggestions();
-			// Clearing the field (backspace or the clear button) reverts to the
-			// discovery view, matching Instagram/Twitter/YouTube.
+			// Clearing the field returns to discovery.
 			if (data.q) goto(resolve('/search'));
 			return;
 		}
@@ -106,8 +105,7 @@
 		goto(resolve(buildSearchUrl(value)));
 	}
 
-	// Results are always posts (see +page.server.ts); items still arrive
-	// wrapped in the shared blended-item shape, so unwrap to plain posts here.
+	// Results arrive in the shared blended shape; this view renders posts only.
 	function toPostsPage(page: { items: SearchAllItem[]; nextCursor: string | null }): {
 		items: SearchPostItem[];
 		nextCursor: string | null;

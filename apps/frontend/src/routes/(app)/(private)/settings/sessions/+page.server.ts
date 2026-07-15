@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
 
 export const actions: Actions = {
 	revoke: async ({ fetch, cookies, request }) => {
+		if (!cookies.get('session')) throw redirect(303, '/login');
 		const data = await request.formData();
 		const sessionID = String(data.get('sessionId') ?? '');
 		if (!uuidPattern.test(sessionID)) {

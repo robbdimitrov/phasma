@@ -21,9 +21,12 @@ function loadEvent(): Parameters<typeof load>[0] {
 	} as unknown as Parameters<typeof load>[0];
 }
 
-function actionEvent(formData: FormData): Parameters<ReturnType<typeof revokeAction>>[0] {
+function actionEvent(
+	formData: FormData,
+	session: string | null = 'session-token'
+): Parameters<ReturnType<typeof revokeAction>>[0] {
 	return {
-		cookies: {},
+		cookies: { get: vi.fn(() => session ?? undefined) },
 		fetch: vi.fn(),
 		request: new Request('http://localhost/settings/sessions', {
 			method: 'POST',
@@ -85,6 +88,17 @@ describe('active sessions load', () => {
 });
 
 describe('revoke session action', () => {
+	it('redirects anonymous submissions before validating the form', async () => {
+		const data = new FormData();
+		data.set('sessionId', 'not-a-uuid');
+
+		await expect(revokeAction()(actionEvent(data, null))).rejects.toMatchObject({
+			status: 303,
+			location: '/login'
+		});
+		expect(deleteSession).not.toHaveBeenCalled();
+	});
+
 	it('rejects malformed session IDs before calling the backend', async () => {
 		const data = new FormData();
 		data.set('sessionId', 'not-a-uuid');

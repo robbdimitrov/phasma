@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { fail, isHttpError, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	search,
@@ -53,10 +53,8 @@ export const load: PageServerLoad = async (event) => {
 
 	const api = apiClient(event);
 	const prefix = searchQueryPrefix(q);
-	// Results are always a posts search — users and hashtags are handled by
-	// the typeahead dropdown instead. @ has no meaning for the posts index, so
-	// it's stripped before searching; # stays in the query so the backend's
-	// posts search can apply its exact-hashtag filter.
+	// Results are posts-only: typeahead handles users/hashtags. Strip @ for
+	// posts search; keep # so the backend can apply exact-hashtag filtering.
 	const resultsQuery = prefix === '@' ? stripSearchQueryPrefix(q, prefix) : q;
 	const results = searchResults(
 		search<SearchPostItem>(api, {
@@ -71,25 +69,29 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	follow: async (event) => {
+		if (!event.cookies.get('session')) throw redirect(303, '/login');
 		const api = apiClient(event);
 		const data = await event.request.formData();
 		const username = (data.get('username') as string) ?? '';
 		if (!username) return fail(400, { error: 'Missing username.' });
 		try {
 			await followUser(api, username);
-		} catch {
+		} catch (cause) {
+			if (isHttpError(cause) && cause.status === 401) throw redirect(303, '/login');
 			return fail(503, { error: 'Could not update follow status.' });
 		}
 		return { success: true };
 	},
 	unfollow: async (event) => {
+		if (!event.cookies.get('session')) throw redirect(303, '/login');
 		const api = apiClient(event);
 		const data = await event.request.formData();
 		const username = (data.get('username') as string) ?? '';
 		if (!username) return fail(400, { error: 'Missing username.' });
 		try {
 			await unfollowUser(api, username);
-		} catch {
+		} catch (cause) {
+			if (isHttpError(cause) && cause.status === 401) throw redirect(303, '/login');
 			return fail(503, { error: 'Could not update follow status.' });
 		}
 		return { success: true };

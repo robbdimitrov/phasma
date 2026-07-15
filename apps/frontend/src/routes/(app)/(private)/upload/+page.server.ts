@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isHttpError, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { uploadImage, createPost } from '$lib/server/api/posts';
 import { apiClient } from '$lib/server/api/client';
@@ -6,6 +6,7 @@ import { validateImageUpload } from '$lib/server/imageUpload';
 
 export const actions: Actions = {
 	default: async ({ fetch, cookies, request }) => {
+		if (!cookies.get('session')) throw redirect(303, '/login');
 		const api = apiClient({ fetch, cookies });
 		const data = await request.formData();
 		const file = data.get('image');
@@ -19,7 +20,8 @@ export const actions: Actions = {
 		let uploaded;
 		try {
 			uploaded = await uploadImage(api, image.file);
-		} catch {
+		} catch (cause) {
+			if (isHttpError(cause) && cause.status === 401) throw redirect(303, '/login');
 			return fail(500, { error: 'Image upload failed. Please try again.' });
 		}
 		if (!uploaded) {
@@ -29,7 +31,8 @@ export const actions: Actions = {
 		let post;
 		try {
 			post = await createPost(api, uploaded.filename, description);
-		} catch {
+		} catch (cause) {
+			if (isHttpError(cause) && cause.status === 401) throw redirect(303, '/login');
 			return fail(500, { error: 'Could not create post. Please try again.' });
 		}
 		if (!post) {

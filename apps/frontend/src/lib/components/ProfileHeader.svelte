@@ -88,7 +88,8 @@
 			{:else if isAuthenticated}
 				<form
 					method="POST"
-					action={profileUser.isFollowing ? '?/unfollow' : '?/follow'}
+					action={resolve(`/@${profileUser.username}`) +
+						(profileUser.isFollowing ? '?/unfollow' : '?/follow')}
 					use:enhance={() => {
 						isFollowPending = true;
 						const wasFollowing = profileUser.isFollowing;

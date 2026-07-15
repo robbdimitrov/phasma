@@ -8,7 +8,7 @@ function loadEvent(parent: () => Promise<{ currentUser: unknown }>): Parameters<
 }
 
 describe('(private) layout guard', () => {
-	it('redirects anonymous visitors to /login', async () => {
+	it('redirects anonymous private-route visitors to /login', async () => {
 		const parent = vi.fn().mockResolvedValue({ currentUser: null });
 
 		try {

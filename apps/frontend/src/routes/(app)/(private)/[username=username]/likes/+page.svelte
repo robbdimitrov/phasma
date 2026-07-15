@@ -16,35 +16,17 @@
 
 	const pagination = createPagination(
 		() => ({ items: data.posts, nextCursor: data.nextCursor }),
-		(cursor) =>
-			fetchCursorPage<Post>(
-				fetch,
-				`/@${data.profileUser.username}${data.mode === 'likes' ? '/likes' : ''}`,
-				cursor
-			)
+		(cursor) => fetchCursorPage<Post>(fetch, `/@${data.profileUser.username}/likes`, cursor)
 	);
 
-	const emptyState = $derived(
-		data.mode === 'likes'
-			? {
-					icon: 'heart' as const,
-					title: 'No liked posts yet',
-					description: 'Liked photos will appear here so they are easy to find again.',
-					actionLabel: 'Browse Feed',
-					actionRoute: '/feed' as const,
-					actionStyle: 'primary' as const
-				}
-			: {
-					icon: 'camera' as const,
-					title: 'No uploads yet',
-					description: isCurrentUser
-						? 'Your profile is ready. Share your first photo to start building your grid.'
-						: 'This profile has not shared any photos yet.',
-					actionLabel: isCurrentUser ? 'Share Your First Photo' : 'Browse Feed',
-					actionRoute: isCurrentUser ? ('/upload' as const) : ('/feed' as const),
-					actionStyle: isCurrentUser ? ('primary' as const) : ('outline' as const)
-				}
-	);
+	const emptyState = $derived({
+		icon: 'heart' as const,
+		title: 'No liked posts yet',
+		description: 'Liked photos will appear here so they are easy to find again.',
+		actionLabel: 'Browse Feed',
+		actionRoute: '/feed' as const,
+		actionStyle: 'primary' as const
+	});
 </script>
 
 <svelte:head>

@@ -1,3 +1,4 @@
+import { error, isRedirect } from '@sveltejs/kit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { apiClient, search, getSuggestedUsers, getPopularPosts, followUser, unfollowUser } =
@@ -16,6 +17,7 @@ vi.mock('$lib/server/api/users', () => ({ getSuggestedUsers, followUser, unfollo
 vi.mock('$lib/server/api/posts', () => ({ getPopularPosts }));
 
 import { load, actions } from './+page.server';
+import { load as guardLoad } from '../+layout.server';
 
 function followAction() {
 	const action = actions.follow;
@@ -29,9 +31,9 @@ function unfollowAction() {
 	return action;
 }
 
-function actionEvent(formData: FormData) {
+function actionEvent(formData: FormData, session: string | null = 'session-token') {
 	return {
-		cookies: {},
+		cookies: { get: vi.fn(() => session ?? undefined) },
 		fetch: vi.fn(),
 		request: new Request('http://localhost/search', { method: 'POST', body: formData })
 	} as unknown as Parameters<ReturnType<typeof followAction>>[0];
@@ -55,7 +57,28 @@ beforeEach(() => {
 	vi.clearAllMocks();
 });
 
+function backendError(status: number): unknown {
+	try {
+		error(status, 'backend details');
+	} catch (cause) {
+		return cause;
+	}
+}
+
 describe('search page load', () => {
+	it('redirects anonymous visitors through the private layout guard', async () => {
+		const parent = vi.fn().mockResolvedValue({ currentUser: null });
+
+		try {
+			await guardLoad({ parent } as unknown as Parameters<typeof guardLoad>[0]);
+			expect.unreachable('expected a redirect to be thrown');
+		} catch (err) {
+			if (!isRedirect(err)) throw err;
+			expect(err.status).toBe(303);
+			expect(err.location).toBe('/login');
+		}
+	});
+
 	it('shows discovery content for an empty query', async () => {
 		getSuggestedUsers.mockResolvedValue({ items: [{ username: 'alice' }] });
 		getPopularPosts.mockResolvedValue({ items: [{ publicId: 'post-1' }] });
@@ -159,6 +182,18 @@ describe('search page load', () => {
 });
 
 describe('search page follow action', () => {
+	it('redirects anonymous submissions to /login', async () => {
+		try {
+			await followAction()(actionEvent(usernameFormData('alice'), null));
+			expect.unreachable('expected a redirect to be thrown');
+		} catch (err) {
+			if (!isRedirect(err)) throw err;
+			expect(err.status).toBe(303);
+			expect(err.location).toBe('/login');
+		}
+		expect(followUser).not.toHaveBeenCalled();
+	});
+
 	it('rejects a submission missing username before calling the backend', async () => {
 		const result = await followAction()(actionEvent(usernameFormData()));
 
@@ -175,6 +210,19 @@ describe('search page follow action', () => {
 			status: 503,
 			data: { error: 'Could not update follow status.' }
 		});
+	});
+
+	it('redirects expired sessions to /login', async () => {
+		followUser.mockRejectedValue(backendError(401));
+
+		try {
+			await followAction()(actionEvent(usernameFormData('alice')));
+			expect.unreachable('expected a redirect to be thrown');
+		} catch (err) {
+			if (!isRedirect(err)) throw err;
+			expect(err.status).toBe(303);
+			expect(err.location).toBe('/login');
+		}
 	});
 
 	it('succeeds when the backend call succeeds', async () => {
