@@ -19,15 +19,22 @@ func TestRegisterRoutes(t *testing.T) {
 	res := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/posts/"+testPublicID+"/comments", nil)
 	public.ServeHTTP(res, req)
-	if res.Code != http.StatusOK {
-		t.Fatalf("public route status = %d, want %d", res.Code, http.StatusOK)
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("public route status = %d, want %d", res.Code, http.StatusNotFound)
 	}
 
 	res = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/posts/"+testPublicID+"/comments", strings.NewReader(`{"body":"hi"}`))
 	public.ServeHTTP(res, req)
-	if res.Code != http.StatusMethodNotAllowed {
+	if res.Code != http.StatusNotFound {
 		t.Fatalf("protected route reachable on public mux without session, status = %d", res.Code)
+	}
+
+	res = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/posts/"+testPublicID+"/comments", nil)
+	protected.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("protected read route status = %d, want %d", res.Code, http.StatusOK)
 	}
 
 	res = httptest.NewRecorder()

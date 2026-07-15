@@ -7,9 +7,7 @@ type routeRegistrar interface {
 }
 
 func RegisterPublicRoutes(mux routeRegistrar, handler Handler) {
-	mux.HandleFunc("GET /posts/popular", handler.ListPopularPosts)
 	mux.HandleFunc("GET /users/{username}/posts", handler.GetPosts)
-	mux.HandleFunc("GET /users/{username}/likes", handler.GetLikedPosts)
 	mux.HandleFunc("GET /posts/{publicId}", handler.GetPost)
 }
 

@@ -10,7 +10,10 @@ import (
 )
 
 func TestRegisterRoutes(t *testing.T) {
-	store := &fakeStore{posts: []Post{{ID: 1, Filename: "a"}}, createdID: testPublicID, created: true}
+	store := &fakeStore{
+		post:  Post{ID: 1, PublicID: testPublicID, Filename: "a"},
+		found: true, createdID: testPublicID, created: true,
+	}
 	handler := Handler{Service: NewService(store, nil)}
 	public := http.NewServeMux()
 	protected := http.NewServeMux()
@@ -18,7 +21,7 @@ func TestRegisterRoutes(t *testing.T) {
 	RegisterProtectedRoutes(protected, handler)
 
 	res := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/posts/popular", nil)
+	req := httptest.NewRequest(http.MethodGet, "/posts/"+testPublicID, nil)
 	public.ServeHTTP(res, req)
 	if res.Code != http.StatusOK {
 		t.Fatalf("public route status = %d, want %d", res.Code, http.StatusOK)

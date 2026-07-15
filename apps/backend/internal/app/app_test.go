@@ -20,20 +20,19 @@ func TestRouteContract(t *testing.T) {
 		{Method: "GET", Path: "/metrics"},
 		{Method: "GET", Path: "/ready"},
 		{Method: "POST", Path: "/users"},
-		{Method: "GET", Path: "/users/{username}/followers"},
-		{Method: "GET", Path: "/users/{username}/following"},
 		{Method: "GET", Path: "/users/{username}"},
 		{Method: "GET", Path: "/users/me", Authenticated: true},
 		{Method: "GET", Path: "/users/suggested", Authenticated: true},
 		{Method: "GET", Path: "/users/search", Authenticated: true},
+		{Method: "GET", Path: "/users/{username}/followers", Authenticated: true},
+		{Method: "GET", Path: "/users/{username}/following", Authenticated: true},
+		{Method: "GET", Path: "/users/{username}/likes", Authenticated: true},
+		{Method: "GET", Path: "/posts/popular", Authenticated: true},
 		{Method: "POST", Path: "/sessions"},
 		{Method: "DELETE", Path: "/sessions"},
 		{Method: "GET", Path: "/uploads/"},
-		{Method: "GET", Path: "/posts/popular"},
 		{Method: "GET", Path: "/users/{username}/posts"},
-		{Method: "GET", Path: "/users/{username}/likes"},
 		{Method: "GET", Path: "/posts/{publicId}"},
-		{Method: "GET", Path: "/posts/{publicId}/comments"},
 		{Method: "PUT", Path: "/users/me", Authenticated: true},
 		{Method: "POST", Path: "/users/{username}/follow", Authenticated: true},
 		{Method: "DELETE", Path: "/users/{username}/follow", Authenticated: true},
@@ -44,6 +43,7 @@ func TestRouteContract(t *testing.T) {
 		{Method: "DELETE", Path: "/posts/{publicId}", Authenticated: true},
 		{Method: "POST", Path: "/posts/{publicId}/likes", Authenticated: true},
 		{Method: "DELETE", Path: "/posts/{publicId}/likes", Authenticated: true},
+		{Method: "GET", Path: "/posts/{publicId}/comments", Authenticated: true},
 		{Method: "POST", Path: "/posts/{publicId}/comments", Authenticated: true},
 		{Method: "DELETE", Path: "/posts/{publicId}/comments/{commentId}", Authenticated: true},
 		{Method: "GET", Path: "/hashtags/search", Authenticated: true},
@@ -119,16 +119,26 @@ func TestPersonalizedPublicRouteResolvesOptionalSessionButHealthDoesNot(t *testi
 	}
 
 	res = httptest.NewRecorder()
-	public.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/posts/popular", nil))
+	public.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/posts/"+testRoutePostID, nil))
 	if optionalCalls != 1 {
-		t.Fatalf("GET /posts/popular optionalCalls = %d, want 1 -- a personalized public route must resolve the viewer id", optionalCalls)
+		t.Fatalf("GET /posts/{publicId} optionalCalls = %d, want 1 -- a personalized public route must resolve the viewer id", optionalCalls)
 	}
 }
 
-// TestLiteralRoutesAreNotShadowedByUsernameWildcard guards session-required
-// user literals from the public "GET /users/{username}" wildcard.
-func TestLiteralRoutesAreNotShadowedByUsernameWildcard(t *testing.T) {
-	for _, path := range []string{"/users/me", "/users/suggested", "/users/search"} {
+const testRoutePostID = "550e8400-e29b-41d4-a716-446655440000"
+
+// TestAuthenticatedPublicMuxRoutesAreNotShadowedByPublicWildcards guards
+// session-required routes that share prefixes with public wildcard routes.
+func TestAuthenticatedPublicMuxRoutesAreNotShadowedByPublicWildcards(t *testing.T) {
+	for _, path := range []string{
+		"/users/me",
+		"/users/suggested",
+		"/users/search",
+		"/users/alice/followers",
+		"/users/alice/following",
+		"/users/alice/likes",
+		"/posts/popular",
+	} {
 		t.Run(path, func(t *testing.T) {
 			app := New(Config{}, Repositories{SessionAuth: &fakeSessionStore{}})
 
@@ -137,7 +147,36 @@ func TestLiteralRoutesAreNotShadowedByUsernameWildcard(t *testing.T) {
 			app.ServeHTTP(res, req)
 
 			if res.Code != http.StatusUnauthorized {
-				t.Fatalf("status = %d, want %d -- GET %s must reach its own protected handler, not the public GET /users/{username} wildcard", res.Code, http.StatusUnauthorized, path)
+				t.Fatalf("status = %d, want %d -- GET %s must reach its own authenticated handler, not a public wildcard", res.Code, http.StatusUnauthorized, path)
+			}
+		})
+	}
+}
+
+func TestProtectedReadRoutesRequireSession(t *testing.T) {
+	app := New(Config{}, Repositories{SessionAuth: &fakeSessionStore{}})
+	for _, path := range []string{
+		"/users/me",
+		"/users/suggested",
+		"/users/search?q=alice",
+		"/users/alice/followers",
+		"/users/alice/following",
+		"/users/alice/likes",
+		"/posts/popular",
+		"/posts/" + testRoutePostID + "/comments",
+		"/hashtags/search?q=photo",
+		"/search?q=photo",
+		"/feed",
+		"/notifications",
+		"/notifications/unread-count",
+		"/sessions",
+	} {
+		t.Run(path, func(t *testing.T) {
+			res := httptest.NewRecorder()
+			app.ServeHTTP(res, httptest.NewRequest(http.MethodGet, path, nil))
+
+			if res.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
 			}
 		})
 	}

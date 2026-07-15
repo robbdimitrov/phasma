@@ -32,6 +32,7 @@ type fakeStore struct {
 	liked           bool
 	unliked         bool
 	requestedUser   string
+	requestedViewer string
 	requestedCursor *pagination.Cursor
 	requestedLimit  int
 	nextCursor      *pagination.Cursor
@@ -41,14 +42,19 @@ func (s *fakeStore) CreatePost(_ context.Context, _ string, _ string, _ *string,
 	return s.createdID, s.created, s.err
 }
 
-func (s *fakeStore) GetPosts(_ context.Context, userID string, cursor *pagination.Cursor, limit int, _ string) ([]Post, *pagination.Cursor, error) {
+func (s *fakeStore) GetPosts(_ context.Context, userID string, cursor *pagination.Cursor, limit int, currentUserID string) ([]Post, *pagination.Cursor, error) {
 	s.requestedUser = userID
+	s.requestedViewer = currentUserID
 	s.requestedCursor = cursor
 	s.requestedLimit = limit
 	return s.posts, s.nextCursor, s.err
 }
 
-func (s *fakeStore) GetLikedPosts(_ context.Context, _ string, _ *pagination.Cursor, _ int, _ string) ([]Post, *pagination.Cursor, error) {
+func (s *fakeStore) GetLikedPosts(_ context.Context, userID string, cursor *pagination.Cursor, limit int, currentUserID string) ([]Post, *pagination.Cursor, error) {
+	s.requestedUser = userID
+	s.requestedViewer = currentUserID
+	s.requestedCursor = cursor
+	s.requestedLimit = limit
 	return s.posts, s.nextCursor, s.err
 }
 
@@ -152,6 +158,27 @@ func TestGetPostsPagination(t *testing.T) {
 		t.Fatalf(
 			"request = user %q cursor %+v limit %d",
 			store.requestedUser, store.requestedCursor, store.requestedLimit,
+		)
+	}
+}
+
+func TestGetLikedPostsUsesProfileUsernameAndSignedInViewerSeparately(t *testing.T) {
+	store := &fakeStore{posts: []Post{{ID: 1, Filename: "a"}}}
+	handler := Handler{Service: NewService(store, nil)}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/users/alice/likes?limit=25", nil)
+	req.SetPathValue("username", "alice")
+	req = httpx.WithUserID(req, "42")
+
+	handler.GetLikedPosts(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusOK)
+	}
+	if store.requestedUser != "alice" || store.requestedViewer != "42" || store.requestedLimit != 25 {
+		t.Fatalf(
+			"request = profile user %q viewer %q limit %d",
+			store.requestedUser, store.requestedViewer, store.requestedLimit,
 		)
 	}
 }
