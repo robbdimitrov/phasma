@@ -22,9 +22,10 @@ Error bodies are `{"message": "..."}`.
 6. `RateLimit` — token bucket via Dragonfly Lua script; key priority: user id >
    session cookie > client IP.
 7. `RequireSession` — validates `session` cookie; refreshes sliding TTL; injects
-   `userID` into context. Exempt: `POST /sessions`, `POST /users`,
-   `GET /health`, `GET /health/background`, `GET /metrics`, `GET /ready`,
-   `OPTIONS`.
+   `userID` into context. It wraps protected routes plus protected literals that
+   must be registered on the public mux to outrank public wildcards. Public
+   routes listed below bypass it; personalized public reads use
+   `OptionalSession`.
 
 ## Rate Limit Policies
 
@@ -52,20 +53,8 @@ Defaults are overridable via env vars `RATE_LIMIT_{POLICY}_{BURST,RATE}`.
 | POST   | /sessions                   | Login — sets `session` cookie, returns `{"username": "..."}` on 201                                  |
 | GET    | /uploads/                   | Serve uploaded file blob                                                                             |
 | GET    | /users/{username}           | Get user by username                                                                                 |
-| GET    | /users/{username}/followers | List followers (cursor-paginated)                                                                    |
-| GET    | /users/{username}/following | List following (cursor-paginated)                                                                    |
-| GET    | /posts/popular              | Get up to 20 popular posts from the last 7 days                                                      |
 | GET    | /posts/{publicId}           | Get single post                                                                                      |
 | GET    | /users/{username}/posts     | List user's posts (cursor-paginated)                                                                 |
-| GET    | /users/{username}/likes     | List user's liked posts (cursor-paginated)                                                           |
-| GET    | /posts/{publicId}/comments  | List comments on a post (cursor-paginated)                                                           |
-
-`GET /posts/popular` returns posts from the last 7 days ordered by like count
-descending, up to 20 results. Response:
-
-```json
-{"items": [<post>]}
-```
 
 These routes read an optional viewer id from the session cookie when present
 (for `liked`/ownership flags) but do not require one — an anonymous request
@@ -118,15 +107,18 @@ failure. Use `DELETE /sessions` to terminate the current session.
 | PUT    | /users/me                | Update profile or change password |
 | POST   | /users/{username}/follow | Follow a user                     |
 | DELETE | /users/{username}/follow | Unfollow a user                   |
+| GET    | /users/{username}/followers | List followers (cursor-paginated) |
+| GET    | /users/{username}/following | List following (cursor-paginated) |
 
-`GET /users/{username}`, `GET /users/{username}/followers`, and
-`GET /users/{username}/following` are public — see the Public section above.
+`GET /users/{username}` is public — see the Public section above. Follower and
+following lists require a session; public profiles expose only aggregate counts.
 
 #### Discovery
 
 | Method | Path             | Purpose                               |
 | ------ | ---------------- | ------------------------------------- |
 | GET    | /users/suggested | Get up to 5 suggested users to follow |
+| GET    | /posts/popular   | Get up to 20 popular posts from the last 7 days |
 
 `GET /users/suggested` returns users with at least one follower or post,
 ordered by `follower_count` descending then `post_count` descending,
@@ -137,7 +129,12 @@ user themselves. Response:
 {"items": [<user>]}
 ```
 
-`GET /posts/popular` is public — see the Public section above.
+`GET /posts/popular` returns posts from the last 7 days ordered by like count
+descending, up to 20 results. Response:
+
+```json
+{"items": [<post>]}
+```
 
 #### Feed
 
@@ -157,18 +154,23 @@ Returns an empty items array (not an error) when the feed is empty.
 | DELETE | /posts/{publicId}       | Delete own post            |
 | POST   | /posts/{publicId}/likes | Like a post                |
 | DELETE | /posts/{publicId}/likes | Unlike a post              |
+| GET    | /users/{username}/likes | List user's liked posts (cursor-paginated) |
 
-`GET /posts/{publicId}`, `GET /users/{username}/posts`, and
-`GET /users/{username}/likes` are public — see the Public section above.
+`GET /posts/{publicId}` and `GET /users/{username}/posts` are public — see the
+Public section above. Liked-post lists require a session but not profile
+ownership; any signed-in viewer can open another user's liked-post list. Public
+profiles expose only aggregate like counts.
 
 #### Comments
 
 | Method | Path                                   | Purpose                                           |
 | ------ | -------------------------------------- | ------------------------------------------------- |
+| GET    | /posts/{publicId}/comments             | List comments on a post (cursor-paginated)       |
 | POST   | /posts/{publicId}/comments             | Create a comment                                  |
 | DELETE | /posts/{publicId}/comments/{commentId} | Delete a comment (its author or the post's owner) |
 
-`GET /posts/{publicId}/comments` is public — see the Public section above.
+Direct post pages expose the post and aggregate comment count publicly. Comment
+lists, creation, and deletion require a session.
 
 #### Uploads
 
@@ -270,8 +272,8 @@ shapes.
 
 ## User Object Shape
 
-User objects returned by `/users/me`, `/users/{username}`, follower/following
-lists, and suggested users share this shape:
+User objects returned by `/users/me`, `/users/{username}`, authenticated
+follower/following lists, and suggested users share this shape:
 
 ```json
 {

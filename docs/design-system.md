@@ -75,8 +75,8 @@ Full-width card (`rounded-2xl`, `border-base-300`, `bg-base-100`). Two modes:
 
 - Default (feed): shows image, like button with `animate-like-pop`, comment
   count link, description (linkified), timestamp.
-- `singleView=true`: adds comment input form (with the current user's `Avatar`
-  in the composer), comment list with pagination, delete buttons per own
+- `singleView=true`: shows public post details; signed-in viewers also get the
+  comment input form, comment list pagination, and delete buttons per own
   comments.
 - Owner sees a delete button; triggers a confirmation modal (`role="dialog"`,
   `aria-modal`).
@@ -110,9 +110,10 @@ not darken at intersections.
 ### `ProfileHeader`
 
 Horizontal card with avatar, display name, `@username`, bio (linkified),
-post/like/follower/following counts (all linking to relevant pages). Current
-user sees Settings link; others see Follow/Unfollow button with optimistic state
-and rollback. Takes a required `active: 'posts' | 'likes' | 'followers' |
+post/like/follower/following counts linking to the relevant pages; likes and
+connection-list links require a signed-in session. Current user sees Settings
+link; others see Follow/Unfollow button with optimistic state and rollback.
+Takes a required `active: 'posts' | 'likes' | 'followers' |
 'following'` prop; the matching stats-row link gets a persistent (non-hover)
 primary text color so it reads as the current section, keeping the same
 bold-number/muted-label contrast as the idle stats (full `text-primary` on the

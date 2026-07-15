@@ -190,7 +190,7 @@ change).
 | posts         | posts_user_id_created_id_idx                                   | profile pagination                   |
 | likes         | likes_user_id_created_post_id_idx                              | liked posts pagination               |
 | comments      | comments_post_id_created_id_idx                                | comment pagination                   |
-| comments      | comments_public_id_idx (UNIQUE)                                | public comment lookup and deletion   |
+| comments      | comments_public_id_idx (UNIQUE)                                | external comment lookup and deletion |
 | follows       | follows_follower_id_idx, follows_followee_id_idx               | social graph traversal               |
 | hashtags      | hashtags_name_trgm_idx (GIN trgm)                              | trigram typeahead                    |
 | post_hashtags | post_hashtags_hashtag_id_idx                                   | hashtag → post lookup                |

@@ -12,12 +12,13 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
 └── (app)/                  +layout.server.ts: GET /users/me → currentUser: User | null, no redirect; unread count only when authenticated
     ├── login/              form action: POST /sessions; public
     ├── register/           form action: POST /users then POST /sessions; public
-    ├── feed/               load: GET /feed (authenticated) or GET /posts/popular (anonymous); public read
-    ├── posts/[publicId]/   load: GET /posts/{id} + GET /posts/{id}/comments; public read, like/comment gated to login
+    ├── posts/[publicId]/   load: GET /posts/{id}; public read, likes/comments gated to login
     ├── [username=username]/ load: GET /users/{username} + GET /users/{username}/posts; public read, follow gated to login
-    │   ├── likes/          load: GET /users/{username}/likes; public read
-    │   └── [mode=connections]/ load: followers or following list; public read, follow gated to login
     └── (private)/          +layout.server.ts: redirect /login if currentUser absent
+        ├── feed/               load: GET /feed; personalized feed, session required
+        ├── [username=username]/
+        │   ├── likes/          load: GET /users/{username}/likes; session required, not owner-only
+        │   └── [mode=connections]/ load: followers or following list; session required
         ├── notifications/      load: GET /notifications + PUT /notifications/{id}/read (mark all unread as read)
         ├── search/             load: GET /search?q=&type=posts (small preview limit) → results are always a posts-only image grid; `@name` prefix is stripped before searching (users are handled by the typeahead, not by results), `#tag` prefix stays intact for the backend's exact-hashtag filter; clearing the query navigates back to /search, reverting to discovery; empty query shows discovery content: suggested users via GET /users/suggested + popular posts grid via GET /posts/popular; live dropdown-as-you-type calls GET /suggest (users, hashtags only, no posts) and alternates the two lists client-side via `interleaveSuggestions()`; the discovery/results content below the input is hidden while the dropdown is open, since it's absolutely positioned and would otherwise overlap
         ├── upload/             form action: POST /uploads → POST /posts
@@ -43,7 +44,7 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
 
   (app)/(private)/+layout.server.ts
     - loads: nothing — reads currentUser from parent(); redirect /login if absent
-    - guards: upload/, suggest/, logout/, settings/, notifications/, search/
+    - guards: feed/, [username]/likes/, [username]/{connections}/, upload/, suggest/, logout/, settings/, notifications/, search/
 ```
 
 ## Route Parameters and Matchers
@@ -84,9 +85,10 @@ are server-to-server and never cross CORS.
 `Strict-Transport-Security` when the public request URL is HTTPS.
 
 Browser → SvelteKit server: form POST or page navigation. Browser fetches for
-pagination: `GET /feed`, `GET /@{username}`, `GET /posts/{id}/comments`,
-`GET /search` — all route to SvelteKit `+server.ts` handlers, which call the
-backend server-side.
+pagination: `GET /feed`, `GET /search`, `GET /@{username}/likes`,
+`GET /@{username}/{mode}`, and `GET /posts/{id}/comments` require a session;
+public pagination includes `GET /@{username}`. All route to SvelteKit `+server.ts`
+handlers, which call the backend server-side.
 
 ## Image Proxy
 
@@ -109,8 +111,8 @@ for explicit validation.
 
 | Path                         | Method | Handler           | Backend call                                                                                                |
 | ---------------------------- | ------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| `/feed`                      | GET    | page load         | GET /feed                                                                                                   |
-| `/feed`                      | GET    | +server.ts        | GET /feed?cursor=                                                                                           |
+| `/feed`                      | GET    | page load         | GET /feed (session required)                                                                                |
+| `/feed`                      | GET    | +server.ts        | GET /feed?cursor= (session required)                                                                        |
 | `/notifications`             | GET    | page load         | GET /notifications + PUT /notifications/{id}/read                                                           |
 | `/notifications`             | GET    | +server.ts        | GET /notifications?cursor= + PUT /notifications/{id}/read                                                   |
 | `/search`                    | GET    | page load         | GET /search?type=posts (limit=5); @ prefix stripped, # prefix kept for hashtag filter                       |
@@ -118,11 +120,11 @@ for explicit validation.
 | `/suggest`                   | GET    | +server.ts        | GET /users/search or /hashtags/search (dropdown users/hashtags preview; posts are not part of the dropdown) |
 | `/@{username}`               | GET    | page load         | GET /users/{u} + GET /users/{u}/posts                                                                       |
 | `/@{username}`               | GET    | +server.ts        | GET /users/{u}/posts?cursor=                                                                                |
-| `/@{username}/likes`         | GET    | page load         | GET /users/{u}/likes                                                                                        |
-| `/@{username}/likes`         | GET    | +server.ts        | GET /users/{u}/likes?cursor=                                                                                |
-| `/@{username}/{mode}`        | GET    | page load         | GET /users/{u}/followers or /following                                                                      |
-| `/@{username}/{mode}`        | GET    | +server.ts        | GET /users/{u}/followers or /following?cursor=                                                              |
-| `/posts/{id}/comments`       | GET    | +server.ts        | GET /posts/{id}/comments?cursor=                                                                            |
+| `/@{username}/likes`         | GET    | page load         | GET /users/{u}/likes (session required)                                                                     |
+| `/@{username}/likes`         | GET    | +server.ts        | GET /users/{u}/likes?cursor= (session required)                                                             |
+| `/@{username}/{mode}`        | GET    | page load         | GET /users/{u}/followers or /following (session required)                                                   |
+| `/@{username}/{mode}`        | GET    | +server.ts        | GET /users/{u}/followers or /following?cursor= (session required)                                           |
+| `/posts/{id}/comments`       | GET    | +server.ts        | GET /posts/{id}/comments?cursor= (session required)                                                         |
 | `/settings/sessions`         | GET    | page load         | GET /sessions                                                                                               |
 | `/settings/sessions?/revoke` | POST   | named form action | DELETE /sessions/{sessionId}                                                                                |
 | `/uploads/[key]`             | GET    | +server.ts        | GET /uploads/{key} (proxied)                                                                                |

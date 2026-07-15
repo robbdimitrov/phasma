@@ -63,15 +63,19 @@
 
 - Routes are registered on one of two `http.ServeMux` instances in
   `internal/app/routes.go`: `public` or `protected`. `httpx.RequireSession`
-  wraps only `protected` and rejects requests without a valid session cookie.
+  wraps `protected` and selected public-mux literals that must outrank public
+  wildcard routes, rejecting requests without a valid session cookie.
 - Public read routes that personalize for a signed-in viewer (e.g.
   `GET /posts/{publicId}`, `GET /users/{username}`) are wrapped with
   `httpx.OptionalSession` instead: it populates the viewer id in context when
   a valid session is present but never rejects the request, so anonymous and
   authenticated visitors reach the same handler while `liked`, `isFollowing`,
   and email visibility differ correctly by viewer identity. All
-  state-changing routes (create/update/delete, likes, comments, follows)
-  remain on `protected`.
+  state-changing routes (create/update/delete, likes, comments, follows) remain
+  on `protected`; discovery, social-list, and comment-list reads such as
+  `GET /posts/popular`, `GET /users/{username}/likes`, follower/following
+  lists, and `GET /posts/{publicId}/comments` require a session. Liked-post
+  lists are authenticated social reads, not owner-only private data.
 - Adding a new public route requires explicit registration on `public` and
   justification for bypassing `RequireSession`.
 

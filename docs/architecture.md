@@ -62,13 +62,15 @@ database (outbox polling) → backend relay → broker
   Meilisearch.
 - Auth boundary: `internal/app/routes.go` registers routes on two separate
   `http.ServeMux` instances, `public` and `protected`; `httpx.RequireSession`
-  wraps only the `protected` mux. Feature modules opt into each mux via
-  `RegisterPublicRoutes`/`RegisterProtectedRoutes`. A public wildcard segment
-  can shadow a protected literal path with the same prefix (Go's `ServeMux`
-  resolves precedence per-mux, so `protected`'s more specific pattern is
-  invisible to `public`); `GET /users/me` and `GET /users/suggested` are
+  wraps the `protected` mux and selected public-mux literals. Feature modules
+  opt into each mux via `RegisterPublicRoutes`/`RegisterProtectedRoutes`. A
+  public wildcard segment can shadow a protected literal path with the same
+  prefix (Go's `ServeMux` resolves precedence per-mux, so `protected`'s more
+  specific pattern is invisible to `public`); `GET /users/me`,
+  `GET /users/suggested`, `GET /users/search`, `GET /posts/popular`,
+  `GET /users/{username}/likes`, and follower/following list routes are
   registered directly on `public`, individually wrapped with
-  `httpx.RequireSession`, to win against the `GET /users/{username}` wildcard.
+  `httpx.RequireSession`, to win against public wildcard routes.
 - Public routes shared with signed-in viewers (e.g. `GET /posts/{publicId}`)
   are wrapped with `httpx.OptionalSession` instead of `RequireSession`: it
   populates the viewer id in context when a valid session cookie is present
