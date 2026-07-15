@@ -76,12 +76,10 @@ kubectl delete namespace phasma
 - Use precise names and standard initialisms. Prefer clarity over compressed
   code and named constants over repeated policy-significant literals.
 - Keep related fixes together; do not expand a task into unrelated cleanup.
-- Comments explain constraints, invariants, security decisions, or non-obvious
-  intent. Do not narrate straightforward code or preserve implementation
-  history.
-- Keep comments concise but valuable. Reduce verbose 3-5 line explanations to
-  1-2 lines when the same constraint or intent remains clear, while preserving
-  documentation comments and language requirements such as Go exported
+- Code should be self-documenting; default to no comment. Add one only for a
+  non-obvious constraint, invariant, or security/design decision — never to
+  narrate what the code does or preserve implementation history — and keep it
+  to 1-2 lines. Preserve required documentation comments, e.g. Go exported
   identifier docs.
 - Do not suppress compiler, linter, type-checker, or test warnings to make
   checks pass. Fix the underlying issue. Use a narrowly scoped suppression only
@@ -180,3 +178,6 @@ Before reporting a change complete:
 - Update the relevant spec to reflect the change — new endpoints, schema
   changes, rule additions, security controls, or infrastructure modifications —
   before marking work complete.
+- Keep `docs/` specs condensed: state facts and rules directly, no restating
+  what the code already makes obvious. `README.md` may run more normal-length
+  as the project's front door.
