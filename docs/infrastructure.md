@@ -113,10 +113,9 @@ select the StatefulSet's own pod.
 
 ## Ingress
 
-nginx Ingress at `phasma.localhost`. Routes HTTPS traffic to `frontend:8080` and
-redirects HTTP to HTTPS. `proxy-body-size: 2m` accommodates 1 MB image uploads
-plus multipart overhead. Local deployment creates a self-signed `frontend-tls`
-Secret; production should replace it with an ingress-managed certificate.
+nginx Ingress at `phasma.localhost`. Routes plain HTTP traffic to
+`frontend:8080`; this deployment has no TLS termination (local k3s only).
+`proxy-body-size: 2m` accommodates 1 MB image uploads plus multipart overhead.
 
 ## Database TLS
 

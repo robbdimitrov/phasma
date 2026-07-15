@@ -119,23 +119,27 @@
 
 ## HTTP Security Headers (backend)
 
+The API only ever emits JSON (`WriteJSON`/`WriteMessage`), so the CSP stays
+fully locked down rather than carrying a browser-app baseline this origin
+doesn't need. No `Strict-Transport-Security`: this deployment has no TLS
+termination (local k3s only), and sending it over plain HTTP would be a false
+guarantee to clients.
+
 - `X-XSS-Protection: 0` (legacy auditor disabled; CSP takes over)
 - `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: SAMEORIGIN`
+- `X-Frame-Options: DENY`
 - `Referrer-Policy: no-referrer`
-- `Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'`
-- `Strict-Transport-Security: max-age=31536000; includeSubDomains` when the
-  request is HTTPS or trusted forwarded HTTPS
+- `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`
 
 ## HTTP Security Headers (frontend)
 
+No `Strict-Transport-Security`, for the same reason as the backend.
+
 - `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: SAMEORIGIN`
+- `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Cross-Origin-Opener-Policy: same-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()`
-- `Strict-Transport-Security: max-age=31536000; includeSubDomains` for HTTPS
-  requests
 - SvelteKit nonce-based `Content-Security-Policy`:
   `default-src 'self'; script-src 'self'` plus per-request nonce;
   `style-src 'self'`;
@@ -144,7 +148,7 @@
   cannot cover; scoping the hash to `style-src-attr` keeps `style-src` strict, and
   `unsafe-hashes` — required for hashes to apply to attributes — permits only that
   exact string);
-  `img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'`
+  `img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'`
 
 The uploads proxy route (`/uploads/[key]`) also sets
 `Cross-Origin-Resource-Policy: cross-origin` to allow image embedding from other

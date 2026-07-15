@@ -18,16 +18,20 @@ async function resolveURL(rawURL: string) {
 }
 
 describe('handle', () => {
-	it('sets HSTS for HTTPS requests', async () => {
-		const response = await resolveURL('https://phasma.localhost/feed');
+	it('sets security headers', async () => {
+		const response = await resolveURL('http://phasma.localhost/feed');
 
-		expect(response.headers.get('Strict-Transport-Security')).toBe(
-			'max-age=31536000; includeSubDomains'
+		expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+		expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+		expect(response.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+		expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
+		expect(response.headers.get('Permissions-Policy')).toBe(
+			'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()'
 		);
 	});
 
-	it('omits HSTS for plain HTTP requests', async () => {
-		const response = await resolveURL('http://localhost:8080/feed');
+	it('omits Strict-Transport-Security: no TLS termination in this deployment', async () => {
+		const response = await resolveURL('https://phasma.localhost/feed');
 
 		expect(response.headers.has('Strict-Transport-Security')).toBe(false);
 	});

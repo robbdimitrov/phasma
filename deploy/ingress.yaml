@@ -9,7 +9,6 @@ metadata:
   annotations:
     # Allow the backend's 1 MB upload limit plus multipart overhead.
     nginx.ingress.kubernetes.io/proxy-body-size: "2m"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   # Frontend is the only public entry point; it proxies backend traffic in-cluster.
@@ -24,7 +23,3 @@ spec:
                 name: frontend
                 port:
                   number: 8080
-  tls:
-    - hosts:
-        - phasma.localhost
-      secretName: frontend-tls

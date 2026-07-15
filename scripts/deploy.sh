@@ -224,29 +224,6 @@ ensure_secret_key() {
     -p "{\"data\":{\"${key}\":\"${encoded}\"}}" >/dev/null
 }
 
-ensure_tls_secret() {
-  local secret_name="frontend-tls"
-  local tmpdir
-  if kubectl -n "${NS}" get secret "${secret_name}" >/dev/null 2>&1; then
-    return
-  fi
-  command -v openssl >/dev/null || die "missing required tool for local TLS secret: openssl"
-
-  log "creating self-signed TLS secret for ${APP_HOST}"
-  tmpdir="$(mktemp -d)"
-  trap 'rm -rf "${tmpdir}"' RETURN
-  openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes \
-    -keyout "${tmpdir}/tls.key" \
-    -out "${tmpdir}/tls.crt" \
-    -subj "/CN=${APP_HOST}" \
-    -addext "subjectAltName=DNS:${APP_HOST}" >/dev/null 2>&1
-  kubectl -n "${NS}" create secret tls "${secret_name}" \
-    --cert="${tmpdir}/tls.crt" \
-    --key="${tmpdir}/tls.key" >/dev/null
-  trap - RETURN
-  rm -rf "${tmpdir}"
-}
-
 ensure_database_tls_secret() {
   local secret_name="database-tls"
   local tmpdir
@@ -487,7 +464,6 @@ apply_manifests() {
   ensure_secret
   ensure_app_db_secret
   ensure_connect_secret
-  ensure_tls_secret
   ensure_database_tls_secret
   apply_manifest_files "${STATIC_MANIFESTS[@]}"
 }

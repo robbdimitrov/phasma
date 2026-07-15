@@ -7,16 +7,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		transformPageChunk: ({ html }) => html.replace('data-theme="system"', `data-theme="${theme}"`)
 	});
 	res.headers.set('X-Content-Type-Options', 'nosniff');
-	res.headers.set('X-Frame-Options', 'SAMEORIGIN');
+	res.headers.set('X-Frame-Options', 'DENY');
 	res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	res.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
 	res.headers.set(
 		'Permissions-Policy',
 		'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()'
 	);
-	if (event.url.protocol === 'https:') {
-		res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-	}
+	// No Strict-Transport-Security: this deployment has no TLS termination,
+	// and sending it over plain HTTP would be a false guarantee to clients.
 	return res;
 };
 
