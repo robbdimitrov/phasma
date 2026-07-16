@@ -7,6 +7,7 @@
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import { recordRecentSearch } from '$lib/utils/recentSearch';
+	import RecentSearches from './RecentSearches.svelte';
 	import SearchDiscovery from './SearchDiscovery.svelte';
 	import SearchPostThumbnail from './SearchPostThumbnail.svelte';
 	import SearchSuggestions from './SearchSuggestions.svelte';
@@ -34,12 +35,68 @@
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let requestToken = 0;
 
+	// True only once the input has been focused; gates the recent-searches
+	// dropdown so it appears on focus rather than as static page content.
+	let inputFocused = $state(false);
+
+	// Writable derived: a remove/clear overrides this locally for an
+	// optimistic update, discarded in favor of the new data.recent once
+	// navigation reloads it (same pattern as `inputValue` above). Lifted here
+	// rather than owned by RecentSearches so showRecentDropdown below reacts
+	// to it immediately.
+	let recentItems = $derived(data.recent);
+	let showRecentDropdown = $derived(inputFocused && !inputValue && recentItems.length > 0);
+
 	function closeSuggestions() {
 		// Bump the token so any fetch already in flight is discarded on arrival
 		// instead of repopulating the dropdown after it was dismissed.
 		requestToken++;
 		suggestUsers = [];
 		suggestHashtags = [];
+	}
+
+	// Closes both dropdowns once focus leaves the whole search widget (input,
+	// live suggestions, or the recent-searches panel) rather than on input
+	// blur alone, since clicking into either dropdown blurs the input first.
+	function handleWidgetFocusOut(e: FocusEvent) {
+		const next = e.relatedTarget as Node | null;
+		if (!next || !(e.currentTarget as HTMLElement).contains(next)) {
+			inputFocused = false;
+			closeSuggestions();
+		}
+	}
+
+	// Returns a restore callback that puts the item back at its original
+	// index, for reverting on a failed submission — mirrors
+	// SearchDiscovery.svelte's follow/unfollow revert-on-failure pattern.
+	//
+	// Refocusing the input here matters: the remove button itself holds focus
+	// when clicked, and Svelte's reactive DOM update removes that button (its
+	// row is gone from `recentItems`) shortly after this returns. Without
+	// explicitly moving focus back to the input first, focus would fall back
+	// to <body> when the button is detached, which handleWidgetFocusOut reads
+	// as "focus left the widget" and closes the whole dropdown — including
+	// any remaining items — instead of just the one row.
+	function removeRecentLocally(id: string): (() => void) | null {
+		const index = recentItems.findIndex((item) => item.id === id);
+		const removed = recentItems[index];
+		if (index === -1 || !removed) return null;
+		recentItems = recentItems.filter((item) => item.id !== id);
+		inputEl?.focus();
+		return () => {
+			recentItems = [...recentItems.slice(0, index), removed, ...recentItems.slice(index)];
+		};
+	}
+
+	// Same focus caveat as removeRecentLocally above: the Clear all button
+	// holds focus when clicked and is removed once the list empties.
+	function clearRecentLocally(): () => void {
+		const previous = recentItems;
+		recentItems = [];
+		inputEl?.focus();
+		return () => {
+			recentItems = previous;
+		};
 	}
 
 	function buildSearchUrl(q: string): InternalPath {
@@ -143,31 +200,45 @@
 </svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col gap-6">
-	<form class="relative w-full" onsubmit={onSubmit}>
-		<input
-			bind:this={inputEl}
-			type="search"
-			class="input w-full rounded-full pr-14 [&::-webkit-search-cancel-button]:hidden"
-			placeholder="Search users, posts, hashtags…"
-			bind:value={inputValue}
-			oninput={onInput}
-			aria-label="Search"
-		/>
-		{#if inputValue}
-			<button
-				type="button"
-				onclick={clearInput}
-				class="absolute top-1/2 right-4 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-base-content transition-colors hover:bg-base-300"
-				aria-label="Clear search"
-			>
-				<X class="h-4 w-4" />
-			</button>
-		{/if}
+	<div class="relative w-full" onfocusout={handleWidgetFocusOut}>
+		<form class="relative w-full" onsubmit={onSubmit}>
+			<input
+				bind:this={inputEl}
+				type="search"
+				class="input w-full rounded-full pr-14 [&::-webkit-search-cancel-button]:hidden"
+				placeholder="Search users, posts, hashtags…"
+				bind:value={inputValue}
+				oninput={onInput}
+				onfocus={() => (inputFocused = true)}
+				aria-label="Search"
+			/>
+			{#if inputValue}
+				<button
+					type="button"
+					onclick={clearInput}
+					class="absolute top-1/2 right-4 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-base-content transition-colors hover:bg-base-300"
+					aria-label="Clear search"
+				>
+					<X class="h-4 w-4" />
+				</button>
+			{/if}
+		</form>
 		<SearchSuggestions users={suggestUsers} hashtags={suggestHashtags} onclose={closeSuggestions} />
-	</form>
+		{#if showRecentDropdown}
+			<RecentSearches
+				items={recentItems}
+				onRemove={removeRecentLocally}
+				onClear={clearRecentLocally}
+			/>
+		{/if}
+	</div>
 
 	{#if !data.q}
-		<SearchDiscovery recent={data.recent} suggested={data.suggested} popular={data.popular} />
+		<SearchDiscovery
+			hasRecent={recentItems.length > 0}
+			suggested={data.suggested}
+			popular={data.popular}
+		/>
 	{:else if resultsPagination.items.length === 0}
 		<EmptyState
 			icon="triangle-alert"

@@ -38,16 +38,17 @@
 		}
 	});
 
+	function recordSuggestion(row: SuggestionItem) {
+		if (row.type === 'users') recordRecentSearch('users', row.item.username);
+		else recordRecentSearch('hashtags', row.item.name);
+	}
+
 	function activate(row: SuggestionItem | undefined) {
 		if (!row) return;
 		onclose();
-		if (row.type === 'users') {
-			recordRecentSearch('users', row.item.username);
-			goto(resolve(`/@${row.item.username}`));
-		} else {
-			recordRecentSearch('hashtags', row.item.name);
-			goto(resolve(`/search?q=%23${encodeURIComponent(row.item.name)}`));
-		}
+		recordSuggestion(row);
+		if (row.type === 'users') goto(resolve(`/@${row.item.username}`));
+		else goto(resolve(`/search?q=%23${encodeURIComponent(row.item.name)}`));
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -60,11 +61,6 @@
 		if (action === 'select') activate(flat[index]);
 		else if (action === 'clear') onclose();
 	}
-
-	function handleFocusOut(e: FocusEvent) {
-		const next = e.relatedTarget as Node | null;
-		if (!next || !(e.currentTarget as HTMLElement).contains(next)) onclose();
-	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -72,7 +68,6 @@
 {#if flat.length > 0}
 	<div
 		class="absolute top-full z-10 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg shadow-slate-900/10"
-		onfocusout={handleFocusOut}
 	>
 		<ul class="menu menu-sm w-full gap-1 p-0">
 			{#each flat as row, i (rowKey(row))}
@@ -81,7 +76,10 @@
 						{row}
 						active={i === activeIndex}
 						onmouseenter={() => (activeIndex = i)}
-						onclick={onclose}
+						onclick={() => {
+							recordSuggestion(row);
+							onclose();
+						}}
 					/>
 				</li>
 			{/each}

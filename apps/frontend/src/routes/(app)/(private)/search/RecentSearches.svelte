@@ -5,44 +5,32 @@
 	import SearchResultRow from './SearchResultRow.svelte';
 	import type { RecentSearchItem } from '$lib/server/api/search';
 
-	let { recent }: { recent: RecentSearchItem[] } = $props();
-
-	// Writable derived: a remove/clear overrides this locally for an
-	// optimistic update, discarded in favor of the new `recent` prop once
-	// navigation reloads it (same pattern as +page.svelte's `inputValue`).
-	let items = $derived(recent);
-
-	// Returns a restore callback that puts the item back at its original
-	// index, for reverting on a failed submission — mirrors
-	// SearchDiscovery.svelte's follow/unfollow revert-on-failure pattern.
-	function removeLocally(id: string): (() => void) | null {
-		const index = items.findIndex((item) => item.id === id);
-		const removed = items[index];
-		if (index === -1 || !removed) return null;
-		items = items.filter((item) => item.id !== id);
-		return () => {
-			items = [...items.slice(0, index), removed, ...items.slice(index)];
-		};
-	}
-
-	function clearLocally(): () => void {
-		const previous = items;
-		items = [];
-		return () => {
-			items = previous;
-		};
-	}
+	// `items` and its mutators live in the parent (+page.svelte): it also
+	// gates whether this dropdown is shown at all, so it needs to observe an
+	// optimistic remove/clear immediately rather than through a prop that only
+	// updates on the next navigation.
+	let {
+		items,
+		onRemove,
+		onClear
+	}: {
+		items: RecentSearchItem[];
+		onRemove: (id: string) => (() => void) | null;
+		onClear: () => () => void;
+	} = $props();
 </script>
 
 {#if items.length > 0}
-	<div class="flex flex-col gap-3">
-		<div class="flex items-center justify-between">
+	<div
+		class="absolute top-full z-10 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg shadow-slate-900/10"
+	>
+		<div class="flex items-center justify-between px-1 pb-2">
 			<h2 class="text-sm font-bold text-base-content/60 uppercase tracking-wide">Recent</h2>
 			<form
 				method="POST"
 				action="?/clearRecent"
 				use:enhance={() => {
-					const restore = clearLocally();
+					const restore = onClear();
 					return async ({ result }) => {
 						if (result.type === 'error' || result.type === 'failure') restore();
 					};
@@ -82,7 +70,7 @@
 						method="POST"
 						action="?/removeRecent"
 						use:enhance={() => {
-							const restore = removeLocally(row.id);
+							const restore = onRemove(row.id);
 							return async ({ result }) => {
 								if ((result.type === 'error' || result.type === 'failure') && restore) restore();
 							};

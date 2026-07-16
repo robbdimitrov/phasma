@@ -1,13 +1,15 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync, type ComponentProps } from 'svelte';
 
-const { goto, resolve } = vi.hoisted(() => ({
+const { goto, resolve, recordRecentSearch } = vi.hoisted(() => ({
 	goto: vi.fn(),
-	resolve: vi.fn((path: string) => path)
+	resolve: vi.fn((path: string) => path),
+	recordRecentSearch: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({ goto }));
 vi.mock('$app/paths', () => ({ resolve }));
+vi.mock('$lib/utils/recentSearch', () => ({ recordRecentSearch }));
 
 import SearchSuggestions from './SearchSuggestions.svelte';
 
@@ -64,5 +66,31 @@ describe('SearchSuggestions keyboard handling', () => {
 		pressKey('Enter');
 
 		expect(onclose).toHaveBeenCalled();
+	});
+
+	it('records the suggestion when selected via keyboard', () => {
+		render({ users, hashtags: [], onclose: vi.fn() });
+
+		pressKey('ArrowDown');
+		pressKey('Enter');
+
+		expect(recordRecentSearch).toHaveBeenCalledWith('users', 'alice');
+	});
+});
+
+describe('SearchSuggestions mouse handling', () => {
+	it('records the suggestion and closes the dropdown when a row is clicked', () => {
+		const onclose = vi.fn();
+		const el = render({ users, hashtags: [], onclose });
+
+		el.querySelector('a')?.dispatchEvent(
+			new MouseEvent('click', { bubbles: true, cancelable: true })
+		);
+		flushSync();
+
+		expect(recordRecentSearch).toHaveBeenCalledWith('users', 'alice');
+		expect(onclose).toHaveBeenCalled();
+		// A mouse click navigates via the anchor's native href, not goto.
+		expect(goto).not.toHaveBeenCalled();
 	});
 });
