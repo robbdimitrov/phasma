@@ -46,6 +46,13 @@
 	// to it immediately.
 	let recentItems = $derived(data.recent);
 	let showRecentDropdown = $derived(inputFocused && !inputValue && recentItems.length > 0);
+	// Gates the scrim below: true whenever either dropdown (recents or live
+	// suggestions) is actually showing content, so the page behind reads as
+	// dimmed/inactive rather than the dropdown just looking like it's
+	// clipping into unrelated content.
+	let anyDropdownOpen = $derived(
+		showRecentDropdown || suggestUsers.length > 0 || suggestHashtags.length > 0
+	);
 
 	function closeSuggestions() {
 		// Bump the token so any fetch already in flight is discarded on arrival
@@ -200,7 +207,7 @@
 </svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col gap-6">
-	<div class="relative w-full" onfocusout={handleWidgetFocusOut}>
+	<div class="relative z-10 w-full" onfocusout={handleWidgetFocusOut}>
 		<form class="relative w-full" onsubmit={onSubmit}>
 			<input
 				bind:this={inputEl}
@@ -233,33 +240,44 @@
 		{/if}
 	</div>
 
-	{#if !data.q}
-		<SearchDiscovery
-			hasRecent={recentItems.length > 0}
-			suggested={data.suggested}
-			popular={data.popular}
-		/>
-	{:else if resultsPagination.items.length === 0}
-		<EmptyState
-			icon="triangle-alert"
-			title="No results"
-			description="Nothing matched &ldquo;{data.q}&rdquo;. Try a different query."
-		/>
-	{:else}
-		<section class="flex flex-col gap-3">
-			<div class="grid grid-cols-3 gap-2">
-				{#each resultsPagination.items as post (post.id)}
-					<SearchPostThumbnail {post} />
-				{/each}
-			</div>
-			{#if !resultsPagination.done}
-				<div class="flex flex-col items-center gap-2">
-					{#if resultsPagination.error}
-						<p class="text-sm text-error">{resultsPagination.error}</p>
-					{/if}
-					<LoadMoreButton loading={resultsPagination.loading} onclick={resultsPagination.more} />
+	<div class="relative">
+		{#if anyDropdownOpen}
+			<!-- Dims the discovery/results content so an open dropdown reads as a
+			     focused overlay rather than clipping over unrelated content.
+			     Sized via inset-0 to this wrapper's own content height (not a
+			     fixed guess) so it never over- or under-covers, and never
+			     inflates the page's scrollable area the way an oversized
+			     position: absolute height would. -->
+			<div class="absolute inset-0 z-0 bg-base-100/70 backdrop-blur-sm" aria-hidden="true"></div>
+		{/if}
+		{#if !data.q}
+			<SearchDiscovery
+				hasRecent={recentItems.length > 0}
+				suggested={data.suggested}
+				popular={data.popular}
+			/>
+		{:else if resultsPagination.items.length === 0}
+			<EmptyState
+				icon="triangle-alert"
+				title="No results"
+				description="Nothing matched &ldquo;{data.q}&rdquo;. Try a different query."
+			/>
+		{:else}
+			<section class="flex flex-col gap-3">
+				<div class="grid grid-cols-3 gap-2">
+					{#each resultsPagination.items as post (post.id)}
+						<SearchPostThumbnail {post} />
+					{/each}
 				</div>
-			{/if}
-		</section>
-	{/if}
+				{#if !resultsPagination.done}
+					<div class="flex flex-col items-center gap-2">
+						{#if resultsPagination.error}
+							<p class="text-sm text-error">{resultsPagination.error}</p>
+						{/if}
+						<LoadMoreButton loading={resultsPagination.loading} onclick={resultsPagination.more} />
+					</div>
+				{/if}
+			</section>
+		{/if}
+	</div>
 </div>

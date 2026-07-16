@@ -2,7 +2,9 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { History, X } from '@lucide/svelte';
+	import SearchDropdownPanel from './SearchDropdownPanel.svelte';
 	import SearchResultRow from './SearchResultRow.svelte';
+	import { SEARCH_ROW_CARD_CLASS } from './searchRowCard';
 	import type { RecentSearchItem } from '$lib/server/api/search';
 
 	// `items` and its mutators live in the parent (+page.svelte): it also
@@ -21,9 +23,7 @@
 </script>
 
 {#if items.length > 0}
-	<div
-		class="absolute top-full z-10 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg shadow-slate-900/10"
-	>
+	<SearchDropdownPanel>
 		<div class="flex items-center justify-between px-1 pb-2">
 			<h2 class="text-sm font-bold text-base-content/60 uppercase tracking-wide">Recent</h2>
 			<form
@@ -46,26 +46,24 @@
 		</div>
 		<ul class="flex flex-col gap-1">
 			{#each items as row (row.id)}
-				<li class="flex items-center gap-1">
-					<div class="min-w-0 flex-1">
-						{#if row.type === 'users'}
-							<SearchResultRow row={{ type: 'users', item: row.item }} />
-						{:else if row.type === 'hashtags'}
-							<SearchResultRow row={{ type: 'hashtags', item: row.item }} />
-						{:else}
-							<a
-								href={resolve(`/search?q=${encodeURIComponent(row.item)}`)}
-								class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 p-3 transition-colors hover:bg-base-200"
+				<li class={SEARCH_ROW_CARD_CLASS}>
+					{#if row.type === 'users'}
+						<SearchResultRow row={{ type: 'users', item: row.item }} bare />
+					{:else if row.type === 'hashtags'}
+						<SearchResultRow row={{ type: 'hashtags', item: row.item }} bare />
+					{:else}
+						<a
+							href={resolve(`/search?q=${encodeURIComponent(row.item)}`)}
+							class="flex min-w-0 flex-1 items-center gap-3"
+						>
+							<span
+								class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-300 text-base-content/60"
 							>
-								<span
-									class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-300 text-base-content/60"
-								>
-									<History class="h-5 w-5" />
-								</span>
-								<span class="min-w-0 flex-1 truncate font-bold">{row.item}</span>
-							</a>
-						{/if}
-					</div>
+								<History class="h-5 w-5" />
+							</span>
+							<span class="min-w-0 flex-1 truncate font-bold">{row.item}</span>
+						</a>
+					{/if}
 					<form
 						method="POST"
 						action="?/removeRecent"
@@ -80,7 +78,7 @@
 						<button
 							type="submit"
 							aria-label="Remove from recent searches"
-							class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-base-content/40 transition-colors hover:bg-base-300 hover:text-base-content"
+							class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-base-content transition-colors hover:bg-base-300"
 						>
 							<X class="h-4 w-4" />
 						</button>
@@ -88,5 +86,5 @@
 				</li>
 			{/each}
 		</ul>
-	</div>
+	</SearchDropdownPanel>
 {/if}

@@ -4,6 +4,7 @@
 	import { typeaheadNav } from '$lib/utils/typeaheadNav';
 	import { interleaveSuggestions, type SuggestionItem } from '$lib/utils/interleaveSuggestions';
 	import { recordRecentSearch } from '$lib/utils/recentSearch';
+	import SearchDropdownPanel from './SearchDropdownPanel.svelte';
 	import SearchResultRow from './SearchResultRow.svelte';
 	import type { UserSuggestion, HashtagSuggestion } from '$lib/server/api/search';
 
@@ -66,9 +67,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if flat.length > 0}
-	<div
-		class="absolute top-full z-10 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg shadow-slate-900/10"
-	>
+	<SearchDropdownPanel>
 		<ul class="menu menu-sm w-full gap-1 p-0">
 			{#each flat as row, i (rowKey(row))}
 				<li>
@@ -84,5 +83,5 @@
 				</li>
 			{/each}
 		</ul>
-	</div>
+	</SearchDropdownPanel>
 {/if}
