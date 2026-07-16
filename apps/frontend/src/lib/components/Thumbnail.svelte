@@ -2,9 +2,17 @@
 	import { Heart } from '@lucide/svelte';
 	import { imageUrl } from '$lib/utils/imageUrl';
 	import ImageTile from './ImageTile.svelte';
-	import type { Post } from '$lib/types';
 
-	let { post }: { post: Post } = $props();
+	// Structural: any post-like DTO (full `Post`, or a narrower search hit)
+	// satisfies this without adaptation, as long as field names line up.
+	export interface ThumbnailPost {
+		publicId: string;
+		filename: string;
+		description: string | null;
+		likes: number;
+	}
+
+	let { post }: { post: ThumbnailPost } = $props();
 </script>
 
 <ImageTile postId={post.publicId} src={imageUrl(post.filename)} alt={post.description ?? ''}>

@@ -245,7 +245,8 @@ enforced in the UPDATE query.
 
 - `type=posts`: full-text search on description and username; supports
   `q=#hashtag` to filter by hashtag (exact match via Meilisearch filter). Items
-  include `filename` for rendering a thumbnail.
+  include `filename` for rendering a thumbnail and `likes`, hydrated from
+  Postgres per page since the Meilisearch document doesn't carry it.
 - `type=users`: full-text search on username and name. Items include `name` and
   `avatar` (nullable) alongside `username`.
 - `type=hashtags`: full-text search on name. Items are `{name, postCount}`.

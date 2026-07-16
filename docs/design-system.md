@@ -92,13 +92,16 @@ Base primitive for post grid tiles.
 
 ### `Thumbnail`
 
-Wraps `ImageTile`, adding a like-count overlay on hover. Used in profile grids
-and the search page's discovery (popular posts) grid.
+Wraps `ImageTile`, adding a like-count overlay on hover. Takes a structural
+`ThumbnailPost` (`publicId`, `filename`, `description`, `likes`) rather than
+the full `Post` model, so any post-like DTO can be passed without adaptation.
+Used in profile grids, the search page's discovery (popular posts) grid, and
+(via a field-renaming literal) the search page's query-results grid.
 
 ### `SearchPostThumbnail`
 
-Wraps `ImageTile` directly (no like-count overlay). Used only for the search
-page's query-results grid, once a search is active.
+Wraps `Thumbnail`, mapping `SearchPostItem`'s `id` to `publicId`. Used for the
+search page's query-results grid, once a search is active.
 
 ### Form Controls
 

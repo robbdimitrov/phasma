@@ -36,6 +36,10 @@ func (r *fakeRepository) FollowingUsernames(_ context.Context, _ string, _ []str
 	return map[string]bool{}, nil
 }
 
+func (r *fakeRepository) PostLikeCounts(_ context.Context, _ []string) (map[string]int, error) {
+	return map[string]int{}, nil
+}
+
 func (r *fakeRepository) RecordRecentSearch(_ context.Context, userID, entityType, reference string) error {
 	r.recordCall = recordRecentSearchCall{userID, entityType, reference}
 	return nil

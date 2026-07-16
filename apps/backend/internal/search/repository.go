@@ -9,6 +9,10 @@ type Repository interface {
 	// boosting blended search results by social-graph proximity.
 	FollowingUsernames(ctx context.Context, viewerID string, usernames []string) (map[string]bool, error)
 
+	// PostLikeCounts hydrates like_count by public ID at read time, since the
+	// Meilisearch posts document doesn't carry it.
+	PostLikeCounts(ctx context.Context, postIDs []string) (map[string]int, error)
+
 	// RecordRecentSearch upserts (userID, entityType, reference), bumping an
 	// existing entry's timestamp instead of duplicating it, then trims the
 	// user's history back down to recentSearchLimit.

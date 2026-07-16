@@ -26,6 +26,7 @@ type fakeApplication struct {
 	hashtagsCalled bool
 	following      map[string]bool
 	followingCalls [][]string
+	likeCounts     map[string]int
 
 	recentItems    []RecentSearchItem
 	recentErr      error
@@ -54,6 +55,13 @@ func (a *fakeApplication) FollowingUsernames(_ context.Context, _ string, userna
 		return map[string]bool{}, nil
 	}
 	return a.following, nil
+}
+
+func (a *fakeApplication) PostLikeCounts(_ context.Context, _ []string) (map[string]int, error) {
+	if a.likeCounts == nil {
+		return map[string]int{}, nil
+	}
+	return a.likeCounts, nil
 }
 
 func (a *fakeApplication) RecordRecentSearch(_ context.Context, userID, entityType, reference string) error {
@@ -240,6 +248,22 @@ func TestSearchPostsFullSearchIncludesFilename(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"filename":"photo.jpg"`) {
 		t.Fatalf("body = %q", res.Body.String())
+	}
+}
+
+func TestSearchPostsHydratesLikeCountsFromService(t *testing.T) {
+	client := newFakeMeiliClient(t, `{"hits":[{"post_id":"post-1","username":"alice","description":"hi","filename":"photo.jpg"}]}`)
+	application := &fakeApplication{likeCounts: map[string]int{"post-1": 7}}
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/search?q=hi&type=posts", nil)
+
+	Handler{Client: client, Service: application}.Search(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", res.Code, http.StatusOK, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"likes":7`) {
+		t.Fatalf("body = %q, want likes hydrated to 7", res.Body.String())
 	}
 }
 

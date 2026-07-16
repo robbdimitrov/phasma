@@ -22,6 +22,10 @@ func (s *Service) FollowingUsernames(ctx context.Context, viewerID string, usern
 	return s.repository.FollowingUsernames(ctx, viewerID, usernames)
 }
 
+func (s *Service) PostLikeCounts(ctx context.Context, postIDs []string) (map[string]int, error) {
+	return s.repository.PostLikeCounts(ctx, postIDs)
+}
+
 func (s *Service) RecordRecentSearch(ctx context.Context, userID, entityType, reference string) error {
 	return s.repository.RecordRecentSearch(ctx, userID, entityType, reference)
 }

@@ -31,6 +31,7 @@ type Application interface {
 	SearchUsers(ctx context.Context, q string) ([]UserResult, error)
 	SearchHashtags(ctx context.Context, q string) ([]HashtagResult, error)
 	FollowingUsernames(ctx context.Context, viewerID string, usernames []string) (map[string]bool, error)
+	PostLikeCounts(ctx context.Context, postIDs []string) (map[string]int, error)
 
 	RecordRecentSearch(ctx context.Context, userID, entityType, reference string) error
 	ListRecentSearches(ctx context.Context, userID string) ([]RecentSearchItem, error)
@@ -163,7 +164,7 @@ func (h Handler) Search(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteMessage(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
-		posts := postsFromHits(hits)
+		posts := hydratePostLikes(ctx, h.Service, postsFromHits(hits))
 		items = posts
 		count = len(posts)
 	}
@@ -225,7 +226,7 @@ func (h Handler) searchAll(w http.ResponseWriter, r *http.Request, q string, lim
 
 	plan := planBlend(targetUsers, targetPosts, targetHashtags, len(users), len(posts), len(hashtags))
 	users = users[:plan.ConsumeUsers]
-	posts = posts[:plan.ConsumePosts]
+	posts = hydratePostLikes(r.Context(), h.Service, posts[:plan.ConsumePosts])
 	hashtags = hashtags[:plan.ConsumeHashtags]
 
 	if viewerID, ok := httpx.UserID(r); ok && len(users) > 0 {
@@ -373,6 +374,26 @@ func usersFromHits(hits []map[string]any) []UserResult {
 		results = append(results, u)
 	}
 	return results
+}
+
+// hydratePostLikes fills in each post's like count from Postgres; a
+// hydration error leaves likes at zero rather than failing the search.
+func hydratePostLikes(ctx context.Context, service Application, posts []PostResult) []PostResult {
+	if service == nil || len(posts) == 0 {
+		return posts
+	}
+	ids := make([]string, len(posts))
+	for i, p := range posts {
+		ids[i] = p.ID
+	}
+	counts, err := service.PostLikeCounts(ctx, ids)
+	if err != nil {
+		return posts
+	}
+	for i := range posts {
+		posts[i].Likes = counts[posts[i].ID]
+	}
+	return posts
 }
 
 func postsFromHits(hits []map[string]any) []PostResult {

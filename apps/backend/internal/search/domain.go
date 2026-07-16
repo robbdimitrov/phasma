@@ -24,4 +24,5 @@ type PostResult struct {
 	Username    string `json:"username"`
 	Description string `json:"description"`
 	Filename    string `json:"filename"`
+	Likes       int    `json:"likes"`
 }

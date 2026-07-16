@@ -108,6 +108,36 @@ func (r *SearchRepository) FollowingUsernames(ctx context.Context, viewerID stri
 	return following, nil
 }
 
+// PostLikeCounts hydrates like_count at read time, mirroring
+// ListRecentSearches's pattern below.
+func (r *SearchRepository) PostLikeCounts(ctx context.Context, postIDs []string) (map[string]int, error) {
+	counts := map[string]int{}
+	if len(postIDs) == 0 {
+		return counts, nil
+	}
+	err := r.db.Read(ctx, func() error {
+		rows, err := r.db.Pool().Query(ctx,
+			`SELECT public_id::text, like_count FROM posts WHERE public_id = ANY($1::uuid[])`, postIDs)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			var likes int
+			if err := rows.Scan(&id, &likes); err != nil {
+				return err
+			}
+			counts[id] = likes
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	return counts, nil
+}
+
 // recentSearchLimit caps how many recent-search rows are retained per user.
 // A separate constant from typeaheadLen even though both are currently 10:
 // this bounds a persisted recall list, not a live relevance list, so the two

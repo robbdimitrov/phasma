@@ -35,6 +35,7 @@ export interface SearchPostItem {
 	username: string;
 	description: string;
 	filename: string;
+	likes: number;
 }
 
 export interface SearchHashtagItem {
