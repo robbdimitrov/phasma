@@ -69,14 +69,12 @@ database (outbox polling) → backend relay → broker
   specific pattern is invisible to `public`); `GET /users/me`,
   `GET /users/suggested`, `GET /users/search`, `GET /posts/popular`,
   `GET /users/{username}/likes`, and follower/following list routes are
-  registered directly on `public`, individually wrapped with
-  `httpx.RequireSession`, to win against public wildcard routes.
+  registered directly on `public`, each wrapped with `httpx.RequireSession`.
 - Public routes shared with signed-in viewers (e.g. `GET /posts/{publicId}`)
-  are wrapped with `httpx.OptionalSession` instead of `RequireSession`: it
-  populates the viewer id in context when a valid session cookie is present
-  but never rejects the request otherwise, so a handler's optional
-  `httpx.UserID(r)` read reflects the real viewer (correct `liked`,
-  `isFollowing`, and email visibility) instead of always looking anonymous.
+  use `httpx.OptionalSession` instead of `RequireSession`: it populates the
+  viewer id in context when a valid session cookie is present but never
+  rejects the request, so `httpx.UserID(r)` reflects the real viewer (correct
+  `liked`, `isFollowing`, and email visibility) instead of always anonymous.
 - Feature modules: `users`, `sessions`, `posts`, `comments`, `uploads`,
   `search`, `notifications`, `feed`.
 - Each feature module owns its PostgreSQL repository implementation in a

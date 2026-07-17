@@ -80,9 +80,9 @@ key or another connect secret value changes.
 
 Each workload has a dedicated `ServiceAccount` defined in
 `deploy/serviceaccounts.yaml` with `automountServiceAccountToken: false`.
-Dedicated accounts allow per-workload RBAC if needed in future without granting
-access at a shared default account. No RBAC rules are currently bound to any of
-these accounts.
+Dedicated accounts allow per-workload RBAC later without granting access via
+a shared default account. No RBAC rules are currently bound to any of these
+accounts.
 
 ## Services and Networking
 

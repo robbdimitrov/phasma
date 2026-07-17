@@ -177,19 +177,17 @@ All inserts use `ON CONFLICT (external_id) DO NOTHING` for idempotency.
 
 ## Recent Searches Rules
 
-- Capped at 10 entries per authenticated user. Currently the same number as
-  the typeahead's cap, but tracked as a separate constant (`recentSearchLimit`)
-  since a live relevance list and a persisted recall list solve different
-  problems and are free to diverge again without a design change.
+- Capped at 10 entries per authenticated user. Same as the typeahead's cap
+  today, but tracked as a separate constant (`recentSearchLimit`) since the
+  two lists solve different problems and may diverge later.
 - Three entity types: `users`, `hashtags`, `posts`. A dropdown suggestion
   click is recorded as `users`/`hashtags` with the username/hashtag name as
   `reference`; a plain form submission is always recorded as `posts` with the
-  raw, verbatim submitted text (including any `@`/`#` prefix) — never
-  reclassified by prefix, because a submission always lands on
-  `/search?q=<value>` (a posts-results page), never a profile or hashtag page
-  directly the way a suggestion click does. Recording it as `users`/`hashtags`
-  would make the replayed click take the user somewhere they never actually
-  went.
+  raw, verbatim submitted text (including any `@`/`#` prefix). It is never
+  reclassified by prefix: a submission always lands on `/search?q=<value>`, a
+  posts-results page, not the profile or hashtag page a suggestion click
+  goes to — recording it as `users`/`hashtags` would replay to a page the
+  user never visited.
 - Recording the same `(type, reference)` again bumps it to the top instead of
   duplicating it (`ON CONFLICT ... DO UPDATE SET created = now()`).
 - A `users`/`hashtags` entry is hydrated from the current `users`/`hashtags`

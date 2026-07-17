@@ -118,11 +118,11 @@ connection-list links require a signed-in session. Current user sees Settings
 link; others see Follow/Unfollow button with optimistic state and rollback.
 Takes a required `active: 'posts' | 'likes' | 'followers' |
 'following'` prop; the matching stats-row link gets a persistent (non-hover)
-primary text color so it reads as the current section, keeping the same
-bold-number/muted-label contrast as the idle stats (full `text-primary` on the
-count, `text-primary/70` on the label). This stats row is the sole
-cross-section navigation for the profile shell — there is no separate tabs
-strip on the Posts, Likes, or Followers/Following subpages.
+primary text color so it reads as the current section, matching the idle
+stats' bold-number/muted-label contrast (full `text-primary` on the count,
+`text-primary/70` on the label). This stats row is the sole cross-section
+navigation for the profile shell — there is no separate tabs strip on the
+Posts, Likes, or Followers/Following subpages.
 
 ### `Linkified`
 
