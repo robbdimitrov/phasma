@@ -37,7 +37,7 @@
 		{#if currentUser}
 			<a
 				href={resolve('/feed')}
-				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-content/10 hover:text-base-content"
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/feed')}
 				class:text-slate-950={isActive('/feed')}
 				class:shadow-md={isActive('/feed')}
@@ -49,7 +49,7 @@
 
 			<a
 				href={resolve('/search')}
-				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-content/10 hover:text-base-content"
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/search')}
 				class:text-slate-950={isActive('/search')}
 				class:shadow-md={isActive('/search')}
@@ -61,7 +61,7 @@
 
 			<a
 				href={resolve('/upload')}
-				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-content/10 hover:text-base-content"
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/upload')}
 				class:text-slate-950={isActive('/upload')}
 				class:shadow-md={isActive('/upload')}
@@ -73,7 +73,7 @@
 
 			<a
 				href={resolve('/notifications')}
-				class="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-content/10 hover:text-base-content"
+				class="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/notifications')}
 				class:text-slate-950={isActive('/notifications')}
 				class:shadow-md={isActive('/notifications')}
@@ -91,7 +91,7 @@
 
 			<a
 				href={resolve(`/@${currentUser.username}`)}
-				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content/70 transition-colors hover:bg-base-content/10 hover:text-base-content"
+				class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/@' + currentUser.username)}
 				class:text-slate-950={isActive('/@' + currentUser.username)}
 				class:shadow-md={isActive('/@' + currentUser.username)}
@@ -103,7 +103,7 @@
 		{:else}
 			<a
 				href={resolve('/login')}
-				class="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-base-content/70 transition-colors hover:bg-base-content/10 hover:text-base-content"
+				class="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/login')}
 				class:text-slate-950={isActive('/login')}
 				class:shadow-md={isActive('/login')}
@@ -114,7 +114,7 @@
 
 			<a
 				href={resolve('/register')}
-				class="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-base-content/70 transition-colors hover:bg-base-content/10 hover:text-base-content"
+				class="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/register')}
 				class:text-slate-950={isActive('/register')}
 				class:shadow-md={isActive('/register')}

@@ -68,7 +68,7 @@
 	<div class="flex items-center gap-3 border-b border-base-300 pb-4">
 		<a
 			href={resolve('/settings')}
-			class="btn btn-ghost btn-circle btn-sm text-base-content/60 transition-colors hover:bg-base-200 hover:text-base-content"
+			class="btn btn-ghost btn-circle btn-sm text-base-content transition-colors hover:bg-base-200"
 			title="Back to Settings"
 		>
 			<ArrowLeft class="h-5 w-5" />
@@ -123,7 +123,7 @@
 					<div class="absolute bottom-0 right-0 rounded-full bg-base-100 shadow-sm">
 						<button
 							type="button"
-							class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-base-300 text-base-content/50 transition-all duration-150 hover:border-error/30 hover:bg-error/10 hover:text-error active:scale-95"
+							class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-base-300 text-base-content transition-all duration-150 hover:border-error/30 hover:bg-error/10 hover:text-error active:scale-95"
 							title="Remove avatar"
 							onclick={handleRemoveAvatar}
 						>

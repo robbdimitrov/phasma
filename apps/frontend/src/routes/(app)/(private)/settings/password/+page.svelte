@@ -22,7 +22,7 @@
 	<div class="flex items-center gap-3 border-b border-base-300 pb-4">
 		<a
 			href={resolve('/settings')}
-			class="btn btn-ghost btn-circle btn-sm text-base-content/60 transition-colors hover:bg-base-200 hover:text-base-content"
+			class="btn btn-ghost btn-circle btn-sm text-base-content transition-colors hover:bg-base-200"
 			title="Back to Settings"
 		>
 			<ArrowLeft class="h-5 w-5" />

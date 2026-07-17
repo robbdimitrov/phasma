@@ -33,7 +33,7 @@
 	<div class="flex items-start gap-3 border-b border-base-300 pb-4">
 		<a
 			href={resolve('/settings')}
-			class="btn btn-ghost btn-circle btn-sm shrink-0 text-base-content/60 transition-colors hover:bg-base-200 hover:text-base-content"
+			class="btn btn-ghost btn-circle btn-sm shrink-0 text-base-content transition-colors hover:bg-base-200"
 			title="Back to Settings"
 			aria-label="Back to Settings"
 		>
@@ -68,7 +68,7 @@
 			<div
 				class="rounded-2xl border border-dashed border-base-300 bg-base-200 px-5 py-10 text-center"
 			>
-				<Monitor class="mx-auto mb-3 h-8 w-8 text-base-content/45" />
+				<Monitor class="mx-auto mb-3 h-8 w-8 text-base-content" />
 				<p class="text-sm font-bold">No active sessions found.</p>
 			</div>
 		{:else}
@@ -77,7 +77,7 @@
 					<li class="relative rounded-2xl border border-base-300 bg-base-200 p-4">
 						<div class="flex items-start gap-3 pr-12">
 							<div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-100">
-								<Monitor class="h-5 w-5 text-base-content/60" />
+								<Monitor class="h-5 w-5 text-base-content" />
 							</div>
 							<div class="min-w-0 flex-1">
 								<div class="flex flex-wrap items-center gap-2">
@@ -133,7 +133,7 @@
 								<button
 									type="submit"
 									disabled={revoking[session.id]}
-									class="inline-flex h-10 w-10 items-center justify-center rounded-full text-base-content/50 transition-all duration-150 hover:bg-error/10 hover:text-error active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:pointer-events-none disabled:opacity-50"
+									class="inline-flex h-10 w-10 items-center justify-center rounded-full text-base-content transition-all duration-150 hover:bg-error/10 hover:text-error active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:pointer-events-none disabled:opacity-50"
 									title="Revoke session"
 									aria-label="Revoke session"
 								>

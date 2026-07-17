@@ -61,7 +61,7 @@
 					class="flex items-center justify-between rounded-2xl border border-base-300 bg-base-200 p-4 text-sm font-bold text-base-content transition-colors hover:border-base-content/20 hover:bg-base-300"
 				>
 					<span>Edit Profile</span>
-					<ChevronRight class="h-4 w-4 text-base-content/60" />
+					<ChevronRight class="h-4 w-4 text-base-content" />
 				</a>
 			</li>
 
@@ -71,7 +71,7 @@
 					class="flex items-center justify-between rounded-2xl border border-base-300 bg-base-200 p-4 text-sm font-bold text-base-content transition-colors hover:border-base-content/20 hover:bg-base-300"
 				>
 					<span>Change Password</span>
-					<ChevronRight class="h-4 w-4 text-base-content/60" />
+					<ChevronRight class="h-4 w-4 text-base-content" />
 				</a>
 			</li>
 
@@ -81,7 +81,7 @@
 					class="flex items-center justify-between rounded-2xl border border-base-300 bg-base-200 p-4 text-sm font-bold text-base-content transition-colors hover:border-base-content/20 hover:bg-base-300"
 				>
 					<span>Active Sessions</span>
-					<ChevronRight class="h-4 w-4 text-base-content/60" />
+					<ChevronRight class="h-4 w-4 text-base-content" />
 				</a>
 			</li>
 

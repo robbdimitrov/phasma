@@ -74,7 +74,7 @@
 						/>
 						<span
 							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {notification.read
-								? 'bg-base-200 text-base-content/50'
+								? 'bg-base-200 text-base-content'
 								: typeBadge[notification.type]}"
 						>
 							<Icon class="h-2.5 w-2.5" />

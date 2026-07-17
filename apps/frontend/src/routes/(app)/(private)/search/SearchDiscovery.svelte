@@ -117,9 +117,9 @@
 {/if}
 
 {#if suggested.length === 0 && popular.length === 0 && !hasRecent}
-	<div class="flex flex-col items-center gap-3 py-12 text-base-content/40">
-		<Users class="h-12 w-12" />
-		<p class="text-sm">Search for users, posts, or hashtags</p>
+	<div class="flex flex-col items-center gap-3 py-12">
+		<Users class="h-12 w-12 text-base-content" />
+		<p class="text-sm text-base-content/40">Search for users, posts, or hashtags</p>
 	</div>
 {/if}
 

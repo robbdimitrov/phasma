@@ -57,7 +57,7 @@
 							class="flex min-w-0 flex-1 items-center gap-3"
 						>
 							<span
-								class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-300 text-base-content/60"
+								class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-300 text-base-content"
 							>
 								<History class="h-5 w-5" />
 							</span>

@@ -115,7 +115,7 @@
 		{#if initialPost.username === currentUsername}
 			<button
 				type="button"
-				class="absolute right-5 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-base-content/50 transition-all duration-150 hover:bg-error/10 hover:text-error active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 sm:right-6"
+				class="absolute right-5 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-base-content transition-all duration-150 hover:bg-error/10 hover:text-error active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 sm:right-6"
 				title="Delete post"
 				aria-label="Delete post"
 				onclick={() => (showDeleteModal = true)}
@@ -172,7 +172,7 @@
 						type="submit"
 						class="group inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold transition-colors active:scale-95 {liked
 							? 'text-rose-500'
-							: 'text-base-content/60'}"
+							: 'text-base-content'}"
 						aria-label={liked ? 'Unlike post' : 'Like post'}
 						aria-pressed={liked}
 					>
@@ -190,7 +190,7 @@
 			{:else}
 				<a
 					href={resolve('/login')}
-					class="group inline-flex items-center gap-1.5 text-sm font-semibold text-base-content/60 transition-colors active:scale-95"
+					class="group inline-flex items-center gap-1.5 text-sm font-semibold text-base-content transition-colors active:scale-95"
 					aria-label="Log in to like post"
 				>
 					<Heart class="h-5 w-5 fill-transparent" />
@@ -206,7 +206,7 @@
 				class="group inline-flex items-center gap-1.5 text-sm font-semibold text-base-content/60 transition-colors hover:text-base-content"
 				aria-label="View comments"
 			>
-				<MessageCircle class="h-5 w-5" />
+				<MessageCircle class="h-5 w-5 text-base-content" />
 				{commentCount}
 				{pluralize(commentCount, 'comment')}
 			</a>
@@ -314,7 +314,7 @@
 									<input type="hidden" name="commentId" value={comment.id} />
 									<button
 										type="submit"
-										class="-mr-2 mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base-content/50 transition-all duration-150 hover:bg-error/10 hover:text-error active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
+										class="-mr-2 mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base-content transition-all duration-150 hover:bg-error/10 hover:text-error active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
 										aria-label="Delete comment"
 										title="Delete comment"
 									>
