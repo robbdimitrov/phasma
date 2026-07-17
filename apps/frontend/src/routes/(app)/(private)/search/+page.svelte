@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import { X } from '@lucide/svelte';
+	import { Search, X } from '@lucide/svelte';
 	import { createPagination } from '$lib/createPagination.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
@@ -46,10 +46,6 @@
 	// to it immediately.
 	let recentItems = $derived(data.recent);
 	let showRecentDropdown = $derived(inputFocused && !inputValue && recentItems.length > 0);
-	// Gates the scrim below: true whenever either dropdown (recents or live
-	// suggestions) is actually showing content, so the page behind reads as
-	// dimmed/inactive rather than the dropdown just looking like it's
-	// clipping into unrelated content.
 	let anyDropdownOpen = $derived(
 		showRecentDropdown || suggestUsers.length > 0 || suggestHashtags.length > 0
 	);
@@ -141,6 +137,12 @@
 		}
 	}
 
+	// Blur clears suggestions, so refocusing must re-fetch, not wait for a keystroke.
+	function onFocus() {
+		inputFocused = true;
+		if (inputValue) fetchSuggestions(inputValue);
+	}
+
 	function onInput(e: Event) {
 		const value = (e.currentTarget as HTMLInputElement).value;
 		clearTimeout(debounceTimer);
@@ -209,14 +211,19 @@
 <div class="mx-auto flex max-w-xl flex-col gap-6">
 	<div class="relative z-10 w-full" onfocusout={handleWidgetFocusOut}>
 		<form class="relative w-full" onsubmit={onSubmit}>
+			<Search
+				class="pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 text-base-content"
+			/>
 			<input
 				bind:this={inputEl}
 				type="search"
-				class="input w-full rounded-full pr-14 [&::-webkit-search-cancel-button]:hidden"
+				class="input w-full border-base-300 pr-14 pl-11 [&::-webkit-search-cancel-button]:hidden {anyDropdownOpen
+					? 'rounded-t-2xl rounded-b-none border-b-0'
+					: 'rounded-full'}"
 				placeholder="Search users, posts, hashtags…"
 				bind:value={inputValue}
 				oninput={onInput}
-				onfocus={() => (inputFocused = true)}
+				onfocus={onFocus}
 				aria-label="Search"
 			/>
 			{#if inputValue}
@@ -230,26 +237,28 @@
 				</button>
 			{/if}
 		</form>
-		<SearchSuggestions users={suggestUsers} hashtags={suggestHashtags} onclose={closeSuggestions} />
-		{#if showRecentDropdown}
-			<RecentSearches
-				items={recentItems}
-				onRemove={removeRecentLocally}
-				onClear={clearRecentLocally}
-			/>
+		{#if anyDropdownOpen}
+			<!-- No border/gap against the input, so the two read as one sheet. -->
+			<div
+				class="absolute top-full w-full rounded-b-2xl border border-t-0 border-base-300 bg-base-100 shadow-lg shadow-slate-900/10"
+			>
+				<SearchSuggestions
+					users={suggestUsers}
+					hashtags={suggestHashtags}
+					onclose={closeSuggestions}
+				/>
+				{#if showRecentDropdown}
+					<RecentSearches
+						items={recentItems}
+						onRemove={removeRecentLocally}
+						onClear={clearRecentLocally}
+					/>
+				{/if}
+			</div>
 		{/if}
 	</div>
 
-	<div class="relative">
-		{#if anyDropdownOpen}
-			<!-- Dims the discovery/results content so an open dropdown reads as a
-			     focused overlay rather than clipping over unrelated content.
-			     Sized via inset-0 to this wrapper's own content height (not a
-			     fixed guess) so it never over- or under-covers, and never
-			     inflates the page's scrollable area the way an oversized
-			     position: absolute height would. -->
-			<div class="absolute inset-0 z-0 bg-base-100/70 backdrop-blur-sm" aria-hidden="true"></div>
-		{/if}
+	<div>
 		{#if !data.q}
 			<SearchDiscovery
 				hasRecent={recentItems.length > 0}
