@@ -4,13 +4,11 @@
 	import { History, X } from '@lucide/svelte';
 	import SearchDropdownPanel from './SearchDropdownPanel.svelte';
 	import SearchResultRow from './SearchResultRow.svelte';
-	import { SEARCH_ROW_CARD_CLASS } from './searchRowCard';
+	import SearchRowCard from './SearchRowCard.svelte';
 	import type { RecentSearchItem } from '$lib/server/api/search';
 
-	// `items` and its mutators live in the parent (+page.svelte): it also
-	// gates whether this dropdown is shown at all, so it needs to observe an
-	// optimistic remove/clear immediately rather than through a prop that only
-	// updates on the next navigation.
+	// `items` and its mutators live in the parent (+page.svelte), which also
+	// gates whether this dropdown shows, so it observes an optimistic remove/clear immediately.
 	let {
 		items,
 		onRemove,
@@ -46,7 +44,7 @@
 		</div>
 		<ul class="flex flex-col gap-1">
 			{#each items as row (row.id)}
-				<li class={SEARCH_ROW_CARD_CLASS}>
+				<SearchRowCard tag="li">
 					{#if row.type === 'users'}
 						<SearchResultRow row={{ type: 'users', item: row.item }} bare />
 					{:else if row.type === 'hashtags'}
@@ -83,7 +81,7 @@
 							<X class="h-4 w-4" />
 						</button>
 					</form>
-				</li>
+				</SearchRowCard>
 			{/each}
 		</ul>
 	</SearchDropdownPanel>

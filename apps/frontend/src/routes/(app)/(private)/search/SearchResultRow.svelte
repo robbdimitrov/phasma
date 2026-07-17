@@ -3,8 +3,10 @@
 	import { Hash } from '@lucide/svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import type { SuggestionItem } from '$lib/utils/interleaveSuggestions';
-	import { SEARCH_ROW_CARD_CLASS } from './searchRowCard';
+	import SearchRowCard from './SearchRowCard.svelte';
 
+	// `bare`: no card chrome, so RecentSearches.svelte can add a trailing button beside
+	// this row's <a> instead of nesting it inside.
 	let {
 		row,
 		active = false,
@@ -18,33 +20,16 @@
 		onmouseenter?: () => void;
 		onclick?: () => void;
 	} = $props();
-
-	// `bare` drops the row's own card chrome (border/padding/hover) so a
-	// parent can place a trailing action (e.g. remove) inside one shared
-	// card without nesting a <button> inside this <a> — RecentSearches.svelte
-	// does this; the live typeahead dropdown uses the default card mode.
-	let rowClass = $derived(
-		bare
-			? 'flex min-w-0 flex-1 items-center gap-3'
-			: `${SEARCH_ROW_CARD_CLASS} ${active ? 'bg-base-200' : ''}`
-	);
 </script>
 
-{#if row.type === 'users'}
-	<a href={resolve(`/@${row.item.username}`)} {onclick} {onmouseenter} class={rowClass}>
+{#snippet content()}
+	{#if row.type === 'users'}
 		<Avatar username={row.item.username} avatar={row.item.avatar} size="h-10 w-10" />
 		<span class="min-w-0 flex-1">
 			<span class="block truncate font-bold">{row.item.name || row.item.username}</span>
 			<span class="block truncate text-sm text-base-content/60">@{row.item.username}</span>
 		</span>
-	</a>
-{:else}
-	<a
-		href={resolve(`/search?q=%23${encodeURIComponent(row.item.name)}`)}
-		{onclick}
-		{onmouseenter}
-		class={rowClass}
-	>
+	{:else}
 		<span
 			class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-base-300 text-base-content"
 		>
@@ -54,5 +39,29 @@
 			<p class="truncate font-bold">#{row.item.name}</p>
 			<p class="truncate text-sm text-base-content/60">{row.item.postCount} posts</p>
 		</div>
-	</a>
+	{/if}
+{/snippet}
+
+{#if row.type === 'users'}
+	{@const href = resolve(`/@${row.item.username}`)}
+	{#if bare}
+		<a {href} {onclick} {onmouseenter} class="flex min-w-0 flex-1 items-center gap-3">
+			{@render content()}
+		</a>
+	{:else}
+		<SearchRowCard tag="a" {href} {active} {onclick} {onmouseenter}>
+			{@render content()}
+		</SearchRowCard>
+	{/if}
+{:else}
+	{@const href = resolve(`/search?q=%23${encodeURIComponent(row.item.name)}`)}
+	{#if bare}
+		<a {href} {onclick} {onmouseenter} class="flex min-w-0 flex-1 items-center gap-3">
+			{@render content()}
+		</a>
+	{:else}
+		<SearchRowCard tag="a" {href} {active} {onclick} {onmouseenter}>
+			{@render content()}
+		</SearchRowCard>
+	{/if}
 {/if}
