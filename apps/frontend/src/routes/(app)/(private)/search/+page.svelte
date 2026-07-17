@@ -39,11 +39,8 @@
 	// dropdown so it appears on focus rather than as static page content.
 	let inputFocused = $state(false);
 
-	// Writable derived: a remove/clear overrides this locally for an
-	// optimistic update, discarded in favor of the new data.recent once
-	// navigation reloads it (same pattern as `inputValue` above). Lifted here
-	// rather than owned by RecentSearches so showRecentDropdown below reacts
-	// to it immediately.
+	// Same writable-derived pattern as inputValue above; lifted here (rather than owned
+	// by RecentSearches) so showRecentDropdown below reacts to a remove/clear immediately.
 	let recentItems = $derived(data.recent);
 	let showRecentDropdown = $derived(inputFocused && !inputValue && recentItems.length > 0);
 	let anyDropdownOpen = $derived(
@@ -58,9 +55,8 @@
 		suggestHashtags = [];
 	}
 
-	// Closes both dropdowns once focus leaves the whole search widget (input,
-	// live suggestions, or the recent-searches panel) rather than on input
-	// blur alone, since clicking into either dropdown blurs the input first.
+	// Closes both dropdowns on focus leaving the whole widget, not on input blur alone,
+	// since clicking into either dropdown blurs the input first.
 	function handleWidgetFocusOut(e: FocusEvent) {
 		const next = e.relatedTarget as Node | null;
 		if (!next || !(e.currentTarget as HTMLElement).contains(next)) {
@@ -69,17 +65,10 @@
 		}
 	}
 
-	// Returns a restore callback that puts the item back at its original
-	// index, for reverting on a failed submission — mirrors
-	// SearchDiscovery.svelte's follow/unfollow revert-on-failure pattern.
-	//
-	// Refocusing the input here matters: the remove button itself holds focus
-	// when clicked, and Svelte's reactive DOM update removes that button (its
-	// row is gone from `recentItems`) shortly after this returns. Without
-	// explicitly moving focus back to the input first, focus would fall back
-	// to <body> when the button is detached, which handleWidgetFocusOut reads
-	// as "focus left the widget" and closes the whole dropdown — including
-	// any remaining items — instead of just the one row.
+	// Returns a restore callback for reverting on a failed submission. Refocuses the input
+	// first: the remove button holds focus and is removed from the DOM once `recentItems`
+	// updates, and focus falling to <body> would trip handleWidgetFocusOut and close the
+	// whole dropdown instead of just this row.
 	function removeRecentLocally(id: string): (() => void) | null {
 		const index = recentItems.findIndex((item) => item.id === id);
 		const removed = recentItems[index];
@@ -167,15 +156,11 @@
 		e.preventDefault();
 		clearTimeout(debounceTimer);
 		closeSuggestions();
-		// Trimmed once, up front: a whitespace-only submission should behave
-		// like an empty one, and the trimmed value is what gets recorded,
-		// searched, and shown in the URL/title (matching the backend, which
-		// trims before validating).
+		// Trimmed once, up front: a whitespace-only submission behaves like an empty one,
+		// and the trimmed value is what gets recorded, searched, and shown in the URL/title.
 		const value = (inputEl?.value ?? '').trim();
 		if (!value) return;
-		// Recorded as-is (prefix included): this always lands on
-		// /search?q=<value>, never a profile/hashtag page directly, so it must
-		// replay to the same posts-results page it originally produced.
+		// Recorded with prefix included so it replays to the same /search?q=<value> page.
 		recordRecentSearch('posts', value);
 		goto(resolve(buildSearchUrl(value)));
 	}
@@ -238,9 +223,8 @@
 			{/if}
 		</form>
 		{#if anyDropdownOpen}
-			<!-- border-t-0 (rather than border-t-transparent) would leave the border
-				a mismatched width on that side, which renders a visible seam artifact
-				at the rounded bottom corners in Chromium. -->
+			<!-- border-t-0 (vs. border-t-transparent) would mismatch border width there,
+				rendering a visible seam at the rounded bottom corners in Chromium. -->
 			<div
 				class="absolute top-full w-full rounded-b-2xl border border-t-transparent border-base-300 bg-base-100 shadow-lg shadow-slate-900/10"
 			>

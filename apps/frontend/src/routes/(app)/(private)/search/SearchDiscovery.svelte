@@ -7,9 +7,8 @@
 	import Thumbnail from '$lib/components/Thumbnail.svelte';
 	import type { Post, User } from '$lib/types';
 
-	// Recent searches render in the input's dropdown (RecentSearches.svelte,
-	// mounted from +page.svelte), not here; `hasRecent` only feeds the
-	// "nothing to show" placeholder below.
+	// Recent searches render in RecentSearches.svelte (mounted from +page.svelte), not here;
+	// `hasRecent` only feeds the "nothing to show" placeholder below.
 	let {
 		hasRecent,
 		suggested,
