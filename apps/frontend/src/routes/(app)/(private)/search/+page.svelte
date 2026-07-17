@@ -218,7 +218,7 @@
 				bind:this={inputEl}
 				type="search"
 				class="input w-full border-base-300 pr-14 pl-11 [&::-webkit-search-cancel-button]:hidden {anyDropdownOpen
-					? 'rounded-t-2xl rounded-b-none border-b-0'
+					? 'rounded-t-2xl rounded-b-none'
 					: 'rounded-full'}"
 				placeholder="Search users, posts, hashtags…"
 				bind:value={inputValue}
@@ -238,9 +238,11 @@
 			{/if}
 		</form>
 		{#if anyDropdownOpen}
-			<!-- No border/gap against the input, so the two read as one sheet. -->
+			<!-- border-t-0 (rather than border-t-transparent) would leave the border
+				a mismatched width on that side, which renders a visible seam artifact
+				at the rounded bottom corners in Chromium. -->
 			<div
-				class="absolute top-full w-full rounded-b-2xl border border-t-0 border-base-300 bg-base-100 shadow-lg shadow-slate-900/10"
+				class="absolute top-full w-full rounded-b-2xl border border-t-transparent border-base-300 bg-base-100 shadow-lg shadow-slate-900/10"
 			>
 				<SearchSuggestions
 					users={suggestUsers}
