@@ -1,7 +1,6 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: phasma
   name: database-pdb
   labels:
     app: phasma
@@ -15,7 +14,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: phasma
   name: cache-pdb
   labels:
     app: phasma
@@ -29,7 +27,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: phasma
   name: broker-pdb
   labels:
     app: phasma
@@ -44,7 +41,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: phasma
   name: search-pdb
   labels:
     app: phasma
@@ -58,7 +54,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: phasma
   name: storage-pdb
   labels:
     app: phasma
@@ -72,7 +67,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: phasma
   name: backend-pdb
   labels:
     app: phasma
@@ -86,7 +80,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  namespace: phasma
   name: frontend-pdb
   labels:
     app: phasma
