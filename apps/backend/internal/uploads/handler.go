@@ -51,8 +51,6 @@ func (h Handler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	if len(header) > 12 {
 		header = header[:12]
 	}
-	// io.ReadFull avoids a short read leaving header partially populated, which
-	// could falsely reject a valid image (e.g. WEBP needs bytes at offset 8).
 	if !isImage(header) {
 		httpx.WriteMessage(w, http.StatusBadRequest, "Only image uploads are allowed.")
 		return

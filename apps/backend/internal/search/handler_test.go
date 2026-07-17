@@ -191,10 +191,6 @@ func newFakeMeiliClient(t *testing.T, body string) *SearchClient {
 	return &SearchClient{baseURL: server.URL, scopedKey: "test-key", httpClient: server.Client()}
 }
 
-// Regression test: typeaheadLen previously moved from 8 to 10 while the
-// PostgreSQL-fallback path in database.go stayed hardcoded at LIMIT 8. That
-// path has no dedicated test (this package has no Postgres integration
-// tests), so this at least locks down the Meilisearch-backed value.
 func TestTypeaheadSendsTypeaheadLenAsMeilisearchLimit(t *testing.T) {
 	var sentBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

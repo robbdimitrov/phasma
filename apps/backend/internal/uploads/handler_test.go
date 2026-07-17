@@ -115,7 +115,6 @@ func TestCreateFileAcceptsImageSignature(t *testing.T) {
 	if !db.created || db.createdUser != "1" || db.filename == "" {
 		t.Fatalf("store create = %v user=%q filename=%q", db.created, db.createdUser, db.filename)
 	}
-	// Object must exist in the blobstore after a successful upload.
 	rc, _, _, err := store.Get(context.Background(), db.filename)
 	if err != nil {
 		t.Fatalf("object not found in blobstore after upload: %v", err)
@@ -127,7 +126,6 @@ func TestCreateFileDeletesExpiredUploads(t *testing.T) {
 	expired := "aabbccddeeff00112233445566778899"
 	db := &fakeStore{capacity: true, expired: []string{expired}}
 	store := blobstore.NewMemoryStore()
-	// Pre-populate the store so Delete has something to remove.
 	_ = store.Put(context.Background(), expired, "image/jpeg", bytes.NewReader([]byte{0xff}), 1)
 	handler := Handler{Service: NewService(db), Store: store}
 	req, err := multipartRequest(testJPEG(t))

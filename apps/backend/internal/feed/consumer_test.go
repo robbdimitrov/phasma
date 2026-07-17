@@ -13,7 +13,6 @@ import (
 	"phasma/backend/internal/posts"
 )
 
-// fakeRepo is a typed fake implementing Repository for unit tests.
 type fakeRepo struct {
 	insertedEntries     [][]Entry
 	insertErr           error
@@ -85,8 +84,6 @@ func entityChangesMsg(authorID int64, postID int64, followerCount int64, isCeleb
 	return data
 }
 
-// handleEntityChanges — celebrity path via FollowerCount (old-format outbox event)
-
 func TestHandleEntityChangesCelebSkipsFanout(t *testing.T) {
 	repo := &fakeRepo{}
 	c := newConsumerWithRepo(repo)
@@ -109,8 +106,6 @@ func TestHandleEntityChangesCelebSkipsFanout(t *testing.T) {
 	}
 }
 
-// handleEntityChanges — celebrity path via IsCelebrity (new-format outbox event)
-
 func TestHandleEntityChangesCelebIsCelebritySkipsFanout(t *testing.T) {
 	repo := &fakeRepo{}
 	c := newConsumerWithRepo(repo)
@@ -132,8 +127,6 @@ func TestHandleEntityChangesCelebIsCelebritySkipsFanout(t *testing.T) {
 		t.Fatalf("entry = %+v, want userID=42 postID=100", batch[0])
 	}
 }
-
-// handleEntityChanges — normal path (IsCelebrity = false, FollowerCount <= CelebThreshold)
 
 func TestHandleEntityChangesNormalFansOut(t *testing.T) {
 	repo := &fakeRepo{
@@ -177,8 +170,6 @@ func TestHandleRecordSafelyRecoversPanic(t *testing.T) {
 	}
 }
 
-// handleFollow — celebrity recipient skips backfill
-
 func TestHandleFollowCelebSkipsBackfill(t *testing.T) {
 	repo := &fakeRepo{isCelebrity: true}
 	c := newConsumerWithRepo(repo)
@@ -195,8 +186,6 @@ func TestHandleFollowCelebSkipsBackfill(t *testing.T) {
 		t.Fatalf("GetUserIsCelebrity calls = %v, want [999]", repo.getIsCelebrityCalls)
 	}
 }
-
-// handleFollow — normal recipient triggers backfill
 
 func TestHandleFollowNormalBackfills(t *testing.T) {
 	now := time.Now().UTC()
@@ -228,8 +217,6 @@ func TestHandleFollowNormalBackfills(t *testing.T) {
 		}
 	}
 }
-
-// handleEntityChanges — truncation warning when GetFollowers returns exactly CelebThreshold entries
 
 func TestHandleEntityChangesFollowerListAtThresholdWarns(t *testing.T) {
 	followers := make([]int64, CelebThreshold)

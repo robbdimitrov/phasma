@@ -323,8 +323,6 @@ func TestSearchClientNewClientAppliesSettingsWithMasterThenStoresScopedKey(t *te
 	}
 }
 
-// TestSearchClientNewClientLive requires a live search backend and is skipped
-// unless MEILI_TEST_URL is set.
 func TestSearchClientNewClientLive(t *testing.T) {
 	searchURL := os.Getenv("MEILI_TEST_URL")
 	if searchURL == "" {

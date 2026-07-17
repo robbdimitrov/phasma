@@ -11,7 +11,6 @@ import (
 	"phasma/backend/internal/pagination"
 )
 
-// fakeRepo implements Repository for consumer unit tests.
 type fakeRepo struct {
 	created            []Notification
 	createErr          error

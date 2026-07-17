@@ -472,7 +472,6 @@ func TestListSuggestedUsersReturnsItems(t *testing.T) {
 	if !strings.Contains(res.Body.String(), `"items"`) {
 		t.Fatalf("body = %q, want items key", res.Body.String())
 	}
-	// Emails must be stripped from suggested users.
 	if strings.Contains(res.Body.String(), "alice@example.com") || strings.Contains(res.Body.String(), "bob@example.com") {
 		t.Fatalf("body = %q, email must be hidden for suggested users", res.Body.String())
 	}

@@ -76,10 +76,6 @@ func TestHashConcurrencyLimitIsRespected(t *testing.T) {
 	hashSemaphore = semaphore.NewWeighted(cap)
 	t.Cleanup(func() { hashSemaphore = old })
 
-	// Track peak concurrency using an atomic counter that increments on enter
-	// and decrements on exit. We intercept with a pre-acquired token strategy:
-	// launch cap+2 goroutines and verify all complete without error (demonstrating
-	// queuing) and that actual behavior is preserved.
 	var (
 		wg      sync.WaitGroup
 		peak    atomic.Int64

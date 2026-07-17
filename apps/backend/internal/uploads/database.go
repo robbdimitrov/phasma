@@ -26,7 +26,6 @@ func (r *UploadRepository) CreateUpload(ctx context.Context, userID, filename st
 		}
 		defer database.Rollback(ctx, tx)
 
-		// Delete this user's expired uploads inside the transaction.
 		rows, err := tx.Query(ctx, `DELETE FROM uploads
 			WHERE user_id = $1 AND created <= now() - $2::interval RETURNING filename`,
 			userID, "1 hour")

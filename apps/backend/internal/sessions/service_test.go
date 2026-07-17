@@ -270,7 +270,6 @@ func TestServiceLoginThrottleDownFailsOpen(t *testing.T) {
 	service := newTestService(repository, throttle, now)
 	service.verifyPassword = func(context.Context, string, string) (bool, error) { return true, nil }
 
-	// Throttle is down but login should still reach password verification and succeed.
 	_, err := service.Login(context.Background(), LoginInput{
 		Email:    "test@example.com",
 		Password: "password123",
@@ -399,7 +398,6 @@ func TestServiceLoginRehashesWeakHash(t *testing.T) {
 
 func TestServiceLoginSkipsRehashForCurrentParams(t *testing.T) {
 	now := time.Date(2026, time.June, 15, 12, 0, 0, 0, time.UTC)
-	// A hash produced with DefaultPasswordParams should not be rehashed.
 	repository := &fakeRepository{
 		credentials: &UserCredentials{ID: 3, PasswordHash: currentParamsHash},
 	}

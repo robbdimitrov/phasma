@@ -131,8 +131,6 @@ func TestPersonalizedPublicRouteResolvesOptionalSessionButHealthDoesNot(t *testi
 
 const testRoutePostID = "550e8400-e29b-41d4-a716-446655440000"
 
-// TestAuthenticatedPublicMuxRoutesAreNotShadowedByPublicWildcards guards
-// session-required routes that share prefixes with public wildcard routes.
 func TestAuthenticatedPublicMuxRoutesAreNotShadowedByPublicWildcards(t *testing.T) {
 	for _, path := range []string{
 		"/users/me",
