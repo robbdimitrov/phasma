@@ -115,7 +115,7 @@
   upload format.
 - Filenames are 32 lowercase hex characters generated from `crypto/rand`.
 - File serving validates the path segment against the 32-char hex pattern before
-  proxying.
+  proxying and returns immutable cache headers with the filename as the ETag.
 
 ## HTTP Security Headers (backend)
 

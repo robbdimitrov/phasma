@@ -1,10 +1,13 @@
 package httpx
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -132,5 +135,43 @@ func TestRecoverPassesThroughWithoutPanic(t *testing.T) {
 
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+}
+
+func TestLoggerSkipsProbePaths(t *testing.T) {
+	var logs bytes.Buffer
+	original := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(original) })
+
+	handler := Logger(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	for _, path := range []string{"/health", "/ready", "/metrics", "/health/background"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		handler.ServeHTTP(httptest.NewRecorder(), WithRequestID(req, "req-1"))
+	}
+
+	if logs.Len() != 0 {
+		t.Fatalf("probe logs = %q, want none", logs.String())
+	}
+}
+
+func TestLoggerLogsApplicationPaths(t *testing.T) {
+	var logs bytes.Buffer
+	original := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(original) })
+
+	handler := Logger(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/popular", nil)
+	handler.ServeHTTP(httptest.NewRecorder(), WithRequestID(req, "req-1"))
+
+	if !strings.Contains(logs.String(), "http request") {
+		t.Fatalf("logs = %q, want request log", logs.String())
 	}
 }

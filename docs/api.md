@@ -10,7 +10,8 @@ Error bodies are `{"message": "..."}`.
 2. `RequestID` — accepts `X-Request-ID` (max 64 chars; generates a new 16-byte
    hex id if absent or over the limit) and echoes it in the response header.
 3. `Logger` — structured JSON request log with method, route pattern, path,
-   status, duration.
+   status, duration. Probe routes (`/health`, `/ready`,
+   `/health/background`, `/metrics`) are not request-logged.
 4. `SecurityHeaders` — sets `X-XSS-Protection: 0`,
    `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
    `Referrer-Policy: no-referrer`, and

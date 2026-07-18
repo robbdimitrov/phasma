@@ -92,6 +92,9 @@ func Logger(next http.Handler) http.Handler {
 		if rec.status == 0 {
 			rec.status = http.StatusOK
 		}
+		if isProbePath(r.URL.Path) {
+			return
+		}
 		slog.Info("http request",
 			"request_id", GetRequestID(r),
 			"method", r.Method,
@@ -101,6 +104,15 @@ func Logger(next http.Handler) http.Handler {
 			"duration_ms", time.Since(start).Milliseconds(),
 		)
 	})
+}
+
+func isProbePath(path string) bool {
+	switch path {
+	case "/health", "/ready", "/metrics", "/health/background":
+		return true
+	default:
+		return false
+	}
 }
 
 // SecurityHeaders applies to every response. The API only ever emits JSON

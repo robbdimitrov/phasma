@@ -18,6 +18,7 @@ metadata:
     tier: frontend
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -108,4 +109,5 @@ spec:
           name: tmp
       volumes:
       - name: tmp
-        emptyDir: {}
+        emptyDir:
+          sizeLimit: 256Mi

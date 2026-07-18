@@ -7,3 +7,7 @@ coverage/
 .env.*
 !.env.example
 *.md
+*.test.ts
+**/*.test.ts
+AGENTS.md
+CLAUDE.md

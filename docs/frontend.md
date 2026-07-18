@@ -9,7 +9,7 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
 
 ```
 /                           → redirect 303 → /feed
-└── (app)/                  +layout.server.ts: GET /users/me → currentUser: User | null, no redirect; unread count only when authenticated
+└── (app)/                  +layout.server.ts: GET /users/me only when a session cookie exists → currentUser: User | null, no redirect; unread count only when authenticated
     ├── login/              form action: POST /sessions; public
     ├── register/           form action: POST /users then POST /sessions; public
     ├── posts/[publicId]/   load: GET /posts/{id}; public read, likes/comments gated to login
@@ -39,7 +39,7 @@ SvelteKit with Svelte runes, `@sveltejs/adapter-node`, Tailwind, DaisyUI,
   - renders: {children}
 
   (app)/+layout.svelte
-    - loads: currentUser (GET /users/me) → User | null, no redirect; unreadCount from GET /notifications, only when authenticated
+    - loads: currentUser (GET /users/me only when a session cookie exists) → User | null, no redirect; unreadCount from GET /notifications, only when authenticated
     - renders: <Navbar currentUser unreadCount> + <main>{children}</main>
     - width: max-w-5xl px-4 pb-8 pt-4
 

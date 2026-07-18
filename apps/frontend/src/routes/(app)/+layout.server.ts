@@ -5,6 +5,8 @@ import { apiClient } from '$lib/server/api/client';
 
 export const load: LayoutServerLoad = async ({ fetch, cookies, depends }) => {
 	depends('app:unreadCount');
+	if (!cookies.get('session')) return { currentUser: null, unreadCount: 0 };
+
 	const client = apiClient({ fetch, cookies });
 	const fullUser = await getCurrent(client);
 	const currentUser = fullUser ? (({ email: _, ...rest }) => rest)(fullUser) : null;

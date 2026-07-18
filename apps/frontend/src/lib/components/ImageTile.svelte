@@ -23,6 +23,7 @@
 		{src}
 		{alt}
 		loading="lazy"
+		decoding="async"
 		width="300"
 		height="300"
 	/>

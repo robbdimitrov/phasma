@@ -111,7 +111,8 @@ spec:
           name: temporary-files
       volumes:
       - name: temporary-files
-        emptyDir: {}
+        emptyDir:
+          sizeLimit: 256Mi
   volumeClaimTemplates:
   - metadata:
       name: storage-data

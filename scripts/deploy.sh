@@ -17,6 +17,7 @@ BACKEND_IMAGE_TAG="${BACKEND_IMAGE_TAG:-}"
 DATABASE_IMAGE_TAG="${DATABASE_IMAGE_TAG:-}"
 FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG:-}"
 FORCE_BACKFILL="${FORCE_BACKFILL:-0}"
+FORCE_BUILD="${FORCE_BUILD:-0}"
 
 # storage/database are hard startup deps for backend; stage+wait avoids
 # racing an unhealthy one, and unchanged stages stay no-ops.
@@ -57,7 +58,7 @@ die() {
 
 require_tools() {
   local tool
-  for tool in kubectl docker make; do
+  for tool in kubectl docker make curl openssl; do
     command -v "$tool" >/dev/null || die "missing required tool: $tool"
   done
 }
@@ -304,9 +305,13 @@ context_checksum() {
       while IFS= read -r file; do
         case "${dir}:${file}" in
           apps/backend:./api | apps/backend:./api/*) continue ;;
+          apps/backend:./AGENTS.md | apps/backend:./CLAUDE.md | apps/backend:./README.md) continue ;;
+          apps/backend:*_test.go) continue ;;
           apps/frontend:*.md | apps/frontend:./.env | apps/frontend:./.env.*)
             [[ "${file}" == "./.env.example" ]] || continue
             ;;
+          apps/frontend:./AGENTS.md | apps/frontend:./CLAUDE.md) continue ;;
+          apps/frontend:*.test.ts) continue ;;
         esac
         printf '%s\0' "${file}"
         openssl dgst -sha256 -binary "${file}"
@@ -320,13 +325,37 @@ init_image_tags() {
   FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG:-$(context_checksum apps/frontend)}"
 }
 
+image_exists() {
+  docker manifest inspect "$1" >/dev/null 2>&1
+}
+
+build_image() {
+  local target="$1"
+  local tag="$2"
+  local image="${REGISTRY}/${target}:${tag}"
+  if [[ "${FORCE_BUILD}" != "1" ]] && image_exists "${image}"; then
+    log "skipping ${target}; image already exists: ${image}"
+    return 0
+  fi
+  make -C "${ROOT}" "${target}" IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${tag}"
+}
+
 build_images() {
+  local pids=()
+  local failed=0
   log "building images"
   log "image tags: backend=${BACKEND_IMAGE_TAG} database=${DATABASE_IMAGE_TAG} frontend=${FRONTEND_IMAGE_TAG}"
   export DOCKER_BUILDKIT=1
-  make -C "${ROOT}" backend IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${BACKEND_IMAGE_TAG}"
-  make -C "${ROOT}" database IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${DATABASE_IMAGE_TAG}"
-  make -C "${ROOT}" frontend IMAGE_PREFIX="${REGISTRY}" GIT_SHA="${FRONTEND_IMAGE_TAG}"
+  build_image backend "${BACKEND_IMAGE_TAG}" &
+  pids+=("$!")
+  build_image database "${DATABASE_IMAGE_TAG}" &
+  pids+=("$!")
+  build_image frontend "${FRONTEND_IMAGE_TAG}" &
+  pids+=("$!")
+  for pid in "${pids[@]}"; do
+    wait "${pid}" || failed=1
+  done
+  (( failed == 0 )) || die "image build failed"
 }
 
 apply_manifest_files() {

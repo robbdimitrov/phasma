@@ -5,16 +5,16 @@
 All services are deployed to the `phasma` namespace via manifests in `deploy/`.
 Local deployment targets the current Kubernetes context.
 
-| Workload   | Kind        | Replicas | Storage                                  |
-| ---------- | ----------- | -------- | ---------------------------------------- |
-| `frontend` | Deployment  | 2        | none (emptyDir /tmp)                     |
-| `backend`  | Deployment  | 2        | none (stateless)                         |
-| `database` | StatefulSet | 1        | PVC 5 Gi (ReadWriteOnce)                 |
-| `storage`  | StatefulSet | 1        | PVC 5 Gi (ReadWriteOnce) + emptyDir /tmp |
-| `cache`    | StatefulSet | 1        | PVC 1 Gi (ReadWriteOnce)                 |
-| `search`   | StatefulSet | 1        | PVC 1 Gi (ReadWriteOnce) + emptyDir /tmp |
-| `broker`   | StatefulSet | 1        | PVC 2 Gi (ReadWriteOnce)                 |
-| `connect`  | Deployment  | 1        | none (stateless)                         |
+| Workload   | Kind        | Replicas | Storage                                                |
+| ---------- | ----------- | -------- | ------------------------------------------------------ |
+| `frontend` | Deployment  | 2        | none (emptyDir /tmp, 256 Mi limit)                     |
+| `backend`  | Deployment  | 2        | none (stateless)                                       |
+| `database` | StatefulSet | 1        | PVC 5 Gi (ReadWriteOnce)                               |
+| `storage`  | StatefulSet | 1        | PVC 5 Gi (ReadWriteOnce) + emptyDir /tmp, 256 Mi limit |
+| `cache`    | StatefulSet | 1        | PVC 1 Gi (ReadWriteOnce)                               |
+| `search`   | StatefulSet | 1        | PVC 1 Gi (ReadWriteOnce) + emptyDir /tmp, 256 Mi limit |
+| `broker`   | StatefulSet | 1        | PVC 2 Gi (ReadWriteOnce) + emptyDir /tmp, 256 Mi limit |
+| `connect`  | Deployment  | 1        | none (stateless)                                       |
 
 ## Deploy Rollout Ordering
 
@@ -22,10 +22,13 @@ Local deployment targets the current Kubernetes context.
 (storage/cache/search/broker), then database, then backend/frontend —
 waiting for each to be healthy before the next, so a real rollout never
 races a dependency backend checks synchronously at startup. Custom images
-are tagged with a stable checksum of that component's build context, so a
-backend-only change does not create a new frontend or migration image tag.
-`kubectl apply` is a no-op when nothing changed, so an unchanged stage never
-restarts. Each workload that reads a Secret also gets a
+are tagged with a stable checksum of that component's production build context,
+so a backend-only change does not create a new frontend or migration image tag,
+and test/docs-only changes do not create new production image tags. Deploy
+skips build/push for custom image tags already present in `REGISTRY`, including
+explicit override tags, unless `FORCE_BUILD=1` is set. `kubectl apply` is a
+no-op when nothing changed, so an unchanged stage never restarts. Each workload
+that reads a Secret also gets a
 `checksum/<secret>` pod-template annotation computed from that Secret's
 data, so a value change with no manifest diff still triggers a real rollout
 instead of going unnoticed until the next unrelated restart. `connect` also
@@ -39,15 +42,17 @@ with `FORCE_BACKFILL=1 scripts/deploy.sh`.
 All custom images are pushed to `${REGISTRY}/<service>:<tag>`, defaulting to
 `localhost:5000/phasma/<service>:<tag>`. The top-level `Makefile` defaults to
 the short Git commit SHA for manual builds. `scripts/deploy.sh` overrides that
-per target with a 12-character SHA-256 checksum of the service build context,
-renders those tags into the applied manifests, and rolls out only workloads
-whose resolved image tag changed. The configured Kubernetes context must be
-able to pull from `REGISTRY`; deploy does not import images into cluster nodes.
-Custom image containers use `imagePullPolicy: Always` so reused override tags
-are resolved through the registry instead of a node-local cache. Override
-`BACKEND_IMAGE_TAG`, `DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only when
-you deliberately need a fixed tag. Third-party images in Kubernetes manifests
-are pinned to explicit version tags; do not use implicit `latest`.
+per target with a 12-character SHA-256 checksum of the service production build
+context, skips tags that already exist, builds missing custom images in
+parallel, renders those tags into the applied manifests, and rolls out only
+workloads whose resolved image tag changed. The configured Kubernetes context
+must be able to pull from `REGISTRY`; deploy does not import images into
+cluster nodes. Custom image containers use `imagePullPolicy: Always` so reused
+override tags are resolved through the registry instead of a node-local cache.
+Override `BACKEND_IMAGE_TAG`, `DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only
+when you deliberately need a fixed tag. Set `FORCE_BUILD=1` to rebuild and push
+even when a checksum tag already exists. Third-party images in Kubernetes
+manifests are pinned to explicit version tags; do not use implicit `latest`.
 
 ## Init Container Sequencing
 

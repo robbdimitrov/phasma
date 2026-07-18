@@ -1,5 +1,10 @@
 .git
+AGENTS.md
+CLAUDE.md
+README.md
 bin
 coverage
 tmp
 api
+*_test.go
+**/*_test.go
