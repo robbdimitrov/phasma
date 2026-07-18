@@ -55,8 +55,8 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: migration
-        image: localhost:5000/phasma/database
-        imagePullPolicy: Always
+        image: phasma/database
+        imagePullPolicy: IfNotPresent
         securityContext:
           runAsNonRoot: true
           runAsUser: 65532
@@ -122,8 +122,8 @@ spec:
           value: -c phasma.app_password=$(APP_DB_PASSWORD)
       containers:
       - name: backend
-        image: localhost:5000/phasma/backend
-        imagePullPolicy: Always
+        image: phasma/backend
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

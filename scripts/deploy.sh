@@ -6,7 +6,7 @@ set -euo pipefail
 NS="${NS:-phasma}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 K8S_DIR="$ROOT/deploy"
-REGISTRY="${REGISTRY:-localhost:5000/phasma}"
+REGISTRY="${REGISTRY:-phasma}"
 APP_HOST="${APP_HOST:-phasma.localhost}"
 LOCAL_PORT="${LOCAL_PORT:-8080}"
 REMOTE_PORT="${REMOTE_PORT:-8080}"
@@ -325,8 +325,10 @@ init_image_tags() {
   FRONTEND_IMAGE_TAG="${FRONTEND_IMAGE_TAG:-$(context_checksum apps/frontend)}"
 }
 
+# k3s here shares the local Docker daemon (cri-dockerd) with `docker build`,
+# so a built image is already schedulable with no registry involved.
 image_exists() {
-  docker manifest inspect "$1" >/dev/null 2>&1
+  docker image inspect "$1" >/dev/null 2>&1
 }
 
 build_image() {

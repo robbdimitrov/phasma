@@ -55,8 +55,8 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: frontend
-        image: localhost:5000/phasma/frontend
-        imagePullPolicy: Always
+        image: phasma/frontend
+        imagePullPolicy: IfNotPresent
         env:
         - name: PORT
           value: "8080"

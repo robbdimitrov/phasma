@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := all
 
-IMAGE_PREFIX ?= localhost:5000/phasma
+IMAGE_PREFIX ?= phasma
 GIT_SHA ?= $(shell git rev-parse --short HEAD)
 
 .PHONY: all
@@ -9,10 +9,10 @@ all: backend database frontend
 .PHONY: help
 help:
 	@printf 'Phasma support targets:\n'
-	@printf '  make              Build and push all images\n'
-	@printf '  make backend      Build and push the backend image\n'
-	@printf '  make database     Build and push the database image\n'
-	@printf '  make frontend     Build and push the frontend image\n'
+	@printf '  make              Build all images\n'
+	@printf '  make backend      Build the backend image\n'
+	@printf '  make database     Build the database image\n'
+	@printf '  make frontend     Build the frontend image\n'
 	@printf '  make format       Format backend Go code\n'
 	@printf '  make lint         Run backend and frontend lint checks\n'
 	@printf '  make test         Run backend and frontend unit tests\n'
@@ -20,17 +20,14 @@ help:
 .PHONY: backend
 backend:
 	docker build -t $(IMAGE_PREFIX)/backend:$(GIT_SHA) apps/backend
-	docker push $(IMAGE_PREFIX)/backend:$(GIT_SHA)
 
 .PHONY: database
 database:
 	docker build -t $(IMAGE_PREFIX)/database:$(GIT_SHA) apps/database
-	docker push $(IMAGE_PREFIX)/database:$(GIT_SHA)
 
 .PHONY: frontend
 frontend:
 	docker build -t $(IMAGE_PREFIX)/frontend:$(GIT_SHA) apps/frontend
-	docker push $(IMAGE_PREFIX)/frontend:$(GIT_SHA)
 
 .PHONY: format
 format:
