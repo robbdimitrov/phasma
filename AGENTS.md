@@ -19,7 +19,7 @@ directory's `AGENTS.md`.
 ## Commands
 
 ```sh
-make                     # build and push all images
+make                     # build all images
 make backend             # backend image
 make database            # migration image
 make frontend            # frontend image
@@ -29,8 +29,11 @@ make test                # backend and frontend unit tests
 ./scripts/deploy.sh      # preferred local Kubernetes deployment
 ```
 
-Images default to `localhost:5000/phasma/<service>` and can be redirected with
-`REGISTRY` in `scripts/deploy.sh` or `IMAGE_PREFIX` in `make`.
+Images default to `phasma/<service>` and can be redirected with `REGISTRY` in
+`scripts/deploy.sh` or `IMAGE_PREFIX` in `make`. Images build straight into the
+k3s node's Docker daemon and are never pushed anywhere; this only works
+because the local cluster is single-node and shares that daemon as its
+container runtime.
 
 ### Manual Kubernetes workflow
 

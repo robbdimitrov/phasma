@@ -25,7 +25,7 @@ races a dependency backend checks synchronously at startup. Custom images
 are tagged with a stable checksum of that component's production build context,
 so a backend-only change does not create a new frontend or migration image tag,
 and test/docs-only changes do not create new production image tags. Deploy
-skips build/push for custom image tags already present in `REGISTRY`, including
+skips the build for custom image tags already present locally, including
 explicit override tags, unless `FORCE_BUILD=1` is set. `kubectl apply` is a
 no-op when nothing changed, so an unchanged stage never restarts. Each workload
 that reads a Secret also gets a
@@ -37,22 +37,25 @@ it restarts only when its runtime inputs change. The `broker-backfill` Job is
 created on first deploy and skipped after it completes; rerun it deliberately
 with `FORCE_BACKFILL=1 scripts/deploy.sh`.
 
-## Image Registry
+## Image Build
 
-All custom images are pushed to `${REGISTRY}/<service>:<tag>`, defaulting to
-`localhost:5000/phasma/<service>:<tag>`. The top-level `Makefile` defaults to
+Images are built straight into the k3s node's Docker daemon and never pushed
+anywhere — this only works because colima's single-node k3s uses that same
+daemon as its container runtime (cri-dockerd); every custom image container
+sets `imagePullPolicy: IfNotPresent` so kubelet uses the local image instead
+of trying to pull one. All custom images are tagged `${REGISTRY}/<service>:<tag>`,
+defaulting to `phasma/<service>:<tag>`. The top-level `Makefile` defaults to
 the short Git commit SHA for manual builds. `scripts/deploy.sh` overrides that
 per target with a 12-character SHA-256 checksum of the service production build
-context, skips tags that already exist, builds missing custom images in
+context, skips tags that already exist locally, builds missing custom images in
 parallel, renders those tags into the applied manifests, and rolls out only
-workloads whose resolved image tag changed. The configured Kubernetes context
-must be able to pull from `REGISTRY`; deploy does not import images into
-cluster nodes. Custom image containers use `imagePullPolicy: Always` so reused
-override tags are resolved through the registry instead of a node-local cache.
-Override `BACKEND_IMAGE_TAG`, `DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only
-when you deliberately need a fixed tag. Set `FORCE_BUILD=1` to rebuild and push
-even when a checksum tag already exists. Third-party images in Kubernetes
-manifests are pinned to explicit version tags; do not use implicit `latest`.
+workloads whose resolved image tag changed. Override `BACKEND_IMAGE_TAG`,
+`DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only when you deliberately need a
+fixed tag; because `IfNotPresent` reuses whatever is already tagged locally,
+reusing a fixed override tag with new content needs `FORCE_BUILD=1` to actually
+rebuild it. Set `FORCE_BUILD=1` to rebuild even when a checksum tag already
+exists. Third-party images in Kubernetes manifests are pinned to explicit
+version tags; do not use implicit `latest`.
 
 ## Init Container Sequencing
 
