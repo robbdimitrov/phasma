@@ -52,9 +52,8 @@ parallel, renders those tags into the applied manifests, and rolls out only
 workloads whose resolved image tag changed. Override `BACKEND_IMAGE_TAG`,
 `DATABASE_IMAGE_TAG`, or `FRONTEND_IMAGE_TAG` only when you deliberately need a
 fixed tag; because `IfNotPresent` reuses whatever is already tagged locally,
-reusing a fixed override tag with new content needs `FORCE_BUILD=1` to actually
-rebuild it. Set `FORCE_BUILD=1` to rebuild even when a checksum tag already
-exists. Third-party images in Kubernetes manifests are pinned to explicit
+reusing a fixed override tag with new content needs `FORCE_BUILD=1` to force
+a rebuild. Third-party images in Kubernetes manifests are pinned to explicit
 version tags; do not use implicit `latest`.
 
 ## Init Container Sequencing
