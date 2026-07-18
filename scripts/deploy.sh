@@ -310,7 +310,6 @@ context_checksum() {
           apps/frontend:*.md | apps/frontend:./.env | apps/frontend:./.env.*)
             [[ "${file}" == "./.env.example" ]] || continue
             ;;
-          apps/frontend:./AGENTS.md | apps/frontend:./CLAUDE.md) continue ;;
           apps/frontend:*.test.ts) continue ;;
         esac
         printf '%s\0' "${file}"
