@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { Heart, MessageCircle, UserPlus } from '@lucide/svelte';
 	import { createPagination } from '$lib/createPagination.svelte';
@@ -14,8 +15,15 @@
 
 	let { data }: { data: PageData } = $props();
 
+	let markReadForm = $state<HTMLFormElement | null>(null);
+	// Notifications unread at mount time, applied optimistically since the
+	// mark-read action fires the backend calls without awaiting them.
+	let locallyRead = $state(new Set<string>());
+
 	onMount(() => {
 		invalidate('app:unreadCount');
+		locallyRead = new Set(data.notifications.filter((n) => !n.read).map((n) => n.id));
+		markReadForm?.requestSubmit();
 	});
 
 	const pagination = createPagination(
@@ -50,6 +58,14 @@
 	<title>Notifications — Phasma</title>
 </svelte:head>
 
+<form
+	bind:this={markReadForm}
+	method="POST"
+	action="?/markRead"
+	class="hidden"
+	use:enhance={() => async () => {}}
+></form>
+
 <div class="mx-auto flex max-w-xl flex-col gap-4">
 	<h1 class="text-2xl font-black text-base-content">Notifications</h1>
 
@@ -63,6 +79,7 @@
 		<ul class="flex flex-col gap-2" aria-label="Notifications">
 			{#each pagination.items as notification (notification.id)}
 				{@const Icon = typeIcon[notification.type]}
+				{@const isRead = notification.read || locallyRead.has(notification.id)}
 				<li
 					class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 px-4 py-3 shadow-sm shadow-slate-900/5 transition-colors"
 				>
@@ -73,7 +90,7 @@
 							size="h-9 w-9"
 						/>
 						<span
-							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {notification.read
+							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {isRead
 								? 'bg-base-200 text-base-content'
 								: typeBadge[notification.type]}"
 						>
@@ -82,7 +99,7 @@
 					</a>
 					<div class="min-w-0 flex-1">
 						<p
-							class="text-sm {notification.read
+							class="text-sm {isRead
 								? 'font-normal text-base-content/60'
 								: 'font-semibold text-base-content'}"
 						>
@@ -98,7 +115,7 @@
 							{relativeDate(notification.created)}
 						</time>
 					</div>
-					{#if !notification.read}
+					{#if !isRead}
 						<span class="h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
 					{/if}
 				</li>
