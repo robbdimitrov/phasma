@@ -73,6 +73,7 @@
 
 			<a
 				href={resolve('/notifications')}
+				data-sveltekit-preload-data="off"
 				class="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-base-content transition-colors hover:bg-base-content/10 hover:text-base-content"
 				class:bg-white={isActive('/notifications')}
 				class:text-slate-950={isActive('/notifications')}
