@@ -73,4 +73,14 @@ describe('markRead action', () => {
 		expect(markNotificationRead).toHaveBeenCalledWith(expect.any(Function), 'n1');
 		expect(markNotificationRead).toHaveBeenCalledWith(expect.any(Function), 'n3');
 	});
+
+	it('caps a request carrying an excessive number of ids', async () => {
+		markNotificationRead.mockResolvedValue(null);
+		const ids = Array.from({ length: 250 }, (_, i) => `n${i}`);
+
+		await markReadAction()(actionEvent(ids));
+		await new Promise((resolve) => setImmediate(resolve));
+
+		expect(markNotificationRead).toHaveBeenCalledTimes(100);
+	});
 });
