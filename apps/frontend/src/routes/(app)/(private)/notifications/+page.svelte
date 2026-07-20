@@ -17,14 +17,10 @@
 
 	let markReadForm = $state<HTMLFormElement | null>(null);
 	let pendingIds = $state<string[]>([]);
-	// Notifications marked (or in flight to be marked) read, applied
-	// optimistically since the mark-read action fires the backend calls
-	// without awaiting them, and to avoid re-submitting the same id twice.
+	// Optimistic overlay, also tracks which ids are already (being) marked read.
 	let locallyRead = $state(new Set<string>());
 
-	// Submits ids for marking read via the same POST action on both initial
-	// mount and every subsequent "Load More" page — never from a GET, so no
-	// speculative or passive fetch can trigger it.
+	// Fires from mount and each "Load More" page, never a GET, so no passive fetch can trigger it.
 	function markUnreadIds(ids: string[]) {
 		if (ids.length === 0) return;
 		locallyRead = new Set([...locallyRead, ...ids]);
