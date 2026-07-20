@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, flushSync } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -16,14 +16,26 @@
 	let { data }: { data: PageData } = $props();
 
 	let markReadForm = $state<HTMLFormElement | null>(null);
-	// Notifications unread at mount time, applied optimistically since the
-	// mark-read action fires the backend calls without awaiting them.
+	let pendingIds = $state<string[]>([]);
+	// Notifications marked (or in flight to be marked) read, applied
+	// optimistically since the mark-read action fires the backend calls
+	// without awaiting them, and to avoid re-submitting the same id twice.
 	let locallyRead = $state(new Set<string>());
+
+	// Submits ids for marking read via the same POST action on both initial
+	// mount and every subsequent "Load More" page — never from a GET, so no
+	// speculative or passive fetch can trigger it.
+	function markUnreadIds(ids: string[]) {
+		if (ids.length === 0) return;
+		locallyRead = new Set([...locallyRead, ...ids]);
+		pendingIds = ids;
+		flushSync();
+		markReadForm?.requestSubmit();
+	}
 
 	onMount(() => {
 		invalidate('app:unreadCount');
-		locallyRead = new Set(data.notifications.filter((n) => !n.read).map((n) => n.id));
-		markReadForm?.requestSubmit();
+		markUnreadIds(data.notifications.filter((n) => !n.read).map((n) => n.id));
 	});
 
 	const pagination = createPagination(
@@ -31,6 +43,7 @@
 		async (cursor) => {
 			const page = await fetchCursorPage<Notification>(fetch, '/notifications', cursor);
 			invalidate('app:unreadCount');
+			markUnreadIds(page.items.filter((n) => !n.read).map((n) => n.id));
 			return page;
 		}
 	);
@@ -64,7 +77,11 @@
 	action="?/markRead"
 	class="hidden"
 	use:enhance={() => async () => {}}
-></form>
+>
+	{#each pendingIds as id (id)}
+		<input type="hidden" name="id" value={id} />
+	{/each}
+</form>
 
 <div class="mx-auto flex max-w-xl flex-col gap-4">
 	<h1 class="text-2xl font-black text-base-content">Notifications</h1>

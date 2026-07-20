@@ -24,11 +24,16 @@ function markReadAction() {
 	return action;
 }
 
-function actionEvent(): Parameters<ReturnType<typeof markReadAction>>[0] {
+function actionEvent(ids: string[]): Parameters<ReturnType<typeof markReadAction>>[0] {
+	const formData = new FormData();
+	for (const id of ids) formData.append('id', id);
 	return {
 		cookies: {},
 		fetch: vi.fn(),
-		request: new Request('http://localhost/notifications?/markRead', { method: 'POST' })
+		request: new Request('http://localhost/notifications?/markRead', {
+			method: 'POST',
+			body: formData
+		})
 	} as unknown as Parameters<ReturnType<typeof markReadAction>>[0];
 }
 
@@ -57,21 +62,13 @@ describe('notifications page load', () => {
 });
 
 describe('markRead action', () => {
-	it('marks every currently-unread notification as read', async () => {
-		const page = {
-			items: [
-				{ id: 'n1', read: false },
-				{ id: 'n2', read: true },
-				{ id: 'n3', read: false }
-			],
-			nextCursor: null
-		};
-		getNotifications.mockResolvedValue(page);
+	it('marks exactly the ids it was given as read, without re-fetching notifications', async () => {
 		markNotificationRead.mockResolvedValue(null);
 
-		await markReadAction()(actionEvent());
+		await markReadAction()(actionEvent(['n1', 'n3']));
 		await new Promise((resolve) => setImmediate(resolve));
 
+		expect(getNotifications).not.toHaveBeenCalled();
 		expect(markNotificationRead).toHaveBeenCalledTimes(2);
 		expect(markNotificationRead).toHaveBeenCalledWith(expect.any(Function), 'n1');
 		expect(markNotificationRead).toHaveBeenCalledWith(expect.any(Function), 'n3');

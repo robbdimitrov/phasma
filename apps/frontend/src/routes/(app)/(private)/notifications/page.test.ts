@@ -58,3 +58,29 @@ describe('notifications page mount', () => {
 		expect(requestSubmit).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe('notifications page load more', () => {
+	it('also submits mark-read for a newly loaded page, not just the initial one', async () => {
+		const pagedData = { ...data, nextCursor: 'cursor-1' };
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					items: [{ ...data.notifications[0], id: 'n2' }],
+					nextCursor: null
+				}),
+				{ status: 200 }
+			)
+		);
+
+		const el = render({ data: pagedData } as unknown as ComponentProps<typeof Page>);
+		expect(requestSubmit).toHaveBeenCalledTimes(1);
+
+		el.querySelector('button')?.click();
+		await new Promise((resolve) => setImmediate(resolve));
+
+		expect(fetchSpy).toHaveBeenCalled();
+		expect(requestSubmit).toHaveBeenCalledTimes(2);
+
+		fetchSpy.mockRestore();
+	});
+});

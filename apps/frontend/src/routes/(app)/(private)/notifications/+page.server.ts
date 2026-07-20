@@ -13,13 +13,15 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
 };
 
 export const actions: Actions = {
-	// Fired once the page has genuinely mounted (see +page.svelte), not from load,
-	// so speculative preloads and other GET-triggered fetches can't mark read.
-	markRead: async ({ fetch, cookies }) => {
+	// Fired once the page has genuinely mounted or a new page is loaded (see
+	// +page.svelte), never from a GET, so no speculative or passive fetch can
+	// trigger it. Takes explicit ids since the client already knows which
+	// notifications on the page(s) it holds are unread.
+	markRead: async ({ request, fetch, cookies }) => {
 		const client = apiClient({ fetch, cookies });
-		const page = await getNotifications(client);
-		const unreadIds = page.items.filter((n) => !n.read).map((n) => n.id);
-		void Promise.allSettled(unreadIds.map((id) => markNotificationRead(client, id)));
+		const formData = await request.formData();
+		const ids = formData.getAll('id').map((id) => id.toString());
+		void Promise.allSettled(ids.map((id) => markNotificationRead(client, id)));
 		return { success: true };
 	}
 };
