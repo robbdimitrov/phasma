@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { onMount, flushSync } from 'svelte';
+	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
-	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { Heart, MessageCircle, UserPlus } from '@lucide/svelte';
 	import { createPagination } from '$lib/createPagination.svelte';
@@ -15,8 +14,6 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let markReadForm = $state<HTMLFormElement | null>(null);
-	let pendingIds = $state<string[]>([]);
 	// Optimistic overlay, also tracks which ids are already (being) marked read.
 	let locallyRead = $state(new Set<string>());
 
@@ -24,9 +21,11 @@
 	function markUnreadIds(ids: string[]) {
 		if (ids.length === 0) return;
 		locallyRead = new Set([...locallyRead, ...ids]);
-		pendingIds = ids;
-		flushSync();
-		markReadForm?.requestSubmit();
+		void fetch('/notifications', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ ids })
+		});
 	}
 
 	onMount(() => {
@@ -66,18 +65,6 @@
 <svelte:head>
 	<title>Notifications — Phasma</title>
 </svelte:head>
-
-<form
-	bind:this={markReadForm}
-	method="POST"
-	action="?/markRead"
-	class="hidden"
-	use:enhance={() => async () => {}}
->
-	{#each pendingIds as id (id)}
-		<input type="hidden" name="id" value={id} />
-	{/each}
-</form>
 
 <div class="mx-auto flex max-w-xl flex-col gap-4">
 	<h1 class="text-2xl font-black text-base-content">Notifications</h1>
