@@ -119,8 +119,8 @@ script:
 
 The script builds the Docker images, creates the Kubernetes namespace (`phasma`
 by default) and resources, waits for pods to be ready, and starts a port-forward
-to the frontend at http://localhost:8080/. It is idempotent and safe to re-run
-for updates.
+to the frontend at http://phasma.localhost:8080/. It is idempotent and safe to
+re-run for updates.
 
 ## Cleanup
 

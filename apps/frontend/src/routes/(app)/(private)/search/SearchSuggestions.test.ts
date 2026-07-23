@@ -82,10 +82,11 @@ describe('SearchSuggestions mouse handling', () => {
 	it('records the suggestion and closes the dropdown when a row is clicked', () => {
 		const onclose = vi.fn();
 		const el = render({ users, hashtags: [], onclose });
+		const link = el.querySelector('a');
+		expect(link).not.toBeNull();
 
-		el.querySelector('a')?.dispatchEvent(
-			new MouseEvent('click', { bubbles: true, cancelable: true })
-		);
+		link?.addEventListener('click', (event) => event.preventDefault(), { once: true });
+		link?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 		flushSync();
 
 		expect(recordRecentSearch).toHaveBeenCalledWith('users', 'alice');
