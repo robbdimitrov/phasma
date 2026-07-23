@@ -4,8 +4,7 @@ import type { UserSuggestion, HashtagSuggestion } from '$lib/server/api/search';
 export const SUGGEST_DISPLAY_LIMIT = 10;
 
 export type SuggestionItem =
-	| { type: 'users'; item: UserSuggestion }
-	| { type: 'hashtags'; item: HashtagSuggestion };
+	{ type: 'users'; item: UserSuggestion } | { type: 'hashtags'; item: HashtagSuggestion };
 
 // Merges the two already-fetched, already-ranked typeahead arrays into one
 // alternating, capped list. A slot landing on an exhausted queue is simply

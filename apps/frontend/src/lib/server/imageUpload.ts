@@ -2,8 +2,7 @@ const maxImageUploadBytes = 1024 * 1024;
 const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 type ImageUploadValidation =
-	| { ok: true; file: File }
-	| { ok: false; status: 400 | 413; error: string };
+	{ ok: true; file: File } | { ok: false; status: 400 | 413; error: string };
 
 export function validateImageUpload(file: unknown, requiredMessage: string): ImageUploadValidation {
 	if (!(file instanceof File) || file.size === 0) {
