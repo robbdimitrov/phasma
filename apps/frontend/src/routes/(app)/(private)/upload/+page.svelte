@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { SquarePlus } from '@lucide/svelte';
 	import { resizeImageForUpload, supportedUploadMimeTypes } from '$lib/utils/image-resizer';
+	import { pageTitle } from '$lib/pageTitle';
 	import type { ActionData } from './$types';
 
 	const MAX_DESCRIPTION = 1000;
@@ -52,7 +53,7 @@
 </script>
 
 <svelte:head>
-	<title>Create Post — Phasma</title>
+	<title>{pageTitle('Create Post')}</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl">

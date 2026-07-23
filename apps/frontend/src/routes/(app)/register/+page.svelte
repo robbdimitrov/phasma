@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
+	import { pageTitle } from '$lib/pageTitle';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
@@ -10,7 +11,7 @@
 </script>
 
 <svelte:head>
-	<title>Register — Phasma</title>
+	<title>{pageTitle('Register')}</title>
 </svelte:head>
 
 <section

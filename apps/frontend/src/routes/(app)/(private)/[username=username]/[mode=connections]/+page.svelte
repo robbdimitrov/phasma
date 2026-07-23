@@ -7,6 +7,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import UserLink from '$lib/components/UserLink.svelte';
+	import { pageTitle } from '$lib/pageTitle';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import type { PageData } from './$types';
 	import type { User } from '$lib/types';
@@ -34,7 +35,16 @@
 			? 'Followers will appear here as people follow this profile.'
 			: 'Profiles this user follows will appear here.'
 	);
+	const titleSegment = $derived(
+		data.mode === 'followers'
+			? `Followers for @${profileUser.username}`
+			: `Following by @${profileUser.username}`
+	);
 </script>
+
+<svelte:head>
+	<title>{pageTitle(titleSegment)}</title>
+</svelte:head>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-6">
 	<ProfileHeader

@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Monitor, Trash2 } from '@lucide/svelte';
+	import { pageTitle } from '$lib/pageTitle';
 	import type { Session } from '$lib/types';
 	import type { ActionData, PageData } from './$types';
 
@@ -24,7 +25,7 @@
 </script>
 
 <svelte:head>
-	<title>Active Sessions — Phasma</title>
+	<title>{pageTitle('Active Sessions')}</title>
 </svelte:head>
 
 <div

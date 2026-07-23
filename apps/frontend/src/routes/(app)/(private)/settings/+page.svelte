@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { ChevronRight } from '@lucide/svelte';
+	import { pageTitle } from '$lib/pageTitle';
 	import { getThemeContext } from '$lib/theme.svelte';
 	import type { ThemeMode } from '$lib/theme';
 
@@ -18,7 +19,7 @@
 </script>
 
 <svelte:head>
-	<title>Settings — Phasma</title>
+	<title>{pageTitle('Settings')}</title>
 </svelte:head>
 
 <div class="mx-auto max-w-xl">

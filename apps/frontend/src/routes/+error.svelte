@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { pageTitle } from '$lib/pageTitle';
 </script>
 
 <svelte:head>
-	<title>{page.status} — Phasma</title>
+	<title>{pageTitle(String(page.status))}</title>
 </svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-base-200 p-4">

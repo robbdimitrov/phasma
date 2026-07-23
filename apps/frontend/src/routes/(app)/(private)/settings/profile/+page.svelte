@@ -4,6 +4,7 @@
 	import { ArrowLeft, Camera, Trash2 } from '@lucide/svelte';
 	import { resizeImageForUpload } from '$lib/utils/image-resizer';
 	import { imageUrl } from '$lib/utils/imageUrl';
+	import { pageTitle } from '$lib/pageTitle';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -61,6 +62,10 @@
 		avatarPreview || (!removeAvatar ? imageUrl(user.avatar) : '/assets/placeholder.svg')
 	);
 </script>
+
+<svelte:head>
+	<title>{pageTitle('Edit Profile')}</title>
+</svelte:head>
 
 <div
 	class="rounded-2xl border border-base-300 bg-base-100 text-base-content mx-auto flex max-w-xl flex-col gap-6 p-6 shadow-lg shadow-slate-900/5 sm:px-8"

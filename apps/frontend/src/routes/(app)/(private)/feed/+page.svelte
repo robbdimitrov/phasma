@@ -3,6 +3,7 @@
 	import PostCard from '$lib/components/PostCard.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
+	import { pageTitle } from '$lib/pageTitle';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import type { PageData } from './$types';
 	import type { Post } from '$lib/types';
@@ -16,7 +17,7 @@
 </script>
 
 <svelte:head>
-	<title>Feed — Phasma</title>
+	<title>{pageTitle('Feed')}</title>
 </svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col items-center gap-6">

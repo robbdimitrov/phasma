@@ -48,6 +48,11 @@ prevent FOUC.
 | `--animate-like-pop`   | `like-pop 220ms ease-out`           | Heart like animation               |
 | `--animate-like-burst` | `like-burst 700ms ease-out`         | Double-click-to-like image overlay |
 
+## Browser Titles
+
+User-facing pages use `Page - Phasma` document titles. The root redirect has
+no user-visible title; home/feed uses `Feed - Phasma`.
+
 ## Component Inventory
 
 ### `Navbar`
@@ -62,7 +67,8 @@ small `bg-primary` dot when `unreadCount > 0`; it does not show a count.
 Each row's leading icon is color-coded by notification type: `like` uses a
 rose `Heart` icon (`bg-rose-500/20 text-rose-500`), `comment` and `follow` use
 a primary-tinted `MessageCircle`/`UserPlus` icon (`bg-primary/20 text-primary`).
-Unread rows are marked with a small `bg-primary` dot, not a background fade.
+Read notifications keep the same type-colored badge and use subtle text dimming;
+the small `bg-primary` dot is the only explicit unread-state marker.
 
 ### `Avatar`
 

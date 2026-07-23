@@ -6,6 +6,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
+	import { pageTitle } from '$lib/pageTitle';
 	import { recordRecentSearch } from '$lib/utils/recentSearch';
 	import RecentSearches from './RecentSearches.svelte';
 	import SearchDiscovery from './SearchDiscovery.svelte';
@@ -190,7 +191,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.q ? `"${data.q}" — Search` : 'Search'} — Phasma</title>
+	<title>{pageTitle(data.q ? `"${data.q}" - Search` : 'Search')}</title>
 </svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col gap-6">

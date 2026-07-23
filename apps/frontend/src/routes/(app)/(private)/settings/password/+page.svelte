@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft } from '@lucide/svelte';
+	import { pageTitle } from '$lib/pageTitle';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
@@ -15,6 +16,10 @@
 	let submitting = $state(false);
 	let errorMessage = $state(initialFormError());
 </script>
+
+<svelte:head>
+	<title>{pageTitle('Change Password')}</title>
+</svelte:head>
 
 <div
 	class="rounded-2xl border border-base-300 bg-base-100 text-base-content mx-auto flex max-w-xl flex-col gap-6 p-6 shadow-lg shadow-slate-900/5 sm:px-8"

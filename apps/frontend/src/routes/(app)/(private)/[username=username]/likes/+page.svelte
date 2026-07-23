@@ -3,6 +3,7 @@
 	import ProfileHeader from '$lib/components/ProfileHeader.svelte';
 	import Thumbnail from '$lib/components/Thumbnail.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { pageTitle } from '$lib/pageTitle';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
 	import type { PageData } from './$types';
@@ -30,7 +31,7 @@
 </script>
 
 <svelte:head>
-	<title>@{data.profileUser.username} — Phasma</title>
+	<title>{pageTitle(`Liked posts by @${data.profileUser.username}`)}</title>
 </svelte:head>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-6">

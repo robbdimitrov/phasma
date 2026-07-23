@@ -2,12 +2,13 @@
 	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Heart, MessageCircle, UserPlus } from '@lucide/svelte';
+	import { Heart, MessageCircle, UserPlus, type LucideIcon } from '@lucide/svelte';
 	import { createPagination } from '$lib/createPagination.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadMoreButton from '$lib/components/LoadMoreButton.svelte';
 	import { fetchCursorPage } from '$lib/utils/clientFetch';
+	import { pageTitle } from '$lib/pageTitle';
 	import { relativeDate } from '$lib/utils/relativeDate';
 	import type { PageData } from './$types';
 	import type { Notification, NotificationType } from '$lib/types';
@@ -43,27 +44,33 @@
 		}
 	);
 
-	const typeLabel: Record<NotificationType, string> = {
-		like: 'liked your post',
-		comment: 'commented on your post',
-		follow: 'started following you'
-	};
+	interface NotificationTypeMeta {
+		label: string;
+		icon: LucideIcon;
+		badgeClass: string;
+	}
 
-	const typeIcon: Record<NotificationType, typeof Heart> = {
-		like: Heart,
-		comment: MessageCircle,
-		follow: UserPlus
-	};
-
-	const typeBadge: Record<NotificationType, string> = {
-		like: 'bg-rose-500/20 text-rose-500',
-		comment: 'bg-primary/20 text-primary',
-		follow: 'bg-primary/20 text-primary'
+	const notificationTypeMeta: Record<NotificationType, NotificationTypeMeta> = {
+		like: {
+			label: 'liked your post',
+			icon: Heart,
+			badgeClass: 'bg-rose-500/20 text-rose-500'
+		},
+		comment: {
+			label: 'commented on your post',
+			icon: MessageCircle,
+			badgeClass: 'bg-primary/20 text-primary'
+		},
+		follow: {
+			label: 'started following you',
+			icon: UserPlus,
+			badgeClass: 'bg-primary/20 text-primary'
+		}
 	};
 </script>
 
 <svelte:head>
-	<title>Notifications — Phasma</title>
+	<title>{pageTitle('Notifications')}</title>
 </svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col gap-4">
@@ -78,7 +85,8 @@
 	{:else}
 		<ul class="flex flex-col gap-2" aria-label="Notifications">
 			{#each pagination.items as notification (notification.id)}
-				{@const Icon = typeIcon[notification.type]}
+				{@const meta = notificationTypeMeta[notification.type]}
+				{@const Icon = meta.icon}
 				{@const isRead = notification.read || locallyRead.has(notification.id)}
 				<li
 					class="flex items-center gap-3 rounded-2xl border border-base-300 bg-base-100 px-4 py-3 shadow-sm shadow-slate-900/5 transition-colors"
@@ -90,9 +98,7 @@
 							size="h-9 w-9"
 						/>
 						<span
-							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {isRead
-								? 'bg-base-200 text-base-content'
-								: typeBadge[notification.type]}"
+							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {meta.badgeClass}"
 							aria-hidden="true"
 						>
 							<Icon class="h-2.5 w-2.5" />
@@ -107,7 +113,7 @@
 							<a href={resolve(`/@${notification.actorUsername}`)} class="hover:underline"
 								>{notification.actorName || notification.actorUsername}</a
 							>
-							{typeLabel[notification.type]}
+							{meta.label}
 						</p>
 						<time
 							class="text-xs text-base-content/50"
