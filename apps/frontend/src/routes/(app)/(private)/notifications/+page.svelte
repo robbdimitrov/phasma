@@ -56,9 +56,9 @@
 	};
 
 	const typeBadge: Record<NotificationType, string> = {
-		like: 'bg-rose-500/10 text-rose-500',
-		comment: 'bg-primary/10 text-primary',
-		follow: 'bg-primary/10 text-primary'
+		like: 'bg-rose-500/20 text-rose-500',
+		comment: 'bg-primary/20 text-primary',
+		follow: 'bg-primary/20 text-primary'
 	};
 </script>
 
@@ -93,6 +93,7 @@
 							class="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full border border-base-100 {isRead
 								? 'bg-base-200 text-base-content'
 								: typeBadge[notification.type]}"
+							aria-hidden="true"
 						>
 							<Icon class="h-2.5 w-2.5" />
 						</span>

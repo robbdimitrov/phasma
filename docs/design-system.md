@@ -60,8 +60,8 @@ small `bg-primary` dot when `unreadCount > 0`; it does not show a count.
 ### Notifications List (`/notifications`)
 
 Each row's leading icon is color-coded by notification type: `like` uses a
-rose `Heart` icon (`bg-rose-500/10 text-rose-500`), `comment` and `follow` use
-a primary-tinted `MessageCircle`/`UserPlus` icon (`bg-primary/10 text-primary`).
+rose `Heart` icon (`bg-rose-500/20 text-rose-500`), `comment` and `follow` use
+a primary-tinted `MessageCircle`/`UserPlus` icon (`bg-primary/20 text-primary`).
 Unread rows are marked with a small `bg-primary` dot, not a background fade.
 
 ### `Avatar`
