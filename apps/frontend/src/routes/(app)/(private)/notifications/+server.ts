@@ -25,6 +25,6 @@ export const POST: RequestHandler = async ({ request, fetch, cookies }) => {
 		.filter((id): id is string => typeof id === 'string')
 		.slice(0, MAX_MARK_READ_IDS);
 	const client = apiClient({ fetch, cookies });
-	void Promise.allSettled(ids.map((id) => markNotificationRead(client, id)));
+	await Promise.allSettled(ids.map((id) => markNotificationRead(client, id)));
 	return json({ success: true });
 };

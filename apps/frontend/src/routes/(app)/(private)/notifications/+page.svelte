@@ -19,10 +19,11 @@
 	let locallyRead = $state(new Set<string>());
 
 	// Fires from mount and each "Load More" page, never a GET, so no passive fetch can trigger it.
-	function markUnreadIds(ids: string[]) {
+	// Awaited by callers so the unread-count refresh below never races the backend write.
+	async function markUnreadIds(ids: string[]) {
 		if (ids.length === 0) return;
 		locallyRead = new Set([...locallyRead, ...ids]);
-		void fetch('/notifications', {
+		await fetch('/notifications', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ ids })
@@ -30,16 +31,18 @@
 	}
 
 	onMount(() => {
-		invalidate('app:unreadCount');
-		markUnreadIds(data.notifications.filter((n) => !n.read).map((n) => n.id));
+		void (async () => {
+			await markUnreadIds(data.notifications.filter((n) => !n.read).map((n) => n.id));
+			invalidate('app:unreadCount');
+		})();
 	});
 
 	const pagination = createPagination(
 		() => ({ items: data.notifications, nextCursor: data.nextCursor }),
 		async (cursor) => {
 			const page = await fetchCursorPage<Notification>(fetch, '/notifications', cursor);
+			await markUnreadIds(page.items.filter((n) => !n.read).map((n) => n.id));
 			invalidate('app:unreadCount');
-			markUnreadIds(page.items.filter((n) => !n.read).map((n) => n.id));
 			return page;
 		}
 	);
