@@ -57,17 +57,17 @@
 		like: {
 			label: 'liked your post',
 			icon: Heart,
-			badgeClass: 'bg-rose-500/20 text-rose-500'
+			badgeClass: 'bg-rose-500 text-white'
 		},
 		comment: {
 			label: 'commented on your post',
 			icon: MessageCircle,
-			badgeClass: 'bg-primary/20 text-primary'
+			badgeClass: 'bg-primary text-primary-content'
 		},
 		follow: {
 			label: 'started following you',
 			icon: UserPlus,
-			badgeClass: 'bg-primary/20 text-primary'
+			badgeClass: 'bg-primary text-primary-content'
 		}
 	};
 </script>

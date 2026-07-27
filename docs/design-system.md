@@ -65,8 +65,10 @@ small `bg-primary` dot when `unreadCount > 0`; it does not show a count.
 ### Notifications List (`/notifications`)
 
 Each row's leading icon is color-coded by notification type: `like` uses a
-rose `Heart` icon (`bg-rose-500/20 text-rose-500`), `comment` and `follow` use
-a primary-tinted `MessageCircle`/`UserPlus` icon (`bg-primary/20 text-primary`).
+solid rose `Heart` icon (`bg-rose-500 text-white`), `comment` and `follow` use
+a solid primary `MessageCircle`/`UserPlus` icon (`bg-primary text-primary-content`).
+A solid fill keeps the badge legible over the avatar underneath it; a
+translucent tint was tried twice before and read as barely visible.
 Read notifications keep the same type-colored badge and use subtle text dimming;
 the small `bg-primary` dot is the only explicit unread-state marker.
 
