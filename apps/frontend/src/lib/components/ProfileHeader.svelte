@@ -162,7 +162,7 @@
 			{/each}
 		</div>
 
-		<div class="w-full md:hidden">
+		<div class="flex w-full justify-center md:hidden">
 			{@render ctaButton()}
 		</div>
 	</div>
