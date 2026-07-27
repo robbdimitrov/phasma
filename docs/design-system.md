@@ -124,7 +124,12 @@ Horizontal card with avatar, display name, `@username`, bio (linkified),
 post/like/follower/following counts linking to the relevant pages; likes and
 connection-list links require a signed-in session. Current user sees Settings
 link; others see Follow/Unfollow button with optimistic state and rollback.
-Takes a required `active: 'posts' | 'likes' | 'followers' |
+The CTA markup is a single `{#snippet}` rendered twice — inline next to the
+name/username at `md:` and up, full-width below the stats row under `md:` —
+so mobile reads name → username → bio → stats → CTA instead of interrupting
+the text flow. The row and the bio/stats alignment both switch at the same
+`md:` breakpoint to avoid a mismatched in-between state. Takes a required
+`active: 'posts' | 'likes' | 'followers' |
 'following'` prop; the matching stats-row link gets a persistent (non-hover)
 primary text color so it reads as the current section, matching the idle
 stats' bold-number/muted-label contrast (full `text-primary` on the count,
