@@ -25,6 +25,7 @@ restart statefulset search
 restart statefulset storage
 
 check_deployment backend
+check_deployment connect
 check_deployment frontend
 
 echo "dependency restart drill completed for namespace $namespace"

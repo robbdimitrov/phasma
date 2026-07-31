@@ -266,9 +266,9 @@ with labels `app="phasma"`, `service="backend"`, and `pipeline`.
 
 Run `scripts/failure-drill.sh` after changing dependency clients, probes, or
 background pipeline code. The script restarts PostgreSQL, cache, broker, search,
-and storage workloads, then waits for backend and frontend deployments to remain
-rolled out. Override the namespace and wait budget with `NAMESPACE=...` and
-`TIMEOUT=...`.
+and storage workloads, then waits for backend, connect, and frontend
+deployments to remain rolled out. Override the namespace and wait budget with
+`NAMESPACE=...` and `TIMEOUT=...`.
 
 ## Environment Variables (backend)
 
